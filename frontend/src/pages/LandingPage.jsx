@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import mainfront from "../images/mainfront.jpg";
 import vision from "../images/vision.jpg";
@@ -18,10 +18,12 @@ const LandingPage = () => {
       <header className="absolute top-0 left-0 right-0 z-20 px-2 py-6 sm:px-4">
         <div className="flex justify-between items-center w-full"> {/* Ensure full width */}
           {/* Logo and School Name - Top Left */}
-          <div className="flex items-center gap-3"> {/* Reduced gap slightly */}
-            <img src={logo} alt="School Logo" className="h-10 w-10 sm:h-12 sm:w-12" /> {/* Further reduced logo size */}
-            {/* Further reduced text size */}
-            <span className="text-xl sm:text-2xl font-semibold text-[#170F49] font-baskervville">St. Martha's Special School</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img src={logo} alt="School Logo" className="h-14 w-14 sm:h-16 sm:w-16 object-contain" />
+            <div className="flex flex-col justify-center leading-tight ml-1 sm:ml-2">
+              <span className="text-base sm:text-xl md:text-2xl font-semibold text-[#170F49] font-baskervville text-left">St. Martha's Special School</span>
+              <span className="text-xs sm:text-sm md:text-lg font-semibold text-[#170F49] font-baskervville text-left md:mt-0 -mt-1">For The Mentally Challenged</span>
+            </div>
           </div>
 
           {/* Login Button - Top Right - Final Adjusted Style */}
@@ -180,42 +182,19 @@ const LandingPage = () => {
             <div className="flex flex-col">
               <h3 className="text-3xl font-bold text-[#170F49] mb-6 text-left">Contact Us</h3>
               <div className="text-[#6F6C90] text-base space-y-3">
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z M8 5a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
-                </svg>
-                <span>Address: Kalpana road Chittattumukku P.O Menamkulam</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                </svg>
-                <span>Phone: 9388084403, 9388084401</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                </svg>
-                <span>Email: stmarthaspecialschool@gmail.com</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"/>
-                </svg>
-                <span>WhatsApp: 9388084403</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M8.29 14.29a1 1 0 001.41 1.41l5-5a1 1 0 000-1.41l-5-5a1 1 0 00-1.41 1.41L12.59 10l-4.3 4.29z"/>
-                </svg>
-                <span>Facebook: stmarthaspecialschool@gmail.com</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z"/>
-                </svg>
-                <span>Telegram: 9388084403</span>
+              <div className="grid grid-cols-[32px_1fr] gap-x-3 gap-y-3 mt-2">
+                <div className="flex items-center justify-center h-8"><i className="fa-solid fa-location-dot fa-lg text-[#6F6C90]"></i></div>
+                <div className="flex items-center h-8">Kalpana Road, Chittattumukku P.O Menamkulam, 695301</div>
+                <div className="flex items-center justify-center h-8"><svg className="w-5 h-5 text-[#6F6C90]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg></div>
+                <div className="flex items-center h-8">9388084403, 9388084401</div>
+                <div className="flex items-center justify-center h-8"><svg className="w-6 h-6 text-[#6F6C90]" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg></div>
+                <div className="flex items-center h-8">stmarthaspecialschool@gmail.com</div>
+                <div className="flex items-center justify-center h-8"><i className="fa-brands fa-whatsapp fa-lg text-[#6F6C90]"></i></div>
+                <div className="flex items-center h-8">9388084403</div>
+                <div className="flex items-center justify-center h-8"><i className="fa-brands fa-facebook fa-lg text-[#6F6C90]"></i></div>
+                <div className="flex items-center h-8">stmarthaspecialschool@gmail.com</div>
+                <div className="flex items-center justify-center h-8"><i className="fa-brands fa-telegram fa-lg text-[#6F6C90]"></i></div>
+                <div className="flex items-center h-8">9388084403</div>
               </div>
             </div>
             </div>
@@ -223,11 +202,42 @@ const LandingPage = () => {
         </div>
         <div className="text-center mt-8 text-[#6F6C90] text-sm border-t border-white/20 pt-4">
           <p>© 2025 St. Martha's Special School. All rights reserved.</p>
-          <p className="mt-2">Providing Quality Special Education Since 1960</p>
+          <p className="mt-2">Providing Quality Special Education Since 2005</p>
         </div>
       </footer>
 
+      <ScrollToTopButton />
     </div>
+  );
+};
+
+const ScrollToTopButton = () => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setVisible(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <button
+      onClick={scrollToTop}
+      title="Back to Top"
+      className={`fixed z-50 bottom-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-lg transition-all duration-300
+        ${visible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        hover:scale-110 hover:brightness-110 focus:outline-none`}
+      style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+      aria-label="Back to Top"
+    >
+      <i className="fa-solid fa-arrow-up text-[#3730a3] text-lg"></i>
+    </button>
   );
 };
 
