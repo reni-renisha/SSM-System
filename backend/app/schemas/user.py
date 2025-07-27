@@ -7,7 +7,7 @@ class UserBase(BaseModel):
     email: EmailStr
     is_active: bool = True
     is_superuser: bool = False
-    role: UserRole = UserRole.TEACHER
+    role: UserRole = UserRole.ADMIN
 
 class UserCreate(UserBase):
     password: str
