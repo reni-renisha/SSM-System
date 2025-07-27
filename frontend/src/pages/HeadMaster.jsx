@@ -7,10 +7,16 @@ const HeadMaster = () => {
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
   const [isSearchFloating, setIsSearchFloating] = useState(false);
-  const [activeTab, setActiveTab] = useState("students");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Get the saved tab from localStorage, default to "students"
+    return localStorage.getItem('headmistressActiveTab') || "students";
+  });
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState(null);
+  const [teacherSearch, setTeacherSearch] = useState("");
 
   // Add scroll event listener
   useEffect(() => {
@@ -31,7 +37,11 @@ const HeadMaster = () => {
     const fetchTeachers = async () => {
       try {
         const response = await axios.get('http://localhost:8000/api/v1/teachers/');
-        setTeachers(response.data);
+        // Sort teachers alphabetically by name
+        const sortedTeachers = response.data.sort((a, b) => 
+          a.name.localeCompare(b.name)
+        );
+        setTeachers(sortedTeachers);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching teachers:', error);
@@ -51,27 +61,65 @@ const HeadMaster = () => {
 
   // Add this function to handle navigation to AddStudent
   const handleAddStudent = () => {
+    // Don't change tab, maintain current state
     navigate('/add-student');
   };
 
   // Add this function to handle navigation to AddTeacher
   const handleAddTeacher = () => {
+    // Don't change tab, maintain current state
     navigate('/add-teacher');
   };
 
   // Add this function to handle navigation to StudentPage
   const handleStudentClick = (studentId) => {
+    // Don't change tab, maintain current state
     navigate(`/student/${studentId}`);
   };
 
   // Add this function to handle navigation to TeacherPage
   const handleTeacherClick = (teacherId) => {
+    // Don't change tab, maintain current state
     navigate(`/teacher/${teacherId}`);
   };
 
   // Add this function to handle navigation to AddUser
   const handleAddUserClick = () => {
     navigate('/add-user');
+  };
+
+  // Add this function to handle teacher deletion
+  const handleDeleteTeacher = async (teacherId, teacherName) => {
+    // Show custom confirmation modal
+    setTeacherToDelete({ id: teacherId, name: teacherName });
+    setShowDeleteConfirm(true);
+  };
+
+  // Function to confirm deletion
+  const confirmDelete = async () => {
+    if (!teacherToDelete) return;
+    
+    try {
+      const response = await axios.delete(`http://localhost:8000/api/v1/teachers/${teacherToDelete.id}`);
+      
+      if (response.status === 200 || response.status === 204) {
+        // Remove the teacher from the local state
+        setTeachers(teachers.filter(teacher => teacher.id !== teacherToDelete.id));
+        alert(`${teacherToDelete.name} has been successfully deleted.`);
+      }
+    } catch (error) {
+      console.error('Error deleting teacher:', error);
+      alert('Failed to delete teacher. Please try again.');
+    } finally {
+      setShowDeleteConfirm(false);
+      setTeacherToDelete(null);
+    }
+  };
+
+  // Function to cancel deletion
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setTeacherToDelete(null);
   };
 
   return (
@@ -121,7 +169,7 @@ const HeadMaster = () => {
       {/* Header Text */}
       <div className="text-center mb-12 z-10">
         <h1 className="text-4xl font-bold text-[#170F49] font-baskervville">
-          Headmaster's Page
+          Headmistress's Page
         </h1>
         <p className="text-[#6F6C8F] mt-2">
           Manage Students and Teachers
@@ -184,7 +232,10 @@ const HeadMaster = () => {
             
             {/* Students Tab */}
             <button
-              onClick={() => setActiveTab("students")}
+              onClick={() => {
+                setActiveTab("students");
+                localStorage.setItem('headmistressActiveTab', "students");
+              }}
               className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 ${
                 activeTab === "students"
                   ? "text-white scale-105"
@@ -196,7 +247,10 @@ const HeadMaster = () => {
             
             {/* Teachers Tab */}
             <button
-              onClick={() => setActiveTab("teachers")}
+              onClick={() => {
+                setActiveTab("teachers");
+                localStorage.setItem('headmistressActiveTab', "teachers");
+              }}
               className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 ${
                 activeTab === "teachers"
                   ? "text-white scale-105"
@@ -465,6 +519,8 @@ const HeadMaster = () => {
                     type="text"
                     placeholder="Search teachers..."
                     className="w-[443px] pl-10 pr-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
+                    value={teacherSearch}
+                    onChange={e => setTeacherSearch(e.target.value)}
                   />
                   <svg
                     className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -499,39 +555,65 @@ const HeadMaster = () => {
 
               {/* Teachers List */}
               <div className="grid grid-cols-1 gap-4 px-4">
-                {teachers.map((teacher) => (
-                  <div 
-                    key={teacher.id}
-                    onClick={() => handleTeacherClick(teacher.id)}
-                    className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-4 text-[#170F49]">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden">
-                        <img 
-                          src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
-                          alt="Teacher"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-[#170F49]">{teacher.name}</h3>
-                        <div className="space-y-1">
-                          <p className="text-sm text-[#6F6C8F]">
-                            <span className="font-medium">Mobile:</span> {teacher.mobile_number}
-                          </p>
-                          <p className="text-sm text-[#6F6C8F]">
-                            <span className="font-medium">Qualifications:</span> {teacher.qualifications_details}
-                          </p>
+                {teachers
+                  .filter(teacher =>
+                    teacher.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                    (teacher.qualifications_details && teacher.qualifications_details.toLowerCase().includes(teacherSearch.toLowerCase())) ||
+                    (teacher.mobile_number && teacher.mobile_number.includes(teacherSearch))
+                  )
+                  .map((teacher) => (
+                    <div 
+                      key={teacher.id}
+                      onClick={() => handleTeacherClick(teacher.id)}
+                      className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-4 text-[#170F49]">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden">
+                          <img 
+                            src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
+                            alt="Teacher"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-[#170F49]">
+                            {teacher.name}
+                          </h3>
+                          <div className="space-y-1">
+                            <p className="text-sm text-[#6F6C8F]">
+                              <span className="font-medium">Mobile:</span> {teacher.mobile_number}
+                            </p>
+                            <p className="text-sm text-[#6F6C8F]">
+                              <span className="font-medium">Qualifications:</span> {teacher.qualifications_details}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => handleTeacherClick(teacher.id)}
+                            className="text-[#6366f1] hover:text-[#4f46e5] transition-colors p-2 rounded-lg hover:bg-[#6366f1]/10"
+                            title="View Teacher Details"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTeacher(teacher.id, teacher.name);
+                            }}
+                            className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50"
+                            title="Delete Teacher"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                      <button className="text-[#6366f1] hover:text-[#4f46e5] transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </>
           )}
@@ -655,6 +737,50 @@ const HeadMaster = () => {
           animation: float-particle 5s infinite ease-in-out;
         }
       `}</style>
+
+      {/* Custom Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
+            <div className="text-center">
+              {/* Warning Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Delete Teacher
+              </h3>
+              
+              {/* Message */}
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold text-[#170F49]">{teacherToDelete?.name}</span>? 
+                <br />
+                <span className="text-red-600 font-medium">This action cannot be undone.</span>
+              </p>
+              
+              {/* Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors duration-200 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

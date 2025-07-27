@@ -18,6 +18,7 @@ const AddTeacher = () => {
     rci_renewal_date: "",
     qualifications_details: "",
     category: "",
+    email: "",
   });
 
   const handleInputChange = (e) => {
@@ -173,6 +174,23 @@ const AddTeacher = () => {
                   required
                 />
               </div>
+            </div>
+            <div className="space-y-2 w-full">
+              <label className="block text-sm font-medium text-[#170F49] ml-4">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={teacherData.email}
+                onChange={handleInputChange}
+                placeholder="Enter Email"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                required
+                pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                onInvalid={e => e.target.setCustomValidity('Please enter a valid email address (username@domain.extension) with no spaces.')}
+                onInput={e => e.target.setCustomValidity('')}
+              />
             </div>
 
             <div className="space-y-2 w-full">

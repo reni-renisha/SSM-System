@@ -7,6 +7,8 @@ const TeacherPage = () => {
   const { id } = useParams();
   const [teacher, setTeacher] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
 
   useEffect(() => {
     const fetchTeacher = async () => {
@@ -53,6 +55,70 @@ const TeacherPage = () => {
 
     fetchTeacher();
   }, [id]);
+
+  // Function to handle edit mode toggle
+  const handleEditToggle = () => {
+    if (!isEditing) {
+      // Enter edit mode - populate form with current data
+      setEditFormData({
+        name: teacher.name,
+        mobile_number: teacher.mobile,
+        email: teacher.email,
+        address: teacher.address,
+        qualifications_details: teacher.qualifications,
+        rci_number: teacher.rciNumber,
+        rci_renewal_date: teacher.rciRenewalDate,
+        blood_group: teacher.bloodGroup,
+        category: teacher.category,
+        aadhar_number: teacher.aadhar,
+        religion: teacher.religion,
+        caste: teacher.caste,
+        gender: teacher.gender,
+        date_of_birth: teacher.dob
+      });
+    }
+    setIsEditing(!isEditing);
+  };
+
+  // Function to save edited data
+  const handleSaveEdit = async () => {
+    try {
+      const response = await axios.put(`http://localhost:8000/api/v1/teachers/${id}`, editFormData);
+      
+      if (response.status === 200) {
+        // Update the local teacher state with new data
+        setTeacher({
+          ...teacher,
+          name: editFormData.name,
+          mobile: editFormData.mobile_number,
+          email: editFormData.email,
+          address: editFormData.address,
+          qualifications: editFormData.qualifications_details,
+          rciNumber: editFormData.rci_number,
+          rciRenewalDate: editFormData.rci_renewal_date,
+          bloodGroup: editFormData.blood_group,
+          category: editFormData.category,
+          aadhar: editFormData.aadhar_number,
+          religion: editFormData.religion,
+          caste: editFormData.caste,
+          gender: editFormData.gender,
+          dob: editFormData.date_of_birth
+        });
+        
+        setIsEditing(false);
+        alert('Teacher details updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating teacher:', error);
+      alert('Failed to update teacher details. Please try again.');
+    }
+  };
+
+  // Function to cancel editing
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditFormData({});
+  };
 
   const getTeacherData = (teacherId) => {
     // Mock data for different teachers
@@ -253,7 +319,16 @@ const TeacherPage = () => {
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pl-8 md:pl-12">
                   <div>
                     <p className="text-sm text-[#6F6C90]">Full Name</p>
-                    <p className="text-[#170F49] font-medium">{teacher.name}</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editFormData.name || ''}
+                        onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{teacher.name}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Teacher ID</p>
@@ -261,19 +336,59 @@ const TeacherPage = () => {
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Date of Birth</p>
-                    <p className="text-[#170F49] font-medium">{teacher.dob}</p>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editFormData.date_of_birth || ''}
+                        onChange={(e) => setEditFormData({...editFormData, date_of_birth: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{teacher.dob}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Gender</p>
-                    <p className="text-[#170F49] font-medium">{teacher.gender}</p>
+                    {isEditing ? (
+                      <select
+                        value={editFormData.gender || ''}
+                        onChange={(e) => setEditFormData({...editFormData, gender: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{teacher.gender}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Religion</p>
-                    <p className="text-[#170F49] font-medium">{teacher.religion}</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editFormData.religion || ''}
+                        onChange={(e) => setEditFormData({...editFormData, religion: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{teacher.religion}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Caste</p>
-                    <p className="text-[#170F49] font-medium">{teacher.caste}</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editFormData.caste || ''}
+                        onChange={(e) => setEditFormData({...editFormData, caste: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{teacher.caste}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -285,15 +400,42 @@ const TeacherPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                 <div>
                   <p className="text-sm text-[#6F6C90]">Mobile Number</p>
-                  <p className="text-[#170F49] font-medium">{teacher.mobile}</p>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      value={editFormData.mobile_number || ''}
+                      onChange={(e) => setEditFormData({...editFormData, mobile_number: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.mobile}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-[#6F6C90]">Email</p>
-                  <p className="text-[#170F49] font-medium">{teacher.email}</p>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={editFormData.email || ''}
+                      onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.email}</p>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <p className="text-sm text-[#6F6C90]">Address</p>
-                  <p className="text-[#170F49] font-medium">{teacher.address}</p>
+                  {isEditing ? (
+                    <textarea
+                      value={editFormData.address || ''}
+                      onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
+                      rows="3"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80 resize-none"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.address}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -323,15 +465,42 @@ const TeacherPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                 <div>
                   <p className="text-sm text-[#6F6C90]">RCI Number</p>
-                  <p className="text-[#170F49] font-medium">{teacher.rciNumber}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editFormData.rci_number || ''}
+                      onChange={(e) => setEditFormData({...editFormData, rci_number: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.rciNumber}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-[#6F6C90]">RCI Renewal Date</p>
-                  <p className="text-[#170F49] font-medium">{teacher.rciRenewalDate}</p>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={editFormData.rci_renewal_date || ''}
+                      onChange={(e) => setEditFormData({...editFormData, rci_renewal_date: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.rciRenewalDate}</p>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <p className="text-sm text-[#6F6C90]">Qualifications Details</p>
-                  <p className="text-[#170F49] font-medium">{teacher.qualifications}</p>
+                  {isEditing ? (
+                    <textarea
+                      value={editFormData.qualifications_details || ''}
+                      onChange={(e) => setEditFormData({...editFormData, qualifications_details: e.target.value})}
+                      rows="3"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80 resize-none"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{teacher.qualifications}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -497,12 +666,40 @@ const TeacherPage = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-4 mt-6 md:mt-8">
-            <button className="flex-1 bg-[#6366f1] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]">
-              Edit Details
-            </button>
-            <button className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200">
-              Download Profile
-            </button>
+            {isEditing ? (
+              <>
+                <button 
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-green-600 text-white py-4 rounded-2xl hover:bg-green-700 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Save Changes
+                </button>
+                <button 
+                  onClick={handleCancelEdit}
+                  className="flex-1 bg-gray-500 text-white py-4 rounded-2xl hover:bg-gray-600 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={handleEditToggle}
+                  className="flex-1 bg-[#6366f1] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  Edit Details
+                </button>
+                <button className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200">
+                  Download Profile
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
