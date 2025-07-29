@@ -209,7 +209,7 @@ const StudentPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f7f7f7]">
-        <div className="text-2xl text-[#6366f1]">Loading student information...</div>
+        <div className="text-2xl text-[#E38B52]">Loading student information...</div>
       </div>
     );
   }
@@ -237,10 +237,10 @@ const StudentPage = () => {
       </button>
 
       {/* Animated background blobs */}
-      <div className="absolute top-0 -left-40 w-[600px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
-      <div className="absolute -bottom-32 right-40 w-[600px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
-      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
-      <div className="absolute top-0 -left-40 w-[500px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
+      <div className="absolute top-0 -left-40 w-[600px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
+      <div className="absolute -bottom-32 right-40 w-[600px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
+      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
+      <div className="absolute top-0 -left-40 w-[500px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
       
       <div className="w-[90%] max-w-[1200px] mx-4 flex-1 flex flex-col">
         <h1 className="text-3xl font-bold text-[#170F49] mb-8 text-center font-baskervville">
@@ -252,11 +252,11 @@ const StudentPage = () => {
           <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-2 inline-flex gap-2 shadow-lg relative w-[372px]">
             {/* Active Tab Background */}
             <div
-              className="absolute h-[calc(100%-8px)] top-[4px] transition-all duration-300 ease-in-out rounded-xl bg-[#6366f1] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
+              className="absolute h-[calc(100%-8px)] top-[4px] transition-all duration-300 ease-in-out rounded-xl bg-[#E38B52] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
               style={{
                 left: activeTab === "student-details" ? "4px" : "188px",
                 width: "180px",
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                background: 'linear-gradient(135deg, #E38B52 0%, #E38B52 100%)',
               }}
             >
               {/* Animated particles */}
@@ -273,7 +273,7 @@ const StudentPage = () => {
               className={`w-[180px] px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 text-center whitespace-nowrap ${
                 activeTab === "student-details"
                   ? "text-white"
-                  : "text-[#170F49] hover:text-[#6366f1]"
+                  : "text-[#170F49] hover:text-[#E38B52]"
               }`}
             >
               Student Details
@@ -285,7 +285,7 @@ const StudentPage = () => {
               className={`w-[180px] px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 text-center whitespace-nowrap ${
                 activeTab === "case-record"
                   ? "text-white"
-                  : "text-[#170F49] hover:text-[#6366f1]"
+                  : "text-[#170F49] hover:text-[#E38B52]"
               }`}
             >
               Case Record
@@ -311,7 +311,7 @@ const StudentPage = () => {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <button className="text-sm text-[#6366f1] hover:text-[#4f46e5] transition-colors duration-200 flex items-center gap-1">
+                    <button className="text-sm text-[#E38B52] hover:text-[#E38B52]/90 transition-colors duration-200 flex items-center gap-1">
                       <svg 
                         width="16" 
                         height="16" 
@@ -415,7 +415,7 @@ const StudentPage = () => {
                 <h2 className="text-xl font-semibold text-[#170F49] mb-4">Family Information</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-white/50 rounded-2xl">
                   <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#6366f1]/10 mb-4">Father's Details</h3>
+                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Father's Details</h3>
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Name</p>
@@ -433,7 +433,7 @@ const StudentPage = () => {
                   </div>
                   
                   <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#6366f1]/10 mb-4">Mother's Details</h3>
+                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Mother's Details</h3>
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Name</p>
@@ -451,7 +451,7 @@ const StudentPage = () => {
                   </div>
                   
                   <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#6366f1]/10 mb-4">Guardian's Details</h3>
+                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Guardian's Details</h3>
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Name</p>
@@ -566,7 +566,7 @@ const StudentPage = () => {
                               cy="40"
                             />
                             <circle
-                              className="text-[#6366f1]"
+                              className="text-[#E38B52]"
                               strokeWidth="5"
                               strokeDasharray={220}
                               strokeDashoffset={66} // 220 - (220 * percentageComplete)
@@ -621,7 +621,7 @@ const StudentPage = () => {
                               cy="40"
                             />
                             <circle
-                              className="text-[#6366f1]"
+                              className="text-[#E38B52]"
                               strokeWidth="5"
                               strokeDasharray={220}
                               strokeDashoffset={132} // 220 - (220 * percentageComplete)
@@ -714,7 +714,7 @@ const StudentPage = () => {
                           height="24" 
                           viewBox="0 0 24 24" 
                           fill="none" 
-                          stroke="#6366f1" 
+                          stroke="#E38B52" 
                           strokeWidth="2" 
                           strokeLinecap="round" 
                           strokeLinejoin="round"
@@ -772,7 +772,7 @@ const StudentPage = () => {
                           height="24" 
                           viewBox="0 0 24 24" 
                           fill="none" 
-                          stroke="#6366f1" 
+                          stroke="#E38B52" 
                           strokeWidth="2" 
                           strokeLinecap="round" 
                           strokeLinejoin="round"
@@ -830,8 +830,8 @@ const StudentPage = () => {
             <div className="grid grid-cols-1 gap-6">
               {/* Identification Data Section */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
                   </svg>
                   Identification Data
@@ -864,8 +864,8 @@ const StudentPage = () => {
 
               {/* Demographic Data Section */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                   Demographic Data
@@ -886,8 +886,8 @@ const StudentPage = () => {
 
               {/* Contact & Medical Information */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2z" />
                   </svg>
                   Contact & Medical Information
@@ -921,8 +921,8 @@ const StudentPage = () => {
 
               {/* Family History */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   Family History
@@ -933,7 +933,7 @@ const StudentPage = () => {
                     <h3 className="text-lg font-semibold text-[#170F49] mb-4">Household Composition</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse rounded-xl overflow-hidden">
-                        <thead className="bg-[#6366f1]/10">
+                        <thead className="bg-[#E38B52]/10">
                           <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">S.No</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Name</th>
@@ -945,7 +945,7 @@ const StudentPage = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white/70">
-                          <tr className="border-b border-[#6366f1]/10">
+                          <tr className="border-b border-[#E38B52]/10">
                             <td className="px-4 py-3 text-sm text-[#170F49]">1</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherName}</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">42</td>
@@ -954,7 +954,7 @@ const StudentPage = () => {
                             <td className="px-4 py-3 text-sm text-[#170F49]">Good</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">₹30,000</td>
                           </tr>
-                          <tr className="border-b border-[#6366f1]/10">
+                          <tr className="border-b border-[#E38B52]/10">
                             <td className="px-4 py-3 text-sm text-[#170F49]">2</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherName}</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">38</td>
@@ -1019,8 +1019,8 @@ const StudentPage = () => {
 
               {/* Medical Information */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                   </svg>
                   Medical Information
@@ -1050,7 +1050,7 @@ const StudentPage = () => {
                     <p className="text-[#170F49] mb-4">The child is on regular medication</p>
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse rounded-xl overflow-hidden">
-                        <thead className="bg-[#6366f1]/10">
+                        <thead className="bg-[#E38B52]/10">
                           <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">S.No</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Name of drug</th>
@@ -1058,7 +1058,7 @@ const StudentPage = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white/70">
-                          <tr className="border-b border-[#6366f1]/10">
+                          <tr className="border-b border-[#E38B52]/10">
                             <td className="px-4 py-3 text-sm text-[#170F49]">1</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">Methylphenidate</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">10mg once daily</td>
@@ -1096,8 +1096,8 @@ const StudentPage = () => {
 
               {/* Documents Section */}
               <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#6366f1]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Documents
@@ -1111,7 +1111,7 @@ const StudentPage = () => {
                           height="24" 
                           viewBox="0 0 24 24" 
                           fill="none" 
-                          stroke="#6366f1" 
+                          stroke="#E38B52" 
                           strokeWidth="2" 
                           strokeLinecap="round" 
                           strokeLinejoin="round"
@@ -1169,7 +1169,7 @@ const StudentPage = () => {
                           height="24" 
                           viewBox="0 0 24 24" 
                           fill="none" 
-                          stroke="#6366f1" 
+                          stroke="#E38B52" 
                           strokeWidth="2" 
                           strokeLinecap="round" 
                           strokeLinejoin="round"
@@ -1227,7 +1227,7 @@ const StudentPage = () => {
 
           {/* Action Buttons with adjusted margin */}
           <div className="flex gap-4 mt-6 md:mt-8">
-            <button className="flex-1 bg-[#6366f1] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]">
+            <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#E38B52]/90 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]">
               Edit Details
             </button>
             <button className="flex-1  bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200">
