@@ -7,6 +7,7 @@ const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,14 +83,38 @@ const LoginPage = () => {
               >
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="Enter password here."
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-4 rounded-2xl border border-[#B6A89B] bg-white shadow-lg shadow-[#B6A89B]/30 focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#B6A89B]"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password here."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-4 rounded-2xl border border-[#B6A89B] bg-white shadow-lg shadow-[#B6A89B]/30 focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#B6A89B] pr-12"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={0}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 focus:outline-none"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {showPassword ? (
+                    // Eye-off SVG
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                      <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M17.94 17.94A10.06 10.06 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.06-2.81 2.97-5.06 5.41-6.41m3.13-1.08A9.93 9.93 0 0 1 12 4c5 0 9.27 3.11 11 8a11.05 11.05 0 0 1-2.06 3.34M1 1l22 22" />
+                      <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
+                    </svg>
+                  ) : (
+                    // Eye SVG
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                      <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M1 12C2.73 7.11 7 4 12 4s9.27 3.11 11 8c-1.73 4.89-6 8-11 8S2.73 16.89 1 12Z" />
+                      <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             
             {/* Submit button */}
@@ -103,13 +128,13 @@ const LoginPage = () => {
           </form>
           
           {/* Info text */}
-          <p className="text-[#B97A4A] text-xs text-center mt-6">
+          <p className="text-[#5E534C] text-xs text-center mt-6">
             No account? Contact administrator to manage access.
           </p>
         </div>
       </div>
 
-      {/* Global styles for animations */}
+      {/* Global styles for animations and input fields */}
       <style jsx global>{`
         @keyframes float {
           0% {
@@ -139,6 +164,44 @@ const LoginPage = () => {
         }
         .animation-delay-7000 {
           animation-delay: -15s;
+        }
+        /* Custom input styles for warm, neutral palette */
+        input[type="text"], input[type="password"] {
+          border: 1.5px solid #e0d6cd !important; /* Pale cream */
+          background: #fff;
+          transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+          box-shadow: none;
+          cursor: text;
+        }
+        input[type="text"]:hover, input[type="password"]:hover {
+          background: #f9f5f2;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+          border-color: #9A8D80 !important; /* Soft greyish-brown */
+          box-shadow: 0 0 0 4px rgba(154, 141, 128, 0.13), 0 2px 8px 0 rgba(227, 139, 82, 0.08); /* Subtle glow, warm orange depth */
+          outline: none;
+        }
+        /* When input has value, show warm peach background */
+        input[type="text"]:not(:placeholder-shown), input[type="password"]:not(:placeholder-shown) {
+          background: #F4F1EE;
+        }
+        /* When input has value and is focused, keep peach background */
+        input[type="text"]:not(:placeholder-shown):focus, input[type="password"]:not(:placeholder-shown):focus {
+          background: #F4F1EE;
+        }
+        /* Remove browser's default password visibility toggle */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none;
+        }
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+          visibility: hidden;
+          display: none !important;
+          pointer-events: none;
+          height: 0;
+          width: 0;
+          margin: 0;
         }
       `}</style>
     </div>
