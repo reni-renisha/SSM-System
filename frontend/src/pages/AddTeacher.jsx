@@ -21,15 +21,76 @@ const AddTeacher = () => {
     email: "",
   });
 
+  const [classAssignments, setClassAssignments] = useState([
+    {
+      class: "",
+      subject: "",
+      days: [],
+      startTime: "",
+      endTime: "",
+    }
+  ]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setTeacherData({ ...teacherData, [name]: value });
   };
 
+  const handleClassAssignmentChange = (index, field, value) => {
+    const updatedAssignments = [...classAssignments];
+    updatedAssignments[index][field] = value;
+    setClassAssignments(updatedAssignments);
+  };
+
+  const addClassAssignment = () => {
+    setClassAssignments([
+      ...classAssignments,
+      {
+        class: "",
+        subject: "",
+        days: [],
+        startTime: "",
+        endTime: "",
+      }
+    ]);
+  };
+
+  const removeClassAssignment = (index) => {
+    if (classAssignments.length > 1) {
+      const updatedAssignments = classAssignments.filter((_, i) => i !== index);
+      setClassAssignments(updatedAssignments);
+    }
+  };
+
+  const handleDayToggle = (assignmentIndex, day) => {
+    const updatedAssignments = [...classAssignments];
+    const currentDays = updatedAssignments[assignmentIndex].days;
+    
+    if (currentDays.includes(day)) {
+      // Remove day if already selected
+      updatedAssignments[assignmentIndex].days = currentDays.filter(d => d !== day);
+    } else {
+      // Add day if not selected
+      updatedAssignments[assignmentIndex].days = [...currentDays, day];
+    }
+    
+    setClassAssignments(updatedAssignments);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/api/v1/teachers/', teacherData);
+      // Filter out empty class assignments
+      const validClassAssignments = classAssignments.filter(
+        assignment => assignment.class && assignment.subject && assignment.days.length > 0 && assignment.startTime && assignment.endTime
+      );
+      
+      const teacherDataWithAssignments = {
+        ...teacherData,
+        class_assignments: validClassAssignments
+      };
+      
+      await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
       navigate('/headmaster');
     } catch (error) {
       console.error('Error adding teacher:', error);
@@ -301,6 +362,130 @@ const AddTeacher = () => {
                 <option value="ST">ST</option>
                 <option value="Other">Other</option>
               </select>
+            </div>
+
+            {/* Class Assignment Section */}
+            <div className="space-y-4 w-full">
+              <div className="flex items-center justify-between">
+                <label className="block text-lg font-semibold text-[#170F49] ml-4">
+                  Class Assignments
+                </label>
+                <button
+                  type="button"
+                  onClick={addClassAssignment}
+                  className="px-4 py-2 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] transition-all duration-200 flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Add Class
+                </button>
+              </div>
+
+              {classAssignments.map((assignment, index) => (
+                <div key={index} className="bg-white/50 rounded-2xl p-6 border border-white/30">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-[#170F49]">Class Assignment {index + 1}</h3>
+                    {classAssignments.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeClassAssignment(index)}
+                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-[#170F49] ml-2">
+                        Class
+                      </label>
+                      <select
+                        value={assignment.class}
+                        onChange={(e) => handleClassAssignmentChange(index, 'class', e.target.value)}
+                        className={selectClassName}
+                      >
+                        <option value="">Select Class</option>
+                        <option value="preprimary">PrePrimary</option>
+                        <option value="primary1">Primary 1</option>
+                        <option value="primary2">Primary 2</option>
+                        <option value="secondary">Secondary</option>
+                        <option value="prevocational1">Pre vocational 1</option>
+                        <option value="prevocational2">Pre vocational 2</option>
+                        <option value="caregroup-below-18">Care group below 18 years</option>
+                        <option value="caregroup-above-18">Care group Above 18 years</option>
+                        <option value="vocational">Vocational 18-35 years</option>
+                      </select>
+                    </div>
+
+                                         <div className="space-y-2">
+                       <label className="block text-sm font-medium text-[#170F49] ml-2">
+                         Subject
+                       </label>
+                       <input
+                         type="text"
+                         value={assignment.subject}
+                         onChange={(e) => handleClassAssignmentChange(index, 'subject', e.target.value)}
+                         placeholder="Enter Subject"
+                         className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                       />
+                     </div>
+
+                                         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                         <label className="block text-sm font-medium text-[#170F49] ml-2">
+                           Days
+                         </label>
+                         <div className="bg-white rounded-2xl border shadow-lg p-3">
+                           <div className="grid grid-cols-1 gap-2">
+                             {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
+                               <label key={day} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors">
+                                 <input
+                                   type="checkbox"
+                                   checked={assignment.days.includes(day)}
+                                   onChange={() => handleDayToggle(index, day)}
+                                   className="w-4 h-4 text-[#6366f1] bg-white border-gray-300 rounded focus:ring-[#6366f1] focus:ring-2"
+                                 />
+                                 <span className="text-sm text-[#6F6C90]">{day}</span>
+                               </label>
+                             ))}
+                           </div>
+                         </div>
+                       </div>
+
+                       <div className="space-y-4">
+                         <div className="space-y-2">
+                           <label className="block text-sm font-medium text-[#170F49] ml-2">
+                             Start Time
+                           </label>
+                           <input
+                             type="time"
+                             value={assignment.startTime}
+                             onChange={(e) => handleClassAssignmentChange(index, 'startTime', e.target.value)}
+                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                           />
+                         </div>
+
+                         <div className="space-y-2">
+                           <label className="block text-sm font-medium text-[#170F49] ml-2">
+                             End Time
+                           </label>
+                           <input
+                             type="time"
+                             value={assignment.endTime}
+                             onChange={(e) => handleClassAssignmentChange(index, 'endTime', e.target.value)}
+                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                           />
+                         </div>
+                       </div>
+                     </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <button

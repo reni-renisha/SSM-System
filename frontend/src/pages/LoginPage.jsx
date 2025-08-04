@@ -22,15 +22,22 @@ const LoginPage = () => {
       formData.append("password", password);
 
       const response = await axios.post("http://localhost:8000/api/v1/auth/login", formData);
-      
+
       if (response.data.access_token) {
         // Store the token in localStorage
         localStorage.setItem("token", response.data.access_token);
         // Set the default authorization header for future requests
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.access_token}`;
-        
+
         // Redirect based on user role
-        navigate('/headmaster');
+        const role = response.data.role || "hm"; // Default to hm if not provided
+        if (role === "hm" || role === "admin" || role === "headmaster") {
+          navigate("/headmaster");
+        } else if (role === "teacher") {
+          navigate("/teacher");
+        } else {
+          navigate("/"); // fallback, or you can show an error
+        }
       }
     } catch (err) {
       setError(err.response?.data?.detail || "An error occurred during login.");
@@ -46,7 +53,7 @@ const LoginPage = () => {
       <div className="absolute top-0 -left-40 w-[500px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000" />
       
       <div className="w-[90%] max-w-[1200px] mx-4 flex-1 flex flex-col justify-center">
-        <h1 className="text-3xl font-bold text-[#7A3E11] mb-8 text-center font-baskervville">
+        <h1 className="text-3xl font-bold text-[#B3541E] mb-8 text-center font-baskervville">
           Sign in to your account
         </h1>
         
@@ -92,28 +99,31 @@ const LoginPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-4 rounded-2xl border border-[#B6A89B] bg-white shadow-lg shadow-[#B6A89B]/30 focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#B6A89B] pr-12"
                 />
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  tabIndex={0}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 focus:outline-none"
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  {showPassword ? (
-                    // Eye-off SVG
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                      <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M17.94 17.94A10.06 10.06 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.06-2.81 2.97-5.06 5.41-6.41m3.13-1.08A9.93 9.93 0 0 1 12 4c5 0 9.27 3.11 11 8a11.05 11.05 0 0 1-2.06 3.34M1 1l22 22" />
-                      <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
-                    </svg>
-                  ) : (
-                    // Eye SVG
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                      <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M1 12C2.73 7.11 7 4 12 4s9.27 3.11 11 8c-1.73 4.89-6 8-11 8S2.73 16.89 1 12Z" />
-                      <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
-                    </svg>
-                  )}
-                </button>
+                {password && (
+              <button
+               type="button"
+               aria-label={showPassword ? "Hide password" : "Show password"}
+               onClick={() => setShowPassword((prev) => !prev)}
+               tabIndex={0}
+               className="absolute right-4 top-1/2 -translate-y-1/2 p-1 focus:outline-none"
+               style={{ background: "none", border: "none", cursor: "pointer" }}
+               >
+           {showPassword ? (
+           // Eye-off SVG
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M17.94 17.94A10.06 10.06 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.06-2.81 2.97-5.06 5.41-6.41m3.13-1.08A9.93 9.93 0 0 1 12 4c5 0 9.27 3.11 11 8a11.05 11.05 0 0 1-2.06 3.34M1 1l22 22" />
+            <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
+           </svg>
+            ) : (
+           // Eye SVG
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path stroke="#9A8D80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M1 12C2.73 7.11 7 4 12 4s9.27 3.11 11 8c-1.73 4.89-6 8-11 8S2.73 16.89 1 12Z" />
+            <circle cx="12" cy="12" r="3" stroke="#9A8D80" strokeWidth="2" />
+            </svg>
+            )}
+          </button>
+           )}
+
               </div>
             </div>
             
@@ -203,6 +213,17 @@ const LoginPage = () => {
           width: 0;
           margin: 0;
         }
+        /* Autofill fix for consistent background color */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+       -webkit-box-shadow: 0 0 0px 1000px #f9f5f2 inset !important;
+        box-shadow: 0 0 0px 1000px #f9f5f2 inset !important;
+       -webkit-text-fill-color: #1a1a1a !important;
+       transition: background-color 5000s ease-in-out 0s;
+       }
+
       `}</style>
     </div>
   );
