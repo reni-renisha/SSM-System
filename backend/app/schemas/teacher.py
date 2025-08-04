@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # Base Teacher Schema
 class TeacherBase(BaseModel):
@@ -17,6 +17,8 @@ class TeacherBase(BaseModel):
     rci_renewal_date: date
     qualifications_details: str
     category: str
+    email: Optional[str] = None
+    class_assignments: Optional[List[Dict[str, Any]]] = None
 
 # Create Teacher Schema (used for input when creating)
 class TeacherCreate(TeacherBase):
@@ -37,6 +39,8 @@ class TeacherUpdate(BaseModel):
     rci_renewal_date: Optional[date] = None
     qualifications_details: Optional[str] = None
     category: Optional[str] = None
+    email: Optional[str] = None
+    class_assignments: Optional[List[Dict[str, Any]]] = None
 
 # Teacher Schema (used for responses)
 class Teacher(TeacherBase):

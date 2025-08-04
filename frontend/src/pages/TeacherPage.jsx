@@ -16,6 +16,14 @@ const TeacherPage = () => {
         const response = await axios.get(`http://localhost:8000/api/v1/teachers/${id}`);
         
         // Map API response to the format expected by the UI
+        const classAssignments = response.data.class_assignments || [];
+        const formattedClasses = classAssignments.map(assignment => ({
+          class: assignment.class || 'Not specified',
+          subject: assignment.subject || 'Not specified',
+          days: assignment.days && assignment.days.length > 0 ? assignment.days.join(', ') : 'Not specified',
+          timing: assignment.startTime && assignment.endTime ? `${assignment.startTime} - ${assignment.endTime}` : 'Not specified'
+        }));
+
         setTeacher({
           name: response.data.name,
           teacherId: response.data.id,
@@ -40,11 +48,7 @@ const TeacherPage = () => {
             day: 'numeric' 
           }),
           qualifications: response.data.qualifications_details,
-          // Adding mock classes data since it's not in the database yet
-          classes: [
-            { class: 'Class X-A', subject: 'Mathematics', days: 'Monday, Wednesday, Friday', timing: '9:00 AM - 10:00 AM' },
-            { class: 'Class IX-B', subject: 'Mathematics', days: 'Tuesday, Thursday', timing: '10:15 AM - 11:15 AM' }
-          ]
+          classes: formattedClasses
         });
         setLoading(false);
       } catch (error) {
@@ -530,7 +534,9 @@ const TeacherPage = () => {
                       ))}
                       {teacher.classes.length === 0 && (
                         <tr>
-                          <td colSpan="4" className="px-4 py-3 text-sm text-center text-[#6F6C90]">No classes assigned</td>
+                          <td colSpan="4" className="px-4 py-3 text-sm text-center text-[#6F6C90]">
+                            No class assignments found. Class assignments can be added when creating or editing a teacher.
+                          </td>
                         </tr>
                       )}
                     </tbody>

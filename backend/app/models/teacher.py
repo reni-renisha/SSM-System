@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Integer, String, Date, JSON
 from app.db.session import Base
 
 class Teacher(Base):
@@ -17,4 +17,6 @@ class Teacher(Base):
     rci_number = Column(String, unique=True, nullable=False)
     rci_renewal_date = Column(Date, nullable=False)
     qualifications_details = Column(String, nullable=False)
-    category = Column(String, nullable=False) 
+    category = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    class_assignments = Column(JSON, nullable=True) 
