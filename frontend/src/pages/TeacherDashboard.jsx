@@ -4,6 +4,17 @@ import axios from "axios";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  //here 1st
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [reportDate, setReportDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [therapyType, setTherapyType] = useState("Occupational");
+  const [progressNotes, setProgressNotes] = useState("");
+  const [goalsAchieved, setGoalsAchieved] = useState("");
+  const [progressLevel, setProgressLevel] = useState("Excellent");
+  //1.
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
   const [isSearchFloating, setIsSearchFloating] = useState(false);
@@ -71,7 +82,7 @@ const TeacherDashboard = () => {
       <div className="fixed top-6 right-6 z-50">
         <button
           onClick={handleLogout}
-          className="px-6 py-3 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
+          className="px-6 py-3 bg-[#E38B52] text-white rounded-xl hover:bg-[#E38B52]/90 transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -96,13 +107,13 @@ const TeacherDashboard = () => {
         </h1>
         <p className="text-[#6F6C8F] mt-2">View and Manage Students</p>
         <p className="text-[#6F6C8F] text-sm mt-1">
-    {new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })}
-  </p>
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
       </div>
 
       {/* Floating Search Bar */}
@@ -117,7 +128,7 @@ const TeacherDashboard = () => {
               <input
                 type="text"
                 placeholder="Search students..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border bg-white/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border bg-white/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
               />
@@ -139,10 +150,10 @@ const TeacherDashboard = () => {
       </div>
 
       {/* Animated background blobs with fixed positioning */}
-      <div className="fixed top-0 -left-40 w-[600px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
-      <div className="fixed -bottom-32 right-40 w-[600px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
-      <div className="fixed top-1/2 left-1/2 w-[500px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
-      <div className="fixed top-0 -left-40 w-[500px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
+      <div className="fixed top-0 -left-40 w-[600px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
+      <div className="fixed -bottom-32 right-40 w-[600px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
+      <div className="fixed top-1/2 left-1/2 w-[500px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
+      <div className="fixed top-0 -left-40 w-[500px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
 
       <div className="w-[90%] max-w-[1200px] mx-4 z-10">
         {/* Main container */}
@@ -154,7 +165,7 @@ const TeacherDashboard = () => {
               <input
                 type="text"
                 placeholder="Search students..."
-                className="w-[443px] pl-10 pr-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
+                className="w-[443px] pl-10 pr-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
               />
@@ -173,30 +184,12 @@ const TeacherDashboard = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Add Student Button */}
-              <button
-                onClick={() => navigate("/add-student")}
-                className="px-5 py-3 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Add Student
-              </button>
-
+              {/* Add Student Button removed*/}
               <div className="relative">
+                {/* Filter Button enhanced*/}
                 <button
                   onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="p-3 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105"
+                  className="px-5 py-2.5 bg-[#E38B52] text-white rounded-xl hover:bg-[#E38B52]/90 transition-all flex items-center gap-2 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_6px_8px_-1px_rgba(0,0,0,0.1)]"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -210,8 +203,22 @@ const TeacherDashboard = () => {
                       clipRule="evenodd"
                     />
                   </svg>
+                  Filter Students
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 transition-transform ${
+                      showFilterDropdown ? "rotate-180" : ""
+                    }`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </button>
-
                 {/* Filter Dropdown Menu */}
                 {showFilterDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg overflow-hidden z-50">
@@ -221,7 +228,7 @@ const TeacherDashboard = () => {
                         onChange={(e) => {
                           setFilterOption(e.target.value);
                         }}
-                        className="w-full px-4 py-2.5 text-sm text-[#170F49] bg-white rounded-lg border border-gray-200 hover:border-[#6366f1] focus:outline-none focus:border-[#6366f1] transition-all duration-200"
+                        className="w-full px-4 py-2.5 text-sm text-[#170F49] bg-[#FAF9F6] rounded-lg border border-gray-200 hover:border-[#E38B52] focus:outline-none focus:border-[#E38B52] transition-all duration-200"
                       >
                         <option value="all">All Students</option>
                         <option value="class">Class</option>
@@ -234,7 +241,7 @@ const TeacherDashboard = () => {
                             setSelectedClass(e.target.value);
                             setShowFilterDropdown(false);
                           }}
-                          className="w-full px-4 py-2.5 text-sm text-[#170F49] bg-white rounded-lg border border-gray-200 hover:border-[#6366f1] focus:outline-none focus:border-[#6366f1] transition-all duration-200"
+                          className="w-full px-4 py-2.5 text-sm text-[#170F49] bg-[#FAF9F6] rounded-lg border border-gray-200 hover:border-[#E38B52] focus:outline-none focus:border-[#E38B52] transition-all duration-200"
                         >
                           <option value="all">All Classes</option>
                           <option value="PrePrimary">PrePrimary</option>
@@ -320,7 +327,23 @@ const TeacherDashboard = () => {
                         </p>
                       </div>
                     </div>
-                    <button className="text-[#6366f1] hover:text-[#4f46e5] transition-colors">
+                    {/* 2nd Report button*/}
+                    <button
+                      className="px-4 py-2 bg-[#E38B52] text-white rounded-lg shadow-md hover:bg-[#E38B52]/90 transition-transform hover:scale-105"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStudent(student);
+                        setShowReportDialog(true);
+                        setReportDate(new Date().toISOString().slice(0, 10));
+                        setTherapyType("Occupational");
+                        setProgressNotes("");
+                        setGoalsAchieved("");
+                        setProgressLevel("Excellent");
+                      }}
+                    >
+                      Enter Report
+                    </button>
+                    <button className="text-[#E38B52] hover:text-[#4f46e5] transition-colors">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-6 w-6"
@@ -375,8 +398,107 @@ const TeacherDashboard = () => {
           animation-delay: -15s;
         }
       `}</style>
+
+      {showReportDialog && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            {" "}
+            {/* Added max-h and overflow */}
+            <h2 className="text-2xl font-bold text-[#170F49] mb-4 text-center">
+              Therapy Report for {selectedStudent.name}
+            </h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // TODO: handle save (send to backend or log)
+                setShowReportDialog(false);
+              }}
+            >
+              <div className="mb-4">
+                <label className="block text-[#170F49] font-medium mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-[#170F49] font-medium mb-1">
+                  Therapy Type
+                </label>
+                <select
+                  className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                  value={therapyType}
+                  onChange={(e) => setTherapyType(e.target.value)}
+                >
+                  <option>Occupational</option>
+                  <option>Physio</option>
+                  <option>Speech</option>
+                  <option>Behavioral</option>
+                  <option>Developmental</option>
+                  <option>Clinical</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-[#170F49] font-medium mb-1">
+                  Progress Notes
+                </label>
+                <textarea
+                  className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                  rows={3}
+                  value={progressNotes}
+                  onChange={(e) => setProgressNotes(e.target.value)}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-[#170F49] font-medium mb-1">
+                  Goals Achieved
+                </label>
+                <textarea
+                  className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                  rows={2}
+                  value={goalsAchieved}
+                  onChange={(e) => setGoalsAchieved(e.target.value)}
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block text-[#170F49] font-medium mb-1">
+                  Progress Level
+                </label>
+                <select
+                  className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                  value={progressLevel}
+                  onChange={(e) => setProgressLevel(e.target.value)}
+                >
+                  <option>Excellent</option>
+                  <option>Good</option>
+                  <option>Moderate</option>
+                  <option>Needs Improvement</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300"
+                  onClick={() => setShowReportDialog(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-[#E38B52] text-white font-semibold shadow hover:bg-[#E38B52]/90"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 export default TeacherDashboard;
