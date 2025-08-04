@@ -22,15 +22,22 @@ const LoginPage = () => {
       formData.append("password", password);
 
       const response = await axios.post("http://localhost:8000/api/v1/auth/login", formData);
-      
+
       if (response.data.access_token) {
         // Store the token in localStorage
         localStorage.setItem("token", response.data.access_token);
         // Set the default authorization header for future requests
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.access_token}`;
-        
+
         // Redirect based on user role
-        navigate('/headmaster');
+        const role = response.data.role || "hm"; // Default to hm if not provided
+        if (role === "hm" || role === "admin" || role === "headmaster") {
+          navigate("/headmaster");
+        } else if (role === "teacher") {
+          navigate("/teacher");
+        } else {
+          navigate("/"); // fallback, or you can show an error
+        }
       }
     } catch (err) {
       setError(err.response?.data?.detail || "An error occurred during login.");
