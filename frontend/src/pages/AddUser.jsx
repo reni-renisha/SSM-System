@@ -7,7 +7,8 @@ const AddUser = () => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    password: ""
+    password: "",
+    role: "teacher"
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -160,6 +161,8 @@ const AddUser = () => {
               />
             </div>
             
+            <input type="hidden" name="role" value={formData.role} />
+
             {/* Submit button */}
             <button
               type="submit"
