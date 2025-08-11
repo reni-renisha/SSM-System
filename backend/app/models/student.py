@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Float
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.db.session import Base
 
@@ -54,4 +55,7 @@ class Student(Base):
     
     # Additional Fields
     created_at = Column(Date)
-    updated_at = Column(Date) 
+    updated_at = Column(Date)
+
+    # Case record stored as JSON for flexible schema
+    case_record = Column(JSONB)

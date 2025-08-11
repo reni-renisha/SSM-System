@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import axios from "axios";
 
 const StudentPage = () => {
   const [activeTab, setActiveTab] = useState("student-details");
@@ -9,202 +10,57 @@ const StudentPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real application, you would fetch student data from an API
-    // For now, we'll use mock data based on the ID
-    setTimeout(() => {
-      // Mock student data based on ID
-      const studentData = getStudentData(id);
-      setStudent(studentData);
-      setLoading(false);
-    }, 500); // Simulate network delay
-  }, [id]);
-
-  const getStudentData = (studentId) => {
-    // Mock data for different students
-    const students = {
-      'malavika': {
-        name: 'Malavika',
-        studentId: 'STU2024001',
-        dob: '15 June 2015',
-        gender: 'Female',
-        religion: 'Hinduism',
-        caste: 'General',
-        class: 'Primary 1',
-        rollNo: '33',
-        birthPlace: 'City Hospital',
-        houseName: 'Green Villa',
-        streetName: '456 Park Avenue',
-        postOffice: 'East Post',
-        pinCode: '654321',
-        revenueDistrict: 'East District',
-        phoneNumber: '+91 9876543210',
-        email: 'malavika@student.edu',
-        address: '456 Park Avenue, City',
-        fatherName: 'Rajesh Kumar',
-        fatherEducation: "Master's Degree",
-        fatherOccupation: 'Software Architect',
-        motherName: 'Priya K',
-        motherEducation: "Bachelor's Degree",
-        motherOccupation: 'Doctor',
-        guardianName: 'Rajesh Kumar',
-        guardianRelationship: 'Father',
-        guardianContact: '+91 9876543210',
-        academicYear: '2023-2024',
-        admissionNumber: 'ADM20230033',
-        admissionDate: '10 June 2023',
-        classTeacher: 'Ms. Johnson',
-        bankName: 'State Bank',
-        accountNumber: 'XXXX-XXXX-1234',
-        branch: 'City Branch',
-        ifscCode: 'SBIN0001234'
-      },
-      'renisha': {
-        name: 'Renisha',
-        studentId: 'STU2024002',
-        dob: '23 April 2014',
-        gender: 'Female',
-        religion: 'Christianity',
-        caste: 'General',
-        class: 'X-B',
-        rollNo: '44',
-        birthPlace: 'Memorial Hospital',
-        houseName: 'Blue Waters',
-        streetName: '789 Lake Road',
-        postOffice: 'West Post',
-        pinCode: '789012',
-        revenueDistrict: 'West District',
-        phoneNumber: '+91 9876543211',
-        email: 'renisha@student.edu',
-        address: '789 Lake Road, City',
-        fatherName: 'Thomas Joseph',
-        fatherEducation: "Bachelor's Degree",
-        fatherOccupation: 'Business Owner',
-        motherName: 'Mary Thomas',
-        motherEducation: "Master's Degree",
-        motherOccupation: 'Professor',
-        guardianName: 'Thomas Joseph',
-        guardianRelationship: 'Father',
-        guardianContact: '+91 9876543211',
-        academicYear: '2023-2024',
-        admissionNumber: 'ADM20230044',
-        admissionDate: '12 June 2023',
-        classTeacher: 'Mr. Peterson',
-        bankName: 'City Bank',
-        accountNumber: 'XXXX-XXXX-5678',
-        branch: 'Main Branch',
-        ifscCode: 'CITI0005678'
-      },
-      'lydia': {
-        name: 'Lydia',
-        studentId: 'STU2024003',
-        dob: '18 August 2013',
-        gender: 'Female',
-        religion: 'Christianity',
-        caste: 'General',
-        class: 'X-C',
-        rollNo: '32',
-        birthPlace: 'General Hospital',
-        houseName: 'Sunshine Villa',
-        streetName: '123 Sun Street',
-        postOffice: 'North Post',
-        pinCode: '345678',
-        revenueDistrict: 'North District',
-        phoneNumber: '+91 9876543212',
-        email: 'lydia@student.edu',
-        address: '123 Sun Street, City',
-        fatherName: 'John Williams',
-        fatherEducation: "Doctorate",
-        fatherOccupation: 'Engineer',
-        motherName: 'Linda Williams',
-        motherEducation: "Bachelor's Degree",
-        motherOccupation: 'Artist',
-        guardianName: 'Linda Williams',
-        guardianRelationship: 'Mother',
-        guardianContact: '+91 9876543212',
-        academicYear: '2023-2024',
-        admissionNumber: 'ADM20230032',
-        admissionDate: '15 June 2023',
-        classTeacher: 'Ms. Rodriguez',
-        bankName: 'Union Bank',
-        accountNumber: 'XXXX-XXXX-9012',
-        branch: 'North Branch',
-        ifscCode: 'UBIN0009012'
-      },
-      'sreedhanya': {
-        name: 'Sreedhanya',
-        studentId: 'STU2024004',
-        dob: '05 January 2014',
-        gender: 'Female',
-        religion: 'Hinduism',
-        caste: 'General',
-        class: 'X-A',
-        rollNo: '51',
-        birthPlace: 'Community Hospital',
-        houseName: 'Mountain View',
-        streetName: '456 Hill Road',
-        postOffice: 'South Post',
-        pinCode: '901234',
-        revenueDistrict: 'South District',
-        phoneNumber: '+91 9876543213',
-        email: 'sreedhanya@student.edu',
-        address: '456 Hill Road, City',
-        fatherName: 'Anand K',
-        fatherEducation: "Master's Degree",
-        fatherOccupation: 'Manager',
-        motherName: 'Lakshmi Anand',
-        motherEducation: "Master's Degree",
-        motherOccupation: 'Accountant',
-        guardianName: 'Anand K',
-        guardianRelationship: 'Father',
-        guardianContact: '+91 9876543213',
-        academicYear: '2023-2024',
-        admissionNumber: 'ADM20230051',
-        admissionDate: '14 June 2023',
-        classTeacher: 'Mr. Thompson',
-        bankName: 'Federal Bank',
-        accountNumber: 'XXXX-XXXX-3456',
-        branch: 'South Branch',
-        ifscCode: 'FDRL0003456'
+    const fetchStudent = async () => {
+      try {
+        const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+        const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
+        const mapped = {
+          name: data.name,
+          studentId: data.student_id,
+          dob: data.dob,
+          gender: data.gender,
+          religion: data.religion,
+          caste: data.caste,
+          class: data.class_name,
+          rollNo: data.roll_no,
+          birthPlace: data.birth_place,
+          houseName: data.house_name,
+          streetName: data.street_name,
+          postOffice: data.post_office,
+          pinCode: data.pin_code,
+          revenueDistrict: data.revenue_district,
+          phoneNumber: data.phone_number,
+          email: data.email,
+          address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
+          fatherName: data.father_name,
+          fatherEducation: data.father_education,
+          fatherOccupation: data.father_occupation,
+          motherName: data.mother_name,
+          motherEducation: data.mother_education,
+          motherOccupation: data.mother_occupation,
+          guardianName: data.guardian_name,
+          guardianRelationship: data.guardian_relationship,
+          guardianContact: data.guardian_contact,
+          academicYear: data.academic_year,
+          admissionNumber: data.admission_number,
+          admissionDate: data.admission_date,
+          classTeacher: data.class_teacher,
+          bankName: data.bank_name,
+          accountNumber: data.account_number,
+          branch: data.branch,
+          ifscCode: data.ifsc_code
+        };
+        setStudent(mapped);
+      } catch (e) {
+        setStudent(null);
+      } finally {
+        setLoading(false);
       }
     };
+    fetchStudent();
+  }, [id]);
 
-    return students[studentId] || {
-      name: 'Student Not Found',
-      studentId: 'Unknown',
-      dob: 'Unknown',
-      gender: 'Unknown',
-      religion: 'Unknown',
-      caste: 'Unknown',
-      class: 'Unknown',
-      rollNo: 'Unknown',
-      birthPlace: 'Unknown',
-      houseName: 'Unknown',
-      streetName: 'Unknown',
-      postOffice: 'Unknown',
-      pinCode: 'Unknown',
-      revenueDistrict: 'Unknown',
-      phoneNumber: 'Unknown',
-      email: 'Unknown',
-      address: 'Unknown',
-      fatherName: 'Unknown',
-      fatherEducation: 'Unknown',
-      fatherOccupation: 'Unknown',
-      motherName: 'Unknown',
-      motherEducation: 'Unknown',
-      motherOccupation: 'Unknown',
-      guardianName: 'Unknown',
-      guardianRelationship: 'Unknown',
-      guardianContact: 'Unknown',
-      academicYear: 'Unknown',
-      admissionNumber: 'Unknown',
-      admissionDate: 'Unknown',
-      classTeacher: 'Unknown',
-      bankName: 'Unknown',
-      accountNumber: 'Unknown',
-      branch: 'Unknown',
-      ifscCode: 'Unknown'
-    };
-  };
+  // removed mocks
 
   if (loading) {
     return (

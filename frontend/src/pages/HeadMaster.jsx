@@ -2,6 +2,42 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+// ++ PASTE THIS ENTIRE COMPONENT BLOCK HERE ++
+const ScrollToTopButton = () => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setVisible(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  return (
+    <button
+      onClick={scrollToTop}
+      title="Back to Top"
+      className={`fixed z-50 bottom-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-[#E38B52] text-white shadow-lg transition-all duration-300
+        ${visible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        hover:scale-110 hover:bg-[#C8742F] focus:outline-none`}
+      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
+      aria-label="Back to Top"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7" />
+      </svg>
+    </button>
+  );
+};
+
 const HeadMaster = () => {
   const navigate = useNavigate();
   const [filterOption, setFilterOption] = useState("all");
@@ -18,6 +54,8 @@ const HeadMaster = () => {
   const [teacherToDelete, setTeacherToDelete] = useState(null);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
 
   // Add scroll event listener
   useEffect(() => {
@@ -54,6 +92,31 @@ const HeadMaster = () => {
       fetchTeachers();
     }
   }, [activeTab]);
+
+  // Fetch students from backend with search/class filter
+  useEffect(() => {
+    const fetchStudents = async () => {
+      setStudentsLoading(true);
+      try {
+        const params = {
+          page: 1,
+          page_size: 100,
+        };
+        if (studentSearch && studentSearch.trim()) params.search = studentSearch.trim();
+        if (selectedClass && selectedClass !== 'all') params.class_name = selectedClass;
+        const { data } = await axios.get('http://localhost:8000/api/v1/students/', { params });
+        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        setStudents(items);
+      } catch (error) {
+        console.error('Error fetching students:', error);
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+    if (activeTab === 'students') {
+      fetchStudents();
+    }
+  }, [activeTab, studentSearch, selectedClass]);
 
   // Add this function to handle logout
   const handleLogout = () => {
@@ -391,17 +454,13 @@ const HeadMaster = () => {
               
               {/* Student List */}
               <div className="grid grid-cols-1 gap-4 px-4">
-                {/* Filter students based on search */}
-                {[
-                  { id: 'malavika', name: 'Malavika', class: 'Primary 1', rollNo: 33 },
-                  { id: 'renisha', name: 'Renisha', class: 'X-B', rollNo: 44 },
-                  { id: 'lydia', name: 'Lydia', class: 'X-C', rollNo: 32 },
-                  { id: 'sreedhanya', name: 'Sreedhanya', class: 'X-A', rollNo: 51 }
-                ]
-                .filter(student => 
-                  student.name.toLowerCase().includes(studentSearch.toLowerCase())
-                )
-                .map((student) => (
+                {studentsLoading && (
+                  <div className="text-center text-[#6F6C8F]">Loading students...</div>
+                )}
+                {!studentsLoading && students.length === 0 && (
+                  <div className="text-center text-[#6F6C8F]">No students found.</div>
+                )}
+                {!studentsLoading && students.map((student) => (
                   <div 
                     key={student.id}
                     onClick={() => handleStudentClick(student.id)}
@@ -410,7 +469,7 @@ const HeadMaster = () => {
                     <div className="flex items-center space-x-4 text-[#170F49]">
                       <div className="w-16 h-16 rounded-lg overflow-hidden">
                         <img 
-                          src={`https://eu.ui-avatars.com/api/?name=${student.name}&size=250`}
+                          src={`https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'Student')}&size=250`}
                           alt="Student"
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -422,10 +481,10 @@ const HeadMaster = () => {
                         <h3 className="text-lg font-semibold text-[#170F49]">{student.name}</h3>
                         <div className="space-y-1">
                           <p className="text-sm text-[#6F6C8F]">
-                            <span className="font-medium">Class:</span> {student.class}
+                            <span className="font-medium">Class:</span> {student.class_name || '-'}
                           </p>
                           <p className="text-sm text-[#6F6C8F]">
-                            <span className="font-medium">Roll No:</span> {student.rollNo}
+                            <span className="font-medium">Roll No:</span> {student.roll_no || '-'}
                           </p>
                         </div>
                       </div>
@@ -443,7 +502,7 @@ const HeadMaster = () => {
                           </svg>
                         </button>
                         <button 
-                          className="p-2 text-red-500 hover:text-red-700 hover:bg-[rgba(227,139,82,0.2)] rounded-lg transition-colors"
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg[rgba(227,139,82,0.2)] rounded-lg transition-colors"
                           title="Delete Student"
                           onClick={e => {
                             e.stopPropagation();
@@ -734,8 +793,8 @@ const HeadMaster = () => {
         </div>
       )}
 
-      {/* Custom Delete Confirmation Modal for Students */}
-      {showStudentDeleteConfirm && (
+{/* Custom Delete Confirmation Modal for Students */}
+{showStudentDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
             <div className="text-center">
@@ -768,6 +827,10 @@ const HeadMaster = () => {
           </div>
         </div>
       )}
+
+      {/* THIS IS THE NEW LINE YOU ADD */}
+      <ScrollToTopButton />
+
     </div>
   );
 };
