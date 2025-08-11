@@ -1,9 +1,218 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const ScrollToTopButton = () => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setVisible(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  return (
+    <button
+      onClick={scrollToTop}
+      title="Back to Top"
+      className={`fixed z-50 bottom-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-[#E38B52] text-white shadow-lg transition-all duration-300
+        ${visible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        hover:scale-110 hover:bg-[#C8742F] focus:outline-none`}
+      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
+      aria-label="Back to Top"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7" />
+</svg>
+    </button>
+  );
+};
 
 const AddStudent = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("student-details");
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedStudent, setSavedStudent] = useState(null); // store created/selected student
+  const [studentForm, setStudentForm] = useState({
+    name: '',
+    dob: '',
+    gender: '',
+    religion: '',
+    caste: '',
+    class_name: '',
+    roll_no: '',
+    birth_place: '',
+    house_name: '',
+    street_name: '',
+    post_office: '',
+    pin_code: '',
+    revenue_district: '',
+    phone_number: '',
+    email: '',
+    father_name: '',
+    father_education: '',
+    father_occupation: '',
+    mother_name: '',
+    mother_education: '',
+    mother_occupation: '',
+    guardian_name: '',
+    guardian_relationship: '',
+    guardian_contact: '',
+    academic_year: '',
+    admission_number: '',
+    admission_date: '',
+    class_teacher: '',
+    bank_name: '',
+    account_number: '',
+    branch: '',
+    ifsc_code: '',
+    disability_type: '',
+    disability_percentage: '',
+    medical_conditions: '',
+    allergies: ''
+  });
+
+  const handleFieldChange = (field) => (e) => {
+    setStudentForm((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const saveStudent = async () => {
+    try {
+      setIsSaving(true);
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      // Build payload and keep empty strings for string fields to avoid backend 'field required' errors
+      const payload = { ...studentForm };
+      if (!payload.dob) delete payload.dob;
+      if (!payload.admission_date) delete payload.admission_date;
+
+      if (payload.disability_percentage !== undefined) {
+        const num = parseFloat(payload.disability_percentage);
+        if (!Number.isNaN(num)) payload.disability_percentage = num;
+        else delete payload.disability_percentage;
+      }
+
+      // Create or update details depending on presence of savedStudent
+      const endpoint = savedStudent?.id
+        ? `${baseUrl}/api/v1/students/${savedStudent.id}`
+        : `${baseUrl}/api/v1/students/`;
+      const method = savedStudent?.id ? 'PUT' : 'POST';
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        let message = 'Failed to save student';
+        if (err && err.detail) {
+          if (Array.isArray(err.detail)) {
+            message = err.detail
+              .map((d) => {
+                if (typeof d === 'string') return d;
+                if (d && typeof d === 'object') {
+                  const loc = Array.isArray(d.loc) ? d.loc.join('.') : d.loc;
+                  return `${loc}: ${d.msg || d.error || 'invalid'}`;
+                }
+                return String(d);
+              })
+              .join('\n');
+          } else if (typeof err.detail === 'object') {
+            message = JSON.stringify(err.detail);
+          } else if (typeof err.detail === 'string') {
+            message = err.detail;
+          }
+        }
+        throw new Error(message);
+      }
+
+      const data = await res.json();
+      setSavedStudent(data);
+      alert(`Student details saved. ID: ${data.student_id || data.id}`);
+      // Optionally navigate or reset the form
+      // navigate(-1);
+    } catch (e) {
+      alert(e.message || 'Error saving student');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveCaseRecord = async () => {
+    if (!savedStudent?.id) {
+      alert('Please save Student Details first to create a student, then save Case Record.');
+      return;
+    }
+    try {
+      setIsSaving(true);
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+
+      // Minimal example: collect some of the case record fields already present
+      const caseRecord = {
+        identification: {
+          religion: studentForm.religion,
+          caste: studentForm.caste,
+          disability_type: studentForm.disability_type,
+          disability_percentage: studentForm.disability_percentage ? Number(studentForm.disability_percentage) : undefined,
+          aadhar_number: undefined,
+          blood_group: undefined,
+          category: undefined,
+        },
+        demographic: {
+          father_name: studentForm.father_name,
+          father_education: studentForm.father_education,
+          father_occupation: studentForm.father_occupation,
+          mother_name: studentForm.mother_name,
+          mother_education: studentForm.mother_education,
+          mother_occupation: studentForm.mother_occupation,
+          guardian_name: studentForm.guardian_name,
+          guardian_relationship: studentForm.guardian_relationship,
+          guardian_contact: studentForm.guardian_contact,
+        },
+        medical: {
+          medical_conditions: studentForm.medical_conditions,
+          allergies: studentForm.allergies,
+          drugs: drugRows,
+        },
+        family: {
+          household: householdRows,
+        }
+      };
+
+      const res = await fetch(`${baseUrl}/api/v1/students/${savedStudent.id}/case-record`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(caseRecord)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        let message = 'Failed to save case record';
+        if (err && err.detail) {
+          if (Array.isArray(err.detail)) {
+            message = err.detail.map((d) => (typeof d === 'string' ? d : `${(d.loc||[]).join('.')}: ${d.msg || 'invalid'}`)).join('\n');
+          } else if (typeof err.detail === 'object') message = JSON.stringify(err.detail);
+          else if (typeof err.detail === 'string') message = err.detail;
+        }
+        throw new Error(message);
+      }
+      const data = await res.json();
+      setSavedStudent(data);
+      alert('Case record saved.');
+    } catch (e) {
+      alert(e.message || 'Error saving case record');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 const [householdRows, setHouseholdRows] = useState([
     { id: 1, name: '', age: '', education: '', occupation: '', health: '', income: '' }
   ]);
@@ -171,8 +380,10 @@ const [householdRows, setHouseholdRows] = useState([
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Name of Student</label>
                       <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter student's full name"
+                         value={studentForm.name}
+                         onChange={handleFieldChange('name')}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -186,7 +397,7 @@ const [householdRows, setHouseholdRows] = useState([
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Sex</label>
-                        <select className={selectClass}>
+                        <select className={selectClass} value={studentForm.gender} onChange={handleFieldChange('gender')}>
                           <option value="">Select</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
@@ -207,6 +418,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter birth place"
+                        value={studentForm.birth_place}
+                        onChange={handleFieldChange('birth_place')}
                       />
                     </div>
                     <div>
@@ -215,6 +428,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter house name"
+                        value={studentForm.house_name}
+                        onChange={handleFieldChange('house_name')}
                       />
                     </div>
                     <div>
@@ -223,6 +438,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter street name"
+                        value={studentForm.street_name}
+                        onChange={handleFieldChange('street_name')}
                       />
                     </div>
                     <div>
@@ -231,6 +448,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter post office"
+                        value={studentForm.post_office}
+                        onChange={handleFieldChange('post_office')}
                       />
                     </div>
                     <div>
@@ -240,6 +459,8 @@ const [householdRows, setHouseholdRows] = useState([
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter pin code"
                         maxLength="6"
+                        value={studentForm.pin_code}
+                        onChange={handleFieldChange('pin_code')}
                       />
                     </div>
                     <div>
@@ -248,6 +469,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter revenue district"
+                        value={studentForm.revenue_district}
+                        onChange={handleFieldChange('revenue_district')}
                       />
                     </div>
                     <div>
@@ -277,6 +500,33 @@ const [householdRows, setHouseholdRows] = useState([
                   </div>
                 </div>
 
+                {/* Contact Details */}
+                <div>
+                  <h3 className="text-xl font-semibold text-[#170F49] mb-6">Contact Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Phone Number</label>
+                      <input
+                        type="tel"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter phone number"
+                        value={studentForm.phone_number}
+                        onChange={handleFieldChange('phone_number')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Email</label>
+                      <input
+                        type="email"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter email address"
+                        value={studentForm.email}
+                        onChange={handleFieldChange('email')}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Additional Details */}
                 <div>
                   <h3 className="text-xl font-semibold text-[#170F49] mb-6">Additional Details</h3>
@@ -295,6 +545,8 @@ const [householdRows, setHouseholdRows] = useState([
                       <input
                         type="date"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        value={studentForm.dob}
+                        onChange={handleFieldChange('dob')}
                       />
                     </div>
                     <div>
@@ -302,6 +554,8 @@ const [householdRows, setHouseholdRows] = useState([
                       <input
                         type="date"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        value={studentForm.admission_date}
+                        onChange={handleFieldChange('admission_date')}
                       />
                     </div>
                     <div>
@@ -310,6 +564,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter admission number"
+                        value={studentForm.admission_number}
+                        onChange={handleFieldChange('admission_number')}
                       />
                     </div>
                     <div>
@@ -318,6 +574,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter father's name"
+                        value={studentForm.father_name}
+                        onChange={handleFieldChange('father_name')}
                       />
                     </div>
                     <div>
@@ -326,11 +584,13 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter mother's name"
+                        value={studentForm.mother_name}
+                        onChange={handleFieldChange('mother_name')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Religion</label>
-                      <select className={selectClass}>
+                      <select className={selectClass} value={studentForm.religion} onChange={handleFieldChange('religion')}>
                         <option value="">Select religion</option>
                         <option value="hinduism">Hinduism</option>
                         <option value="christianity">Christianity</option>
@@ -347,6 +607,64 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter caste"
+                        value={studentForm.caste}
+                        onChange={handleFieldChange('caste')}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div>
+                  <h3 className="text-xl font-semibold text-[#170F49] mb-6">Academic Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Class Name</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="e.g., X-A or Primary 1"
+                        value={studentForm.class_name}
+                        onChange={handleFieldChange('class_name')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Roll Number</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter roll number"
+                        value={studentForm.roll_no}
+                        onChange={handleFieldChange('roll_no')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Academic Year</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="e.g., 2024-2025"
+                        value={studentForm.academic_year}
+                        onChange={handleFieldChange('academic_year')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Class Teacher</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter class teacher's name"
+                        value={studentForm.class_teacher}
+                        onChange={handleFieldChange('class_teacher')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Division (optional)</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="e.g., A, B"
+                        onChange={(e)=>{ /* store in case record on save */ }}
                       />
                     </div>
                   </div>
@@ -362,6 +680,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter type of disability"
+                        value={studentForm.disability_type}
+                        onChange={handleFieldChange('disability_type')}
                       />
                     </div>
                     <div>
@@ -372,6 +692,8 @@ const [householdRows, setHouseholdRows] = useState([
                         max="100"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter percentage"
+                        value={studentForm.disability_percentage}
+                        onChange={handleFieldChange('disability_percentage')}
                       />
                     </div>
                   </div>
@@ -387,6 +709,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter account number"
+                        value={studentForm.account_number}
+                        onChange={handleFieldChange('account_number')}
                       />
                     </div>
                     <div>
@@ -395,6 +719,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter bank name"
+                        value={studentForm.bank_name}
+                        onChange={handleFieldChange('bank_name')}
                       />
                     </div>
                     <div>
@@ -403,6 +729,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter branch name"
+                        value={studentForm.branch}
+                        onChange={handleFieldChange('branch')}
                       />
                     </div>
                     <div>
@@ -411,6 +739,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter IFSC code"
+                        value={studentForm.ifsc_code}
+                        onChange={handleFieldChange('ifsc_code')}
                       />
                     </div>
                   </div>
@@ -424,6 +754,8 @@ const [householdRows, setHouseholdRows] = useState([
                       className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none"
                       rows="3"
                       placeholder="Enter identification marks"
+                      value={studentForm.medical_conditions}
+                      onChange={handleFieldChange('medical_conditions')}
                     ></textarea>
                   </div>
                 </div>
@@ -478,12 +810,14 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter name"
+                         value={studentForm.name}
+                         onChange={handleFieldChange('name')}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-[#170F49]">Sex</label>
-                      <select className={selectClass}>
+                      <select className={selectClass} value={studentForm.gender} onChange={handleFieldChange('gender')}>
                         <option value="">Select sex</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -493,7 +827,7 @@ const [householdRows, setHouseholdRows] = useState([
 
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-[#170F49]">Religion</label>
-                      <select className={selectClass}>
+                      <select className={selectClass} value={studentForm.religion} onChange={handleFieldChange('religion')}>
                         <option value="">Select religion</option>
                         <option value="hinduism">Hinduism</option>
                         <option value="christianity">Christianity</option>
@@ -511,6 +845,8 @@ const [householdRows, setHouseholdRows] = useState([
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter admission number"
+                        value={studentForm.admission_number}
+                        onChange={handleFieldChange('admission_number')}
                       />
                     </div>
 
@@ -528,6 +864,8 @@ const [householdRows, setHouseholdRows] = useState([
                       <input
                         type="date"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        value={studentForm.dob}
+                        onChange={handleFieldChange('dob')}
                       />
                     </div>
 
@@ -602,26 +940,32 @@ const [householdRows, setHouseholdRows] = useState([
                     <div className="space-y-6">
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Father's Name</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter father's name"
+                              value={studentForm.father_name}
+                              onChange={handleFieldChange('father_name')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Father's Education</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter father's education"
+                              value={studentForm.father_education}
+                              onChange={handleFieldChange('father_education')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Father's Occupation</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter father's occupation"
+                              value={studentForm.father_occupation}
+                              onChange={handleFieldChange('father_occupation')}
                         />
                       </div>
                     </div>
@@ -633,26 +977,32 @@ const [householdRows, setHouseholdRows] = useState([
                     <div className="space-y-6">
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Mother's Name</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter mother's name"
+                              value={studentForm.mother_name}
+                              onChange={handleFieldChange('mother_name')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Mother's Education</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter mother's education"
+                              value={studentForm.mother_education}
+                              onChange={handleFieldChange('mother_education')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Mother's Occupation</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter mother's occupation"
+                              value={studentForm.mother_occupation}
+                              onChange={handleFieldChange('mother_occupation')}
                         />
                       </div>
                     </div>
@@ -664,26 +1014,32 @@ const [householdRows, setHouseholdRows] = useState([
                     <div className="space-y-6">
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Guardian's Name</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter guardian's name"
+                              value={studentForm.guardian_name}
+                              onChange={handleFieldChange('guardian_name')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Guardian's Occupation</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter guardian's occupation"
+                              value={studentForm.guardian_contact}
+                              onChange={handleFieldChange('guardian_contact')}
                         />
                       </div>
                       <div className="h-[85px]">
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Guardian's Relationship</label>
-                        <input
+                            <input
                           type="text"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Enter guardian's relationship"
+                              value={studentForm.guardian_relationship}
+                              onChange={handleFieldChange('guardian_relationship')}
                         />
                       </div>
                     </div>
@@ -1311,7 +1667,15 @@ const [householdRows, setHouseholdRows] = useState([
                     <div className="mt-6 space-y-6">
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Is the child on regular drugs</label>
-                        <input type="text" placeholder="Enter details about regular medication" className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300" />
+                        <input
+                          type="text"
+                          placeholder="Enter details about regular medication"
+                          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                          onChange={(e) => setStudentForm((p) => ({
+                            ...p,
+                            medical_conditions: [p.medical_conditions, e.target.value].filter(Boolean).join(' | ')
+                          }))}
+                        />
                       </div>
 
                       <div className="overflow-hidden">
@@ -1375,7 +1739,13 @@ const [householdRows, setHouseholdRows] = useState([
                     <div className="mt-6 space-y-6">
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Allergies if any</label>
-                        <input type="text" placeholder="Enter allergies" className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300" />
+                        <input
+                          type="text"
+                          placeholder="Enter allergies"
+                          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                          value={studentForm.allergies}
+                          onChange={handleFieldChange('allergies')}
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Drug Allergy</label>
@@ -1394,9 +1764,23 @@ const [householdRows, setHouseholdRows] = useState([
 
           {/* Action Buttons */}
           <div className="flex justify-between w-full mt-8">
-            <button className="w-[48%] px-6 py-3 bg-[#E38B52] text-white rounded-xl hover:bg-[#E38B40] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105">
-              Save Student
-            </button>
+            {activeTab === 'student-details' ? (
+              <button
+                onClick={saveStudent}
+                disabled={isSaving || !studentForm.name}
+                className={`w-[48%] px-6 py-3 ${isSaving ? 'bg-gray-400' : 'bg-[#E38B52]'} text-white rounded-xl hover:bg-[#E38B40] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105`}
+              >
+                {isSaving ? 'Saving...' : savedStudent?.id ? 'Update Details' : 'Save Details'}
+              </button>
+            ) : (
+              <button
+                onClick={saveCaseRecord}
+                disabled={isSaving}
+                className={`w-[48%] px-6 py-3 ${isSaving ? 'bg-gray-400' : 'bg-[#E38B52]'} text-white rounded-xl hover:bg-[#E38B40] transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105`}
+              >
+                {isSaving ? 'Saving...' : 'Save Case Record'}
+              </button>
+            )}
             <button
               onClick={() => navigate(-1)}
               className="w-[48%] px-6 py-3 bg-[#E38B52] text-white rounded-xl hover:bg-gray-600 transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105"
@@ -1463,7 +1847,11 @@ const [householdRows, setHouseholdRows] = useState([
           --ty: 15px;
           animation: float-particle 5s infinite ease-in-out;
         }
-      `}</style>
+     `}</style>
+      
+      {/* ++ ADD THIS LINE HERE ++ */}
+      <ScrollToTopButton />
+
     </div>
   );
 };
