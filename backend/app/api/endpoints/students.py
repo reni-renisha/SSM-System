@@ -6,6 +6,7 @@ from app.crud.student import student
 from app.schemas.student import Student, StudentCreate, StudentUpdate
 from app.db.session import get_db
 from app.utils.pagination import PageParams, Page
+from typing import Dict, Any
 
 router = APIRouter()
 
@@ -57,13 +58,30 @@ def create_student(
     """
     Create a new student.
     """
-    db_student = student.get_by_admission_number(db, admission_number=student_in.admission_number)
-    if db_student:
-        raise HTTPException(
-            status_code=400,
-            detail="Student with this admission number already exists"
-        )
+    # Only check for duplicates if an admission number is provided
+    if student_in.admission_number:
+        db_student = student.get_by_admission_number(db, admission_number=student_in.admission_number)
+        if db_student:
+            raise HTTPException(
+                status_code=400,
+                detail="Student with this admission number already exists"
+            )
     return student.create(db=db, obj_in=student_in)
+
+@router.put("/{student_id}/case-record", response_model=Student)
+def upsert_case_record(
+    student_id: int,
+    case_record: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """
+    Create/update a student's case record independently from core details.
+    """
+    db_student = student.get(db, id=student_id)
+    if db_student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    updated = student.update_case_record(db=db, db_obj=db_student, case_record=case_record)
+    return updated
 
 @router.get("/{student_id}", response_model=Student)
 def read_student(
