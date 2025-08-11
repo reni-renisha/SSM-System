@@ -70,17 +70,4 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
-    def update_case_record(
-        self,
-        db: Session,
-        *,
-        db_obj: Student,
-        case_record: Dict[str, Any]
-    ) -> Student:
-        update_data: Dict[str, Any] = {
-            "case_record": case_record,
-            "updated_at": get_today(),
-        }
-        return super().update(db, db_obj=db_obj, obj_in=update_data)
-
 student = CRUDStudent(Student) 
