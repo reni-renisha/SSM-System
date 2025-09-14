@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { jsPDF } from "jspdf";
+// eslint-disable-next-line
+import html2canvas from "html2canvas";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
@@ -129,7 +132,124 @@ const StudentPage = () => {
     fetchStudent();
   }, [id]);
 
-  // removed mocks
+  // Download Profile as PDF (screenshot)
+  const handleDownloadProfile = async () => {
+    if (!student) return;
+    const doc = new jsPDF();
+    let y = 20;
+    const leftCol = 20;
+    const labelWidth = 65;
+    const boxX = leftCol + labelWidth + 2;
+    const boxWidth = 110;
+    const boxHeight = 8;
+    const bottomMargin = 280;
+
+    // Helper to check for page break
+    const checkPageBreak = (lines = 1) => {
+      if (y + (lines * boxHeight) > bottomMargin) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+
+    // School Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text("ST. MARTHA'S SPECIAL SCHOOL", leftCol, y);
+    y += 8;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text("FOR THE MENTALLY CHALLENGED", leftCol, y);
+    y += 12;
+
+    // Main Title
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.text("STUDENT RECORD FORM", 105, y, { align: 'center' });
+    y += 14;
+
+    // Helper to draw a form field
+    const drawField = (label, value) => {
+      checkPageBreak();
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(label, leftCol, y + 6);
+      doc.rect(boxX, y, boxWidth, boxHeight);
+      doc.setFontSize(12);
+      doc.text(value || '', boxX + 2, y + 6);
+      y += boxHeight + 3;
+    };
+
+    // Personal Information
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Personal Information', leftCol, y);
+    y += 8;
+    [
+      ['NAME OF THE STUDENT', student.name],
+      ['DATE OF BIRTH', student.dob],
+      ['GENDER', student.gender],
+      ['RELIGION', student.religion],
+      ['CASTE', student.caste],
+    ].forEach(([label, value]) => drawField(label, value));
+    y += 10;
+
+    // Address Information
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Address Information', leftCol, y);
+    y += 8;
+    [
+      ['BIRTH PLACE', student.birthPlace],
+      ['HOUSE NAME', student.houseName],
+      ['STREET NAME', student.streetName],
+      ['POST OFFICE', student.postOffice],
+      ['PIN CODE', student.pinCode],
+      ['REVENUE DISTRICT', student.revenueDistrict],
+    ].forEach(([label, value]) => drawField(label, value));
+    y += 10;
+
+    // Contact Information
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Contact Information', leftCol, y);
+    y += 8;
+    [
+      ['PHONE NUMBER', student.phoneNumber],
+      ['EMAIL', student.email],
+    ].forEach(([label, value]) => drawField(label, value));
+    y += 10;
+
+    // Family Information
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Family Information', leftCol, y);
+    y += 8;
+    [
+      ['FATHER NAME', student.fatherName],
+      ['FATHER EDUCATION', student.fatherEducation],
+      ['FATHER OCCUPATION', student.fatherOccupation],
+      ['MOTHER NAME', student.motherName],
+      ['MOTHER EDUCATION', student.motherEducation],
+      ['MOTHER OCCUPATION', student.motherOccupation],
+    ].forEach(([label, value]) => drawField(label, value));
+    y += 10;
+
+    // Bank Details
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bank Details', leftCol, y);
+    y += 8;
+    [
+      ['BANK NAME', student.bankName],
+      ['ACCOUNT NUMBER', student.accountNumber],
+      ['BRANCH', student.branch],
+      ['IFSC CODE', student.ifscCode],
+    ].forEach(([label, value]) => drawField(label, value));
+
+    // Save PDF
+    doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
+  };
 
   if (loading) {
     return (
@@ -140,7 +260,7 @@ const StudentPage = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-hidden py-20">
+  <div id="profile-to-download" className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-hidden py-20">
       {/* Back button */}
       <button
         onClick={() => window.history.back()}
@@ -1286,7 +1406,10 @@ const StudentPage = () => {
                 Edit Details
               </button>
             )}
-            <button className="flex-1  bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200">
+            <button
+              className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
+              onClick={handleDownloadProfile}
+            >
               Download Profile
             </button>
           </div>
