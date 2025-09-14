@@ -4,10 +4,79 @@ import axios from "axios";
 
 const StudentPage = () => {
   const [activeTab, setActiveTab] = useState("student-details");
-  // Get the student ID from URL parameters
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState(null);
+
+  // Start editing: initialize editData
+  const handleEditStart = () => {
+    setEditData(student);
+    setEditMode(true);
+  };
+
+  // Handle input change in edit mode
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Cancel editing
+  const handleEditCancel = () => {
+    setEditMode(false);
+    setEditData(student);
+  };
+
+  // Save changes
+  const handleEditSave = async () => {
+    try {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      await axios.put(`${baseUrl}/api/v1/students/${id}`, editData);
+      // Refresh student data
+      const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
+      const mapped = {
+        name: data.name,
+        studentId: data.student_id,
+        dob: data.dob,
+        gender: data.gender,
+        religion: data.religion,
+        caste: data.caste,
+        class: data.class_name,
+        rollNo: data.roll_no,
+        birthPlace: data.birth_place,
+        houseName: data.house_name,
+        streetName: data.street_name,
+        postOffice: data.post_office,
+        pinCode: data.pin_code,
+        revenueDistrict: data.revenue_district,
+        phoneNumber: data.phone_number,
+        email: data.email,
+        address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
+        fatherName: data.father_name,
+        fatherEducation: data.father_education,
+        fatherOccupation: data.father_occupation,
+        motherName: data.mother_name,
+        motherEducation: data.mother_education,
+        motherOccupation: data.mother_occupation,
+        guardianName: data.guardian_name,
+        guardianRelationship: data.guardian_relationship,
+        guardianContact: data.guardian_contact,
+        academicYear: data.academic_year,
+        admissionNumber: data.admission_number,
+        admissionDate: data.admission_date,
+        classTeacher: data.class_teacher,
+        bankName: data.bank_name,
+        accountNumber: data.account_number,
+        branch: data.branch,
+        ifscCode: data.ifsc_code
+      };
+      setStudent(mapped);
+      setEditMode(false);
+    } catch (e) {
+      // handle error (optional)
+    }
+  };
 
   useEffect(() => {
     const fetchStudent = async () => {
@@ -190,27 +259,51 @@ const StudentPage = () => {
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pl-8 md:pl-12">
                     <div>
                       <p className="text-sm text-[#6F6C90]">Full Name</p>
-                      <p className="text-[#170F49] font-medium">{student?.name}</p>
+                      {editMode ? (
+                        <input type="text" name="name" value={editData?.name || ''} onChange={handleEditChange} className="input-edit" />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.name}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Student ID</p>
-                      <p className="text-[#170F49] font-medium">{student?.studentId}</p>
+                      {editMode ? (
+                        <input type="text" name="studentId" value={editData?.studentId || ''} className="input-edit" readOnly />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.studentId}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Date of Birth</p>
-                      <p className="text-[#170F49] font-medium">{student?.dob}</p>
+                      {editMode ? (
+                        <input type="date" name="dob" value={editData?.dob || ''} onChange={handleEditChange} className="input-edit" />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.dob}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Gender</p>
-                      <p className="text-[#170F49] font-medium">{student?.gender}</p>
+                      {editMode ? (
+                        <input type="text" name="gender" value={editData?.gender || ''} onChange={handleEditChange} className="input-edit" />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.gender}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Religion</p>
-                      <p className="text-[#170F49] font-medium">{student?.religion}</p>
+                      {editMode ? (
+                        <input type="text" name="religion" value={editData?.religion || ''} onChange={handleEditChange} className="input-edit" />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.religion}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Caste</p>
-                      <p className="text-[#170F49] font-medium">{student?.caste}</p>
+                      {editMode ? (
+                        <input type="text" name="caste" value={editData?.caste || ''} onChange={handleEditChange} className="input-edit" />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.caste}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -222,27 +315,51 @@ const StudentPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                   <div>
                     <p className="text-sm text-[#6F6C90]">Birth Place</p>
-                    <p className="text-[#170F49] font-medium">{student?.birthPlace}</p>
+                    {editMode ? (
+                      <input type="text" name="birthPlace" value={editData?.birthPlace || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.birthPlace}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">House Name</p>
-                    <p className="text-[#170F49] font-medium">{student?.houseName}</p>
+                    {editMode ? (
+                      <input type="text" name="houseName" value={editData?.houseName || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.houseName}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Street Name</p>
-                    <p className="text-[#170F49] font-medium">{student?.streetName}</p>
+                    {editMode ? (
+                      <input type="text" name="streetName" value={editData?.streetName || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.streetName}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Post Office</p>
-                    <p className="text-[#170F49] font-medium">{student?.postOffice}</p>
+                    {editMode ? (
+                      <input type="text" name="postOffice" value={editData?.postOffice || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.postOffice}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Pin Code</p>
-                    <p className="text-[#170F49] font-medium">{student?.pinCode}</p>
+                    {editMode ? (
+                      <input type="text" name="pinCode" value={editData?.pinCode || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.pinCode}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Revenue District</p>
-                    <p className="text-[#170F49] font-medium">{student?.revenueDistrict}</p>
+                    {editMode ? (
+                      <input type="text" name="revenueDistrict" value={editData?.revenueDistrict || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.revenueDistrict}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -253,15 +370,27 @@ const StudentPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                   <div>
                     <p className="text-sm text-[#6F6C90]">Phone Number</p>
-                    <p className="text-[#170F49] font-medium">{student?.phoneNumber}</p>
+                    {editMode ? (
+                      <input type="text" name="phoneNumber" value={editData?.phoneNumber || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.phoneNumber}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Email</p>
-                    <p className="text-[#170F49] font-medium">{student?.email}</p>
+                    {editMode ? (
+                      <input type="email" name="email" value={editData?.email || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.email}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Address</p>
-                    <p className="text-[#170F49] font-medium">{student?.address}</p>
+                    {editMode ? (
+                      <input type="text" name="address" value={editData?.address || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.address}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -275,15 +404,27 @@ const StudentPage = () => {
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Name</p>
-                        <p className="text-[#170F49] font-medium">{student?.fatherName}</p>
+                        {editMode ? (
+                          <input type="text" name="fatherName" value={editData?.fatherName || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.fatherName}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Education</p>
-                        <p className="text-[#170F49] font-medium">{student?.fatherEducation}</p>
+                        {editMode ? (
+                          <input type="text" name="fatherEducation" value={editData?.fatherEducation || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.fatherEducation}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Occupation</p>
-                        <p className="text-[#170F49] font-medium">{student?.fatherOccupation}</p>
+                        {editMode ? (
+                          <input type="text" name="fatherOccupation" value={editData?.fatherOccupation || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.fatherOccupation}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -293,15 +434,27 @@ const StudentPage = () => {
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Name</p>
-                        <p className="text-[#170F49] font-medium">{student?.motherName}</p>
+                        {editMode ? (
+                          <input type="text" name="motherName" value={editData?.motherName || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.motherName}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Education</p>
-                        <p className="text-[#170F49] font-medium">{student?.motherEducation}</p>
+                        {editMode ? (
+                          <input type="text" name="motherEducation" value={editData?.motherEducation || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.motherEducation}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Occupation</p>
-                        <p className="text-[#170F49] font-medium">{student?.motherOccupation}</p>
+                        {editMode ? (
+                          <input type="text" name="motherOccupation" value={editData?.motherOccupation || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.motherOccupation}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -332,27 +485,51 @@ const StudentPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                   <div>
                     <p className="text-sm text-[#6F6C90]">Class</p>
-                    <p className="text-[#170F49] font-medium">{student?.class}</p>
+                    {editMode ? (
+                      <input type="text" name="class" value={editData?.class || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.class}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Division</p>
-                    <p className="text-[#170F49] font-medium">{student?.rollNo}</p>
+                    {editMode ? (
+                      <input type="text" name="rollNo" value={editData?.rollNo || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.rollNo}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Roll Number</p>
-                    <p className="text-[#170F49] font-medium">{student?.rollNo}</p>
+                    {editMode ? (
+                      <input type="text" name="rollNo" value={editData?.rollNo || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.rollNo}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Academic Year</p>
-                    <p className="text-[#170F49] font-medium">{student?.academicYear}</p>
+                    {editMode ? (
+                      <input type="text" name="academicYear" value={editData?.academicYear || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.academicYear}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Admission Number</p>
-                    <p className="text-[#170F49] font-medium">{student?.admissionNumber}</p>
+                    {editMode ? (
+                      <input type="text" name="admissionNumber" value={editData?.admissionNumber || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.admissionNumber}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Date of Admission</p>
-                    <p className="text-[#170F49] font-medium">{student?.admissionDate}</p>
+                    {editMode ? (
+                      <input type="date" name="admissionDate" value={editData?.admissionDate || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.admissionDate}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -363,19 +540,35 @@ const StudentPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                   <div>
                     <p className="text-sm text-[#6F6C90]">Account Number</p>
-                    <p className="text-[#170F49] font-medium">{student?.accountNumber}</p>
+                    {editMode ? (
+                      <input type="text" name="accountNumber" value={editData?.accountNumber || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.accountNumber}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Bank Name</p>
-                    <p className="text-[#170F49] font-medium">{student?.bankName}</p>
+                    {editMode ? (
+                      <input type="text" name="bankName" value={editData?.bankName || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.bankName}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Branch</p>
-                    <p className="text-[#170F49] font-medium">{student?.branch}</p>
+                    {editMode ? (
+                      <input type="text" name="branch" value={editData?.branch || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.branch}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">IFSC Code</p>
-                    <p className="text-[#170F49] font-medium">{student?.ifscCode}</p>
+                    {editMode ? (
+                      <input type="text" name="ifscCode" value={editData?.ifscCode || ''} onChange={handleEditChange} className="input-edit" />
+                    ) : (
+                      <p className="text-[#170F49] font-medium">{student?.ifscCode}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1083,9 +1276,16 @@ const StudentPage = () => {
 
           {/* Action Buttons with adjusted margin */}
           <div className="flex gap-4 mt-6 md:mt-8">
-            <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#E38B52]/90 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]">
-              Edit Details
-            </button>
+            {editMode ? (
+              <>
+                <button className="flex-1 bg-gray-300 py-4 rounded-2xl font-medium" onClick={handleEditCancel}>Cancel</button>
+                <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl font-medium" onClick={handleEditSave}>Save Changes</button>
+              </>
+            ) : (
+              <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#E38B52]/90 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]" onClick={handleEditStart}>
+                Edit Details
+              </button>
+            )}
             <button className="flex-1  bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200">
               Download Profile
             </button>

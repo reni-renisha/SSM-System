@@ -41,6 +41,9 @@ const AddStudent = () => {
   const [activeTab, setActiveTab] = useState("student-details");
   const [isSaving, setIsSaving] = useState(false);
   const [savedStudent, setSavedStudent] = useState(null); // store created/selected student
+  // eslint-disable-next-line
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
   const [studentForm, setStudentForm] = useState({
     name: '',
     dob: '',
@@ -88,29 +91,23 @@ const AddStudent = () => {
     try {
       setIsSaving(true);
       const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      // Build payload and keep empty strings for string fields to avoid backend 'field required' errors
       const payload = { ...studentForm };
       if (!payload.dob) delete payload.dob;
       if (!payload.admission_date) delete payload.admission_date;
-
       if (payload.disability_percentage !== undefined) {
         const num = parseFloat(payload.disability_percentage);
         if (!Number.isNaN(num)) payload.disability_percentage = num;
         else delete payload.disability_percentage;
       }
-
-      // Create or update details depending on presence of savedStudent
       const endpoint = savedStudent?.id
         ? `${baseUrl}/api/v1/students/${savedStudent.id}`
         : `${baseUrl}/api/v1/students/`;
       const method = savedStudent?.id ? 'PUT' : 'POST';
-
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         let message = 'Failed to save student';
@@ -134,10 +131,9 @@ const AddStudent = () => {
         }
         throw new Error(message);
       }
-
       const data = await res.json();
       setSavedStudent(data);
-      alert(`Student details saved. ID: ${data.student_id || data.id}`);
+      setShowPopup(true);
       // Optionally navigate or reset the form
       // navigate(-1);
     } catch (e) {
@@ -251,6 +247,25 @@ const [householdRows, setHouseholdRows] = useState([
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-x-hidden py-20">
+      {showPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white px-8 py-8 rounded-2xl shadow-2xl flex flex-col items-center gap-6 animate-fade-in min-w-[320px] max-w-[90vw]">
+            <div className="text-green-600 text-2xl font-bold mb-2">Success!</div>
+            <div className="text-gray-700 text-lg mb-4 text-center">Student details have been saved successfully.</div>
+            <button
+              className="bg-[#E38B52] text-white px-8 py-3 rounded-xl font-semibold text-lg hover:bg-[#C8742F] transition-all duration-200 shadow-md"
+              onClick={() => { setShowPopup(false); navigate('/headmaster'); }}
+            >
+              Go to List
+            </button>
+          </div>
+        </div>
+      )}
+      {showSuccess && (
+        <div className="fixed top-8 right-8 z-50 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg animate-fade-in">
+          Student details saved successfully!
+        </div>
+      )}
       {/* Back button */}
       <button
         onClick={() => window.history.back()}
@@ -1397,7 +1412,7 @@ const [householdRows, setHouseholdRows] = useState([
               <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h2" />
                   </svg>
                   Special Education Assessment
                 </h2>

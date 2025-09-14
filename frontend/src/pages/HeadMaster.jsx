@@ -49,6 +49,7 @@ const HeadMaster = () => {
   });
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [teachers, setTeachers] = useState([]);
+  // eslint-disable-next-line
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
@@ -106,7 +107,8 @@ const HeadMaster = () => {
         if (selectedClass && selectedClass !== 'all') params.class_name = selectedClass;
         const { data } = await axios.get('http://localhost:8000/api/v1/students/', { params });
         const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-        setStudents(items);
+  const sortedStudents = [...items].sort((a, b) => a.name.localeCompare(b.name));
+  setStudents(sortedStudents);
       } catch (error) {
         console.error('Error fetching students:', error);
       } finally {
