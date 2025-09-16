@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
-// eslint-disable-next-line
-import html2canvas from "html2canvas";
+
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
