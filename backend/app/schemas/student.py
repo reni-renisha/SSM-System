@@ -5,6 +5,7 @@ from typing import Optional, Any, Dict
 class StudentBase(BaseModel):
     # Core identity
     name: str
+    age: Optional[int] = None
     dob: Optional[date] = None
     gender: Optional[str] = None
     religion: Optional[str] = None
@@ -21,6 +22,9 @@ class StudentBase(BaseModel):
     post_office: Optional[str] = None
     pin_code: Optional[str] = None
     revenue_district: Optional[str] = None
+    block_panchayat: Optional[str] = None
+    local_body: Optional[str] = None
+    taluk: Optional[str] = None
 
     # Contact
     phone_number: Optional[str] = None

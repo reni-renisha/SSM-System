@@ -46,6 +46,7 @@ const AddStudent = () => {
   const [showPopup, setShowPopup] = useState(false);
   const [studentForm, setStudentForm] = useState({
     name: '',
+    age: '',
     dob: '',
     gender: '',
     religion: '',
@@ -57,7 +58,10 @@ const AddStudent = () => {
     street_name: '',
     post_office: '',
     pin_code: '',
-    revenue_district: '',
+  revenue_district: '',
+  block_panchayat: '',
+  local_body: '',
+  taluk: '',
     phone_number: '',
     email: '',
     father_name: '',
@@ -94,6 +98,10 @@ const AddStudent = () => {
       const payload = { ...studentForm };
       if (!payload.dob) delete payload.dob;
       if (!payload.admission_date) delete payload.admission_date;
+      if (payload.age !== undefined && payload.age !== '') {
+        payload.age = parseInt(payload.age, 10);
+        if (isNaN(payload.age)) delete payload.age;
+      }
       if (payload.disability_percentage !== undefined) {
         const num = parseFloat(payload.disability_percentage);
         if (!Number.isNaN(num)) payload.disability_percentage = num;
@@ -405,9 +413,13 @@ const [householdRows, setHouseholdRows] = useState([
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Age</label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                           placeholder="Age"
+                          value={studentForm.age}
+                          onChange={handleFieldChange('age')}
                         />
                       </div>
                       <div>
@@ -445,6 +457,36 @@ const [householdRows, setHouseholdRows] = useState([
                         placeholder="Enter house name"
                         value={studentForm.house_name}
                         onChange={handleFieldChange('house_name')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Block Panchayat</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter block panchayat"
+                        value={studentForm.block_panchayat}
+                        onChange={handleFieldChange('block_panchayat')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Local Body</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter local body"
+                        value={studentForm.local_body}
+                        onChange={handleFieldChange('local_body')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Taluk</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="Enter taluk"
+                        value={studentForm.taluk}
+                        onChange={handleFieldChange('taluk')}
                       />
                     </div>
                     <div>
@@ -486,30 +528,6 @@ const [householdRows, setHouseholdRows] = useState([
                         placeholder="Enter revenue district"
                         value={studentForm.revenue_district}
                         onChange={handleFieldChange('revenue_district')}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#170F49] mb-2">Block Panchayat</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="Enter block panchayat"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#170F49] mb-2">Local Body</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="Enter local body"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[#170F49] mb-2">Taluk</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="Enter taluk"
                       />
                     </div>
                   </div>

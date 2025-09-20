@@ -14,14 +14,19 @@ const StudentPage = () => {
 
   // Start editing: initialize editData
   const handleEditStart = () => {
-    setEditData(student);
-    setEditMode(true);
+  if (!student) return;
+  // Exclude studentId from editData, but keep all other fields
+  const { studentId, ...editableFields } = student;
+  setEditData({ ...editableFields });
+  setEditMode(true);
   };
 
   // Handle input change in edit mode
   const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
+  const { name, value } = e.target;
+  // Prevent editing studentId
+  if (name === "studentId") return;
+  setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
   // Cancel editing
@@ -34,11 +39,51 @@ const StudentPage = () => {
   const handleEditSave = async () => {
     try {
       const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      await axios.put(`${baseUrl}/api/v1/students/${id}`, editData);
+      // Map frontend keys to backend keys for address fields and other fields
+      const payload = {
+        name: editData.name,
+        age: editData.age,
+        dob: editData.dob,
+        gender: editData.gender,
+        religion: editData.religion,
+        caste: editData.caste,
+        class_name: editData.class,
+        roll_no: editData.rollNo,
+        birth_place: editData.birthPlace,
+        house_name: editData.houseName,
+        street_name: editData.streetName,
+        post_office: editData.postOffice,
+        pin_code: editData.pinCode,
+        revenue_district: editData.revenueDistrict,
+        block_panchayat: editData.blockPanchayat,
+        local_body: editData.localBody,
+        taluk: editData.taluk,
+        phone_number: editData.phoneNumber,
+        email: editData.email,
+        father_name: editData.fatherName,
+        father_education: editData.fatherEducation,
+        father_occupation: editData.fatherOccupation,
+        mother_name: editData.motherName,
+        mother_education: editData.motherEducation,
+        mother_occupation: editData.motherOccupation,
+        guardian_name: editData.guardianName,
+        guardian_relationship: editData.guardianRelationship,
+        guardian_contact: editData.guardianContact,
+        academic_year: editData.academicYear,
+        admission_number: editData.admissionNumber,
+        admission_date: editData.admissionDate,
+        class_teacher: editData.classTeacher,
+        bank_name: editData.bankName,
+        account_number: editData.accountNumber,
+        branch: editData.branch,
+        ifsc_code: editData.ifscCode
+      };
+      await axios.put(`${baseUrl}/api/v1/students/${id}`, payload);
       // Refresh student data
       const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
       const mapped = {
         name: data.name,
+        age: data.age,
         studentId: data.student_id,
         dob: data.dob,
         gender: data.gender,
@@ -46,12 +91,15 @@ const StudentPage = () => {
         caste: data.caste,
         class: data.class_name,
         rollNo: data.roll_no,
-        birthPlace: data.birth_place,
-        houseName: data.house_name,
-        streetName: data.street_name,
-        postOffice: data.post_office,
-        pinCode: data.pin_code,
-        revenueDistrict: data.revenue_district,
+  birthPlace: data.birth_place,
+  houseName: data.house_name,
+  streetName: data.street_name,
+  postOffice: data.post_office,
+  pinCode: data.pin_code,
+  revenueDistrict: data.revenue_district,
+  blockPanchayat: data.block_panchayat,
+  localBody: data.local_body,
+  taluk: data.taluk,
         phoneNumber: data.phone_number,
         email: data.email,
         address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
@@ -87,6 +135,7 @@ const StudentPage = () => {
         const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
         const mapped = {
           name: data.name,
+          age: data.age,
           studentId: data.student_id,
           dob: data.dob,
           gender: data.gender,
@@ -100,6 +149,9 @@ const StudentPage = () => {
           postOffice: data.post_office,
           pinCode: data.pin_code,
           revenueDistrict: data.revenue_district,
+          blockPanchayat: data.block_panchayat,
+          localBody: data.local_body,
+          taluk: data.taluk,
           phoneNumber: data.phone_number,
           email: data.email,
           address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
@@ -154,29 +206,32 @@ const StudentPage = () => {
     // School Header
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text("ST. MARTHA'S SPECIAL SCHOOL", leftCol, y);
-    y += 8;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text("FOR THE MENTALLY CHALLENGED", leftCol, y);
-    y += 12;
-
-    // Main Title
-    doc.setFontSize(15);
+  doc.text("ST. MARTHA'S SPECIAL SCHOOL", leftCol, y);
+  y += 12;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  // ...existing code...
+  // Example field rendering:
+  // doc.text("Age:", leftCol, y);
+  // doc.text(String(student.age ?? ''), boxX, y);
+  // y += boxHeight;
+  // For all fields, ensure value is string:
+  const safeText = (val) => (val === undefined || val === null) ? '' : String(val);
+  // ...replace all doc.text(field, ...) with doc.text(safeText(field), ...)
     doc.setFont('helvetica', 'bold');
     doc.text("STUDENT RECORD FORM", 105, y, { align: 'center' });
     y += 14;
 
     // Helper to draw a form field
     const drawField = (label, value) => {
-      checkPageBreak();
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text(label, leftCol, y + 6);
-      doc.rect(boxX, y, boxWidth, boxHeight);
-      doc.setFontSize(12);
-      doc.text(value || '', boxX + 2, y + 6);
-      y += boxHeight + 3;
+  checkPageBreak();
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(safeText(label), leftCol, y + 6);
+  doc.rect(boxX, y, boxWidth, boxHeight);
+  doc.setFontSize(12);
+  doc.text(safeText(value), boxX + 2, y + 6);
+  y += boxHeight + 3;
     };
 
     // Personal Information
@@ -185,11 +240,12 @@ const StudentPage = () => {
     doc.text('Personal Information', leftCol, y);
     y += 8;
     [
-      ['NAME OF THE STUDENT', student.name],
-      ['DATE OF BIRTH', student.dob],
-      ['GENDER', student.gender],
-      ['RELIGION', student.religion],
-      ['CASTE', student.caste],
+  ['NAME OF THE STUDENT', student.name],
+  ['AGE', student.age],
+  ['DATE OF BIRTH', student.dob],
+  ['GENDER', student.gender],
+  ['RELIGION', student.religion],
+  ['CASTE', student.caste],
     ].forEach(([label, value]) => drawField(label, value));
     y += 10;
 
@@ -199,12 +255,15 @@ const StudentPage = () => {
     doc.text('Address Information', leftCol, y);
     y += 8;
     [
-      ['BIRTH PLACE', student.birthPlace],
-      ['HOUSE NAME', student.houseName],
-      ['STREET NAME', student.streetName],
-      ['POST OFFICE', student.postOffice],
-      ['PIN CODE', student.pinCode],
-      ['REVENUE DISTRICT', student.revenueDistrict],
+  ['BIRTH PLACE', student.birthPlace],
+  ['HOUSE NAME', student.houseName],
+  ['STREET NAME', student.streetName],
+  ['POST OFFICE', student.postOffice],
+  ['PIN CODE', student.pinCode],
+  ['REVENUE DISTRICT', student.revenueDistrict],
+  ['BLOCK PANCHAYAT', student.blockPanchayat],
+  ['LOCAL BODY', student.localBody],
+  ['TALUK', student.taluk],
     ].forEach(([label, value]) => drawField(label, value));
     y += 10;
 
@@ -385,12 +444,16 @@ const StudentPage = () => {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm text-[#6F6C90]">Student ID</p>
+                      <p className="text-sm text-[#6F6C90]">Age</p>
                       {editMode ? (
-                        <input type="text" name="studentId" value={editData?.studentId || ''} className="input-edit" readOnly />
+                        <input type="number" name="age" value={editData?.age || ''} onChange={handleEditChange} className="input-edit" />
                       ) : (
-                        <p className="text-[#170F49] font-medium">{student?.studentId}</p>
+                        <p className="text-[#170F49] font-medium">{student?.age}</p>
                       )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#6F6C90]">Student ID</p>
+                      <input type="text" name="studentId" value={student?.studentId || ''} className="input-edit" readOnly />
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Date of Birth</p>
@@ -448,6 +511,30 @@ const StudentPage = () => {
                       <p className="text-[#170F49] font-medium">{student?.houseName}</p>
                     )}
                   </div>
+                   <div>
+                     <p className="text-sm text-[#6F6C90]">Block Panchayat</p>
+                     {editMode ? (
+                       <input type="text" name="blockPanchayat" value={editData?.blockPanchayat || ''} onChange={handleEditChange} className="input-edit" />
+                     ) : (
+                       <p className="text-[#170F49] font-medium">{student?.blockPanchayat}</p>
+                     )}
+                   </div>
+                   <div>
+                     <p className="text-sm text-[#6F6C90]">Local Body</p>
+                     {editMode ? (
+                       <input type="text" name="localBody" value={editData?.localBody || ''} onChange={handleEditChange} className="input-edit" />
+                     ) : (
+                       <p className="text-[#170F49] font-medium">{student?.localBody}</p>
+                     )}
+                   </div>
+                   <div>
+                     <p className="text-sm text-[#6F6C90]">Taluk</p>
+                     {editMode ? (
+                       <input type="text" name="taluk" value={editData?.taluk || ''} onChange={handleEditChange} className="input-edit" />
+                     ) : (
+                       <p className="text-[#170F49] font-medium">{student?.taluk}</p>
+                     )}
+                   </div>
                   <div>
                     <p className="text-sm text-[#6F6C90]">Street Name</p>
                     {editMode ? (

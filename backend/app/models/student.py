@@ -9,6 +9,7 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(String, unique=True, index=True)
     name = Column(String, index=True)
+    age = Column(Integer)
     dob = Column(Date)
     gender = Column(String)
     religion = Column(String)
@@ -21,6 +22,9 @@ class Student(Base):
     post_office = Column(String)
     pin_code = Column(String)
     revenue_district = Column(String)
+    block_panchayat = Column(String, nullable=True)
+    local_body = Column(String, nullable=True)
+    taluk = Column(String, nullable=True)
     phone_number = Column(String)
     email = Column(String)
     
