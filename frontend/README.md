@@ -3,6 +3,7 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
+--just a trial run to check if alt account works--
 
 In the project directory, you can run:
 
