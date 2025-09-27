@@ -43,6 +43,7 @@ const HeadMaster = () => {
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
   const [isSearchFloating, setIsSearchFloating] = useState(false);
+  const [notification, setNotification] = useState({ message: '', type: '' });
   const [activeTab, setActiveTab] = useState(() => {
     // Get the saved tab from localStorage, default to "students"
     return localStorage.getItem('headmistressActiveTab') || "students";
@@ -197,12 +198,30 @@ const HeadMaster = () => {
     setStudentToDelete({ id: studentId, name: studentName });
     setShowStudentDeleteConfirm(true);
   };
-  const confirmDeleteStudent = () => {
-    // TODO: Implement actual delete logic (API call)
-    // For now, just close the modal
-    setShowStudentDeleteConfirm(false);
-    setStudentToDelete(null);
-    alert(`${studentToDelete?.name} has been deleted (placeholder).`);
+ const confirmDeleteStudent = async () => {
+    if (!studentToDelete) return;
+
+    try {
+      // Step 1: Call the backend API to delete the student
+      await axios.delete(`http://localhost:8000/api/v1/students/${studentToDelete.id}`);
+
+      // Step 2: Remove the deleted student from the local list to update the UI
+      setStudents(students.filter(student => student.id !== studentToDelete.id));
+      
+      // Step 3: Show a success message
+      setNotification({ message: `${studentToDelete.name} has been deleted.`, type: 'error' });
+
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      // Show an error message
+      setNotification({ message: 'Failed to delete student.', type: 'error' });
+    } finally {
+      // Step 4: Always close the modal and reset the state
+      setShowStudentDeleteConfirm(false);
+      setStudentToDelete(null);
+      // Hide the notification after 3 seconds
+      setTimeout(() => setNotification({ message: '', type: '' }), 3000);
+    }
   };
   const cancelDeleteStudent = () => {
     setShowStudentDeleteConfirm(false);
@@ -826,6 +845,17 @@ const HeadMaster = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {notification.message && (
+        <div 
+          className={`fixed top-8 right-8 z-50 text-white px-6 py-3 rounded-xl shadow-lg transition-transform transform-gpu animate-fade-in-down
+            ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`
+          }
+        >
+          <div className="flex items-center gap-3">
+            <span>{notification.message}</span>
           </div>
         </div>
       )}
