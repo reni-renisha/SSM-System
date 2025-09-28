@@ -205,130 +205,142 @@ useEffect(() => {
 }, [id]);
 
   // Download Profile as PDF (screenshot)
-  const handleDownloadProfile = async () => {
-    if (!student) return;
-    const doc = new jsPDF();
-    let y = 20;
-    const leftCol = 20;
-    const labelWidth = 65;
-    const boxX = leftCol + labelWidth + 2;
-    const boxWidth = 110;
-    const boxHeight = 8;
-    const bottomMargin = 280;
+// REPLACE your existing function with this one
+// REPLACE your existing function with this one
+const handleDownloadProfile = async () => {
+  if (!student) return;
 
-    // Helper to check for page break
-    const checkPageBreak = (lines = 1) => {
-      if (y + (lines * boxHeight) > bottomMargin) {
-        doc.addPage();
-        y = 20;
-      }
-    };
+  const doc = new jsPDF();
+  let y = 15;
+  const leftCol = 20;
+  const boxX = 87;
+  const boxWidth = 105;
+  const boxHeight = 8;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth(); // Get page width for centering
 
-    // School Header
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-  doc.text("ST. MARTHA'S SPECIAL SCHOOL", leftCol, y);
-  y += 12;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  // ...existing code...
-  // Example field rendering:
-  // doc.text("Age:", leftCol, y);
-  // doc.text(String(student.age ?? ''), boxX, y);
-  // y += boxHeight;
-  // For all fields, ensure value is string:
-  const safeText = (val) => (val === undefined || val === null) ? '' : String(val);
-  // ...replace all doc.text(field, ...) with doc.text(safeText(field), ...)
-    doc.setFont('helvetica', 'bold');
-    doc.text("STUDENT RECORD FORM", 105, y, { align: 'center' });
-    y += 14;
-
-    // Helper to draw a form field
-    const drawField = (label, value) => {
-  checkPageBreak();
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(safeText(label), leftCol, y + 6);
-  doc.rect(boxX, y, boxWidth, boxHeight);
-  doc.setFontSize(12);
-  doc.text(safeText(value), boxX + 2, y + 6);
-  y += boxHeight + 3;
-    };
-
-    // Personal Information
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Personal Information', leftCol, y);
-    y += 8;
-    [
-  ['NAME OF THE STUDENT', student.name],
-  ['AGE', student.age],
-  ['DATE OF BIRTH', student.dob],
-  ['GENDER', student.gender],
-  ['RELIGION', student.religion],
-  ['CASTE', student.caste],
-    ].forEach(([label, value]) => drawField(label, value));
-    y += 10;
-
-    // Address Information
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Address Information', leftCol, y);
-    y += 8;
-    [
-  ['BIRTH PLACE', student.birthPlace],
-  ['HOUSE NAME', student.houseName],
-  ['STREET NAME', student.streetName],
-  ['POST OFFICE', student.postOffice],
-  ['PIN CODE', student.pinCode],
-  ['REVENUE DISTRICT', student.revenueDistrict],
-  ['BLOCK PANCHAYAT', student.blockPanchayat],
-  ['LOCAL BODY', student.localBody],
-  ['TALUK', student.taluk],
-    ].forEach(([label, value]) => drawField(label, value));
-    y += 10;
-
-    // Contact Information
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Contact Information', leftCol, y);
-    y += 8;
-    [
-      ['PHONE NUMBER', student.phoneNumber],
-      ['EMAIL', student.email],
-    ].forEach(([label, value]) => drawField(label, value));
-    y += 10;
-
-    // Family Information
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Family Information', leftCol, y);
-    y += 8;
-    [
-      ['FATHER NAME', student.fatherName],
-      ['FATHER EDUCATION', student.fatherEducation],
-      ['FATHER OCCUPATION', student.fatherOccupation],
-      ['MOTHER NAME', student.motherName],
-      ['MOTHER EDUCATION', student.motherEducation],
-      ['MOTHER OCCUPATION', student.motherOccupation],
-    ].forEach(([label, value]) => drawField(label, value));
-    y += 10;
-
-    // Bank Details
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bank Details', leftCol, y);
-    y += 8;
-    [
-      ['BANK NAME', student.bankName],
-      ['ACCOUNT NUMBER', student.accountNumber],
-      ['BRANCH', student.branch],
-      ['IFSC CODE', student.ifscCode],
-    ].forEach(([label, value]) => drawField(label, value));
-
-    // Save PDF
-    doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
+  // Helper to check for page break
+  const checkPageBreak = () => {
+    if (y > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
   };
+
+  // --- 🔽 UPDATED PDF HEADER CODE (for exact match) 🔽 ---
+
+  // 1. Position for the Photo Box
+  const imgWidth = 40; // Slightly wider for better aspect
+  const imgHeight = 50; // Slightly taller for better aspect
+  const imgX = pageWidth - imgWidth - leftCol; // Position from right edge
+  const imgY = 30; // Y position from top
+
+  // 2. Draw the photo box border
+  doc.setDrawColor(0); // Black border
+
+  doc.rect(imgX, imgY, imgWidth, imgHeight); 
+
+  // 3. Add the image inside the box if it exists
+  if (student.photoUrl) {
+    try {
+      doc.addImage(student.photoUrl, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+    } catch (e) {
+      console.error("Error adding image to PDF:", e);
+    }
+  }
+
+  // 4. Add the School Title (Centered)
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text("ST. MARTHA'S SPECIAL SCHOOL", pageWidth / 2, y + 5, { align: 'center' }); // Centered
+
+  // 5. Add the Subtitle (Centered)
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text("FOR THE MENTALLY CHALLENGED", pageWidth / 2, y + 12, { align: 'center' }); // Centered
+  
+  // 6. Add the "STUDENT RECORD FORM" (Centered)
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text("STUDENT RECORD FORM", pageWidth / 2, y + 25, { align: 'center' }); // Centered and lower
+
+  // 7. Adjust the starting 'y' position for the rest of the content
+  // Start below the header content and the image box
+  y = Math.max(y + 25, imgY + imgHeight) + 5; // Ensure 'y' is below both. Added extra 15 for spacing.
+
+  // --- 🔼 END OF UPDATED HEADER CODE 🔼 ---
+  
+  const drawField = (label, value) => {
+    checkPageBreak();
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(label || ''), leftCol, y + 6);
+    doc.rect(boxX, y, boxWidth, boxHeight);
+    doc.text(String(value || ''), boxX + 2, y + 6);
+    y += boxHeight + 3;
+  };
+
+  const drawSectionHeader = (title) => {
+    checkPageBreak();
+    y += 5;
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, leftCol, y);
+    y += 8;
+  };
+
+  drawSectionHeader('Personal Information');
+  drawField('NAME OF THE STUDENT', student.name);
+  drawField('AGE', student.age);
+  drawField('DATE OF BIRTH', student.dob);
+  drawField('GENDER', student.gender);
+  drawField('RELIGION', student.religion);
+  drawField('CASTE', student.caste);
+
+  drawSectionHeader('Address Information');
+  drawField('BIRTH PLACE', student.birthPlace);
+  drawField('HOUSE NAME', student.houseName);
+  drawField('STREET NAME', student.streetName);
+  drawField('POST OFFICE', student.postOffice);
+  drawField('PIN CODE', student.pinCode);
+  drawField('REVENUE DISTRICT', student.revenueDistrict);
+  drawField('BLOCK PANCHAYAT', student.blockPanchayat);
+  drawField('LOCAL BODY', student.localBody);
+  drawField('TALUK', student.taluk);
+
+  drawSectionHeader('Contact Information');
+  drawField('PHONE NUMBER', student.phoneNumber);
+  drawField('EMAIL', student.email);
+  drawField('ADDRESS', student.address);
+
+  drawSectionHeader('Family Information');
+  drawField('FATHER NAME', student.fatherName);
+  drawField('FATHER EDUCATION', student.fatherEducation);
+  drawField('FATHER OCCUPATION', student.fatherOccupation);
+  drawField('MOTHER NAME', student.motherName);
+  drawField('MOTHER EDUCATION', student.motherEducation);
+  drawField('MOTHER OCCUPATION', student.motherOccupation);
+  drawField('GUARDIAN NAME', student.guardianName);
+  drawField('GUARDIAN RELATIONSHIP', student.guardianRelationship);
+  drawField('GUARDIAN CONTACT', student.guardianContact);
+
+  drawSectionHeader('Academic Information');
+  drawField('CLASS', student.class);
+  drawField('DIVISION', student.rollNo);
+  drawField('ROLL NUMBER', student.rollNo);
+  drawField('ACADEMIC YEAR', student.academicYear);
+  drawField('ADMISSION NUMBER', student.admissionNumber);
+  drawField('DATE OF ADMISSION', student.admissionDate);
+  drawField('CLASS TEACHER', student.classTeacher);
+
+  drawSectionHeader('Bank Details');
+  drawField('BANK NAME', student.bankName);
+  drawField('ACCOUNT NUMBER', student.accountNumber);
+  drawField('BRANCH', student.branch);
+  drawField('IFSC CODE', student.ifscCode);
+
+  doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
+};
 
   if (loading) {
     return (
