@@ -489,14 +489,19 @@ const HeadMaster = () => {
                   >
                     <div className="flex items-center space-x-4 text-[#170F49]">
                       <div className="w-16 h-16 rounded-lg overflow-hidden">
-                        <img 
-                          src={`https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'Student')}&size=250`}
-                          alt="Student"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/64?text=Student";
-                          }}
-                        />
+                    <img 
+  // This is the key change:
+  // 1. Use the student's photo if it exists.
+  // 2. If not, use your original grey-background, name-initial avatar.
+  src={student.photo_url || `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'S')}&size=250&background=EFEFEF&color=170F49`}
+  
+  alt={student.name}
+  className="w-full h-full object-cover"
+  onError={(e) => {
+    // This is a final backup if both image links fail.
+    e.target.src = "https://placehold.co/64x64/EFEFEF/AAAAAA?text=Photo";
+  }}
+/>
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-[#170F49]">{student.name}</h3>

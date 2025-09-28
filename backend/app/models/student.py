@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Float
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, Float, LargeBinary # 👈 Updated
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -58,6 +58,7 @@ class Student(Base):
     allergies = Column(Text)
     
     # Additional Fields
+    photo = Column(LargeBinary, nullable=True) # 👈 Add this line for the image
     created_at = Column(Date)
     updated_at = Column(Date)
 

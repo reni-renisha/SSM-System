@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 
 import { useParams } from "react-router-dom";
@@ -11,15 +11,16 @@ const StudentPage = () => {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Start editing: initialize editData
-  const handleEditStart = () => {
-  if (!student) return;
-  // Exclude studentId from editData, but keep all other fields
-  const { studentId, ...editableFields } = student;
-  setEditData({ ...editableFields });
+const handleEditStart = () => {
   setEditMode(true);
-  };
+};
+
+
 
   // Handle input change in edit mode
   const handleEditChange = (e) => {
@@ -30,158 +31,178 @@ const StudentPage = () => {
   };
 
   // Cancel editing
-  const handleEditCancel = () => {
-    setEditMode(false);
-    setEditData(student);
-  };
+ const handleEditCancel = () => {
+  // Remove non-editable fields from student state for editData
+  if (!student) return;
+  // Only include editable fields
+  const {
+    studentId, photoUrl, address, // non-editable
+    ...editableFields
+  } = student;
+  setEditData(editableFields);
+  setEditMode(false);
+};
 
   // Save changes
-  const handleEditSave = async () => {
-    try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      // Map frontend keys to backend keys for address fields and other fields
-      const payload = {
-        name: editData.name,
-        age: editData.age,
-        dob: editData.dob,
-        gender: editData.gender,
-        religion: editData.religion,
-        caste: editData.caste,
-        class_name: editData.class,
-        roll_no: editData.rollNo,
-        birth_place: editData.birthPlace,
-        house_name: editData.houseName,
-        street_name: editData.streetName,
-        post_office: editData.postOffice,
-        pin_code: editData.pinCode,
-        revenue_district: editData.revenueDistrict,
-        block_panchayat: editData.blockPanchayat,
-        local_body: editData.localBody,
-        taluk: editData.taluk,
-        phone_number: editData.phoneNumber,
-        email: editData.email,
-        father_name: editData.fatherName,
-        father_education: editData.fatherEducation,
-        father_occupation: editData.fatherOccupation,
-        mother_name: editData.motherName,
-        mother_education: editData.motherEducation,
-        mother_occupation: editData.motherOccupation,
-        guardian_name: editData.guardianName,
-        guardian_relationship: editData.guardianRelationship,
-        guardian_contact: editData.guardianContact,
-        academic_year: editData.academicYear,
-        admission_number: editData.admissionNumber,
-        admission_date: editData.admissionDate,
-        class_teacher: editData.classTeacher,
-        bank_name: editData.bankName,
-        account_number: editData.accountNumber,
-        branch: editData.branch,
-        ifsc_code: editData.ifscCode
-      };
-      await axios.put(`${baseUrl}/api/v1/students/${id}`, payload);
-      // Refresh student data
-      const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
-      const mapped = {
-        name: data.name,
-        age: data.age,
-        studentId: data.student_id,
-        dob: data.dob,
-        gender: data.gender,
-        religion: data.religion,
-        caste: data.caste,
-        class: data.class_name,
-        rollNo: data.roll_no,
-  birthPlace: data.birth_place,
-  houseName: data.house_name,
-  streetName: data.street_name,
-  postOffice: data.post_office,
-  pinCode: data.pin_code,
-  revenueDistrict: data.revenue_district,
-  blockPanchayat: data.block_panchayat,
-  localBody: data.local_body,
-  taluk: data.taluk,
-        phoneNumber: data.phone_number,
-        email: data.email,
-        address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
-        fatherName: data.father_name,
-        fatherEducation: data.father_education,
-        fatherOccupation: data.father_occupation,
-        motherName: data.mother_name,
-        motherEducation: data.mother_education,
-        motherOccupation: data.mother_occupation,
-        guardianName: data.guardian_name,
-        guardianRelationship: data.guardian_relationship,
-        guardianContact: data.guardian_contact,
-        academicYear: data.academic_year,
-        admissionNumber: data.admission_number,
-        admissionDate: data.admission_date,
-        classTeacher: data.class_teacher,
-        bankName: data.bank_name,
-        accountNumber: data.account_number,
-        branch: data.branch,
-        ifscCode: data.ifsc_code
-      };
-      setStudent(mapped);
-      setEditMode(false);
-    } catch (e) {
-      // handle error (optional)
-    }
-  };
-
-  useEffect(() => {
-    const fetchStudent = async () => {
-      try {
-        const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-        const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
-        const mapped = {
-          name: data.name,
-          age: data.age,
-          studentId: data.student_id,
-          dob: data.dob,
-          gender: data.gender,
-          religion: data.religion,
-          caste: data.caste,
-          class: data.class_name,
-          rollNo: data.roll_no,
-          birthPlace: data.birth_place,
-          houseName: data.house_name,
-          streetName: data.street_name,
-          postOffice: data.post_office,
-          pinCode: data.pin_code,
-          revenueDistrict: data.revenue_district,
-          blockPanchayat: data.block_panchayat,
-          localBody: data.local_body,
-          taluk: data.taluk,
-          phoneNumber: data.phone_number,
-          email: data.email,
-          address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
-          fatherName: data.father_name,
-          fatherEducation: data.father_education,
-          fatherOccupation: data.father_occupation,
-          motherName: data.mother_name,
-          motherEducation: data.mother_education,
-          motherOccupation: data.mother_occupation,
-          guardianName: data.guardian_name,
-          guardianRelationship: data.guardian_relationship,
-          guardianContact: data.guardian_contact,
-          academicYear: data.academic_year,
-          admissionNumber: data.admission_number,
-          admissionDate: data.admission_date,
-          classTeacher: data.class_teacher,
-          bankName: data.bank_name,
-          accountNumber: data.account_number,
-          branch: data.branch,
-          ifscCode: data.ifsc_code
-        };
-        setStudent(mapped);
-      } catch (e) {
-        setStudent(null);
-      } finally {
-        setLoading(false);
-      }
+const handleEditSave = async () => {
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    
+    // This payload correctly maps your form state to what the API expects
+    const payload = {
+      name: editData.name,
+      age: editData.age,
+      dob: editData.dob,
+      gender: editData.gender,
+      religion: editData.religion,
+      caste: editData.caste,
+      class_name: editData.class,
+      roll_no: editData.rollNo,
+      birth_place: editData.birthPlace,
+      house_name: editData.houseName,
+      street_name: editData.streetName,
+      post_office: editData.postOffice,
+      pin_code: editData.pinCode,
+      revenue_district: editData.revenueDistrict,
+      block_panchayat: editData.blockPanchayat,
+      local_body: editData.localBody,
+      taluk: editData.taluk,
+      phone_number: editData.phoneNumber,
+      email: editData.email,
+      father_name: editData.fatherName,
+      father_education: editData.fatherEducation,
+      father_occupation: editData.fatherOccupation,
+      mother_name: editData.motherName,
+      mother_education: editData.motherEducation,
+      mother_occupation: editData.motherOccupation,
+      guardian_name: editData.guardianName,
+      guardian_relationship: editData.guardianRelationship,
+      guardian_contact: editData.guardianContact,
+      academic_year: editData.academicYear,
+      admission_number: editData.admissionNumber,
+      admission_date: editData.admissionDate,
+      class_teacher: editData.classTeacher,
+      bank_name: editData.bankName,
+      account_number: editData.accountNumber,
+      branch: editData.branch,
+      ifsc_code: editData.ifscCode
     };
+    // If photoFile is set, upload photo first, then update details
+    if (photoFile) {
+      const formData = new FormData();
+      formData.append("file", photoFile);
+      await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+    }
+    await axios.put(`${baseUrl}/api/v1/students/${id}`, payload);
+    
+    // Refresh the data cleanly and exit edit mode
+    fetchStudent(); 
+    setEditMode(false);
+
+  } catch (e) {
+    console.error("Failed to save changes:", e);
+    alert("Could not save changes. Please try again.");
+  }
+};
+  const handlePhotoChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file)); // Creates a temporary preview URL
+  }
+};
+
+const handlePhotoUpload = async () => {
+  if (!photoFile) return;
+
+  const formData = new FormData();
+  formData.append("file", photoFile);
+
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
+    
+    alert("Photo uploaded successfully!");
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    fetchStudent(); // This will refresh the data to show the new photo
+  } catch (error) {
+    console.error("Error uploading photo:", error);
+    alert("Failed to upload photo.");
+  }
+};
+
+const fetchStudent = async () => {
+  try {
+    setLoading(true);
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
+
+    const mappedForDisplay = { // This object is for displaying data
+      name: data.name,
+      age: data.age,
+      studentId: data.student_id,
+      dob: data.dob,
+      gender: data.gender,
+      religion: data.religion,
+      caste: data.caste,
+      class: data.class_name,
+      rollNo: data.roll_no,
+      birthPlace: data.birth_place,
+      houseName: data.house_name,
+      streetName: data.street_name,
+      postOffice: data.post_office,
+      pinCode: data.pin_code,
+      revenueDistrict: data.revenue_district,
+      blockPanchayat: data.block_panchayat,
+      localBody: data.local_body,
+      taluk: data.taluk,
+      phoneNumber: data.phone_number,
+      email: data.email,
+      address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
+      fatherName: data.father_name,
+      fatherEducation: data.father_education,
+      fatherOccupation: data.father_occupation,
+      motherName: data.mother_name,
+      motherEducation: data.mother_education,
+      motherOccupation: data.mother_occupation,
+      guardianName: data.guardian_name,
+      guardianRelationship: data.guardian_relationship,
+      guardianContact: data.guardian_contact,
+      academicYear: data.academic_year,
+      admissionNumber: data.admission_number,
+      admissionDate: data.admission_date,
+      classTeacher: data.class_teacher,
+      bankName: data.bank_name,
+      accountNumber: data.account_number,
+      branch: data.branch,
+      ifscCode: data.ifsc_code,
+      photoUrl: data.photo_url 
+    };
+    setStudent(mappedForDisplay);
+
+    // Always strip non-editable fields for editData
+    const {
+      studentId, photoUrl, address, // non-editable
+      ...editableFields
+    } = mappedForDisplay;
+    setEditData(editableFields);
+
+  } catch (e) {
+    setStudent(null);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (id) {
     fetchStudent();
-  }, [id]);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [id]);
 
   // Download Profile as PDF (screenshot)
   const handleDownloadProfile = async () => {
@@ -405,33 +426,48 @@ const StudentPage = () => {
                 <h2 className="text-xl font-semibold text-[#170F49] mb-4">Personal Information</h2>
                 <div className="flex flex-col md:flex-row gap-6 p-4 md:p-6 bg-white/50 rounded-2xl">
                   {/* Student Photo */}
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white/50 shadow-xl">
-                      {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
-                      <img 
-                        src="https://img.freepik.com/free-photo/portrait-cute-little-boy-white-t-shirt_23-2148445671.jpg"
-                        alt="Student Photo"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <button className="text-sm text-[#E38B52] hover:text-[#E38B52]/90 transition-colors duration-200 flex items-center gap-1">
-                      <svg 
-                        width="16" 
-                        height="16" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
-                      Update Photo
-                    </button>
-                  </div>
+<div className="flex flex-col items-center gap-3">
+  <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white/50 shadow-xl">
+    <img 
+      // This logic shows the preview, then the saved photo, then a placeholder
+      src={photoPreview || student?.photoUrl || "https://placehold.co/160x160/EFEFEF/AAAAAA?text=No+Photo"}
+      alt="Student"
+      className="w-full h-full object-cover"
+    />
+  </div>
+
+  {/* This is the hidden file input that gets triggered */}
+  <input
+    type="file"
+    ref={fileInputRef}
+    onChange={handlePhotoChange}
+    accept="image/png, image/jpeg"
+    style={{ display: 'none' }}
+  />
+
+  {/* This button now opens the file selection dialog */}
+  <button 
+    onClick={() => fileInputRef.current.click()} 
+    className="text-sm text-[#E38B52] hover:text-[#E38B52]/90 transition-colors duration-200 flex items-center gap-1"
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    Update Photo
+  </button>
+
+  {/* This button only appears when a new file is ready to be saved */}
+  {photoFile && (
+    <button
+      onClick={handlePhotoUpload}
+      className="mt-2 px-4 py-2 bg-green-500 text-white text-sm rounded-xl hover:bg-green-600 transition-all duration-200 shadow-md"
+    >
+      Save Photo
+    </button>
+  )}
+</div>
 
                   {/* Student Details */}
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pl-8 md:pl-12">
