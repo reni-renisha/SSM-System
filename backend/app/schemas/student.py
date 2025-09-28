@@ -62,21 +62,30 @@ class StudentBase(BaseModel):
 class StudentCreate(StudentBase):
     pass
 
+# ▼▼▼ THIS CLASS IS MODIFIED ▼▼▼
 class StudentUpdate(StudentBase):
-    pass
+    # This field allows the photo's binary data to be passed for updates
+    photo: Optional[bytes] = None
+# ▲▲▲ THIS CLASS IS MODIFIED ▲▲▲
 
+
+# ▼▼▼ THIS CLASS IS MODIFIED ▼▼▼
 class StudentInDBBase(StudentBase):
     id: int
     student_id: str
     created_at: date
     updated_at: date
     case_record: Optional[Dict[str, Any]] = None
+    
+    # This field will hold the Base64 Data URL for the photo
+    photo_url: Optional[str] = None
 
     class Config:
         from_attributes = True
+# ▲▲▲ THIS CLASS IS MODIFIED ▲▲▲
 
 class Student(StudentInDBBase):
     pass
 
 class StudentInDB(StudentInDBBase):
-    pass 
+    pass
