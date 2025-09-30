@@ -171,6 +171,7 @@ const fetchStudent = async () => {
       guardianName: data.guardian_name,
       guardianRelationship: data.guardian_relationship,
       guardianContact: data.guardian_contact,
+      aadharNumber: data.aadhar_number,
       academicYear: data.academic_year,
       admissionNumber: data.admission_number,
       admissionDate: data.admission_date,
@@ -179,6 +180,9 @@ const fetchStudent = async () => {
       accountNumber: data.account_number,
       branch: data.branch,
       ifscCode: data.ifsc_code,
+      disabilityType: data.disability_type,
+      disabilityPercentage: data.disability_percentage,
+      identificationMarks: data.identification_marks,
       photoUrl: data.photo_url 
     };
     setStudent(mappedForDisplay);
@@ -208,138 +212,123 @@ useEffect(() => {
 // REPLACE your existing function with this one
 // REPLACE your existing function with this one
 const handleDownloadProfile = async () => {
-  if (!student) return;
+  if (!student) return;
 
-  const doc = new jsPDF();
-  let y = 15;
-  const leftCol = 20;
-  const boxX = 87;
-  const boxWidth = 105;
-  const boxHeight = 8;
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const pageWidth = doc.internal.pageSize.getWidth(); // Get page width for centering
+  const doc = new jsPDF();
+  let y = 15;
+  const leftCol = 20;
+  const boxX = 87;
+  const boxWidth = 105;
+  const boxHeight = 8;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Helper to check for page break
-  const checkPageBreak = () => {
-    if (y > pageHeight - 20) {
-      doc.addPage();
-      y = 20;
-    }
-  };
+  const checkPageBreak = () => {
+    if (y > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+  };
 
-  // --- 🔽 UPDATED PDF HEADER CODE (for exact match) 🔽 ---
+  // --- PDF Header ---
+  const imgWidth = 40;
+  const imgHeight = 50;
+  const imgX = pageWidth - imgWidth - leftCol;
+  const imgY = 30;
+  doc.setDrawColor(0);
+  doc.rect(imgX, imgY, imgWidth, imgHeight); 
+  if (student.photoUrl) {
+    try {
+      doc.addImage(student.photoUrl, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+    } catch (e) {
+      console.error("Error adding image to PDF:", e);
+    }
+  }
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text("ST. MARTHA'S SPECIAL SCHOOL", pageWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text("FOR THE MENTALLY CHALLENGED", pageWidth / 2, y + 12, { align: 'center' });
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text("STUDENT RECORD FORM", pageWidth / 2, y + 25, { align: 'center' });
+  y = Math.max(y + 25, imgY + imgHeight) + 5;
+  // --- End Header ---
 
-  // 1. Position for the Photo Box
-  const imgWidth = 40; // Slightly wider for better aspect
-  const imgHeight = 50; // Slightly taller for better aspect
-  const imgX = pageWidth - imgWidth - leftCol; // Position from right edge
-  const imgY = 30; // Y position from top
+  const drawField = (label, value) => {
+    checkPageBreak();
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(label || ''), leftCol, y + 6);
+    doc.rect(boxX, y, boxWidth, boxHeight);
+    doc.text(String(value || ''), boxX + 2, y + 6);
+    y += boxHeight + 3;
+  };
 
-  // 2. Draw the photo box border
-  doc.setDrawColor(0); // Black border
+  const drawSectionHeader = (title) => {
+    checkPageBreak();
+    y += 5;
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, leftCol, y);
+    y += 8;
+  };
 
-  doc.rect(imgX, imgY, imgWidth, imgHeight); 
+  drawSectionHeader('Personal Information');
+  drawField('NAME OF THE STUDENT', student.name);
+  drawField('AGE', student.age);
+  drawField('DATE OF BIRTH', student.dob);
+  drawField('GENDER', student.gender);
+  drawField('RELIGION', student.religion);
+  drawField('CASTE', student.caste);
+  drawField('AADHAR NUMBER', student.aadharNumber); // <-- ADDED
 
-  // 3. Add the image inside the box if it exists
-  if (student.photoUrl) {
-    try {
-      doc.addImage(student.photoUrl, 'JPEG', imgX, imgY, imgWidth, imgHeight);
-    } catch (e) {
-      console.error("Error adding image to PDF:", e);
-    }
-  }
+  drawSectionHeader('Address Information');
+  drawField('BIRTH PLACE', student.birthPlace);
+  drawField('HOUSE NAME', student.houseName);
+  drawField('STREET NAME', student.streetName);
+  drawField('POST OFFICE', student.postOffice);
+  drawField('PIN CODE', student.pinCode);
+  drawField('REVENUE DISTRICT', student.revenueDistrict);
+  drawField('BLOCK PANCHAYAT', student.blockPanchayat);
+  drawField('LOCAL BODY', student.localBody);
+  drawField('TALUK', student.taluk);
 
-  // 4. Add the School Title (Centered)
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text("ST. MARTHA'S SPECIAL SCHOOL", pageWidth / 2, y + 5, { align: 'center' }); // Centered
+  drawSectionHeader('Contact Information');
+  drawField('PHONE NUMBER', student.phoneNumber);
+  drawField('EMAIL', student.email);
+  drawField('ADDRESS', student.address);
 
-  // 5. Add the Subtitle (Centered)
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text("FOR THE MENTALLY CHALLENGED", pageWidth / 2, y + 12, { align: 'center' }); // Centered
-  
-  // 6. Add the "STUDENT RECORD FORM" (Centered)
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text("STUDENT RECORD FORM", pageWidth / 2, y + 25, { align: 'center' }); // Centered and lower
+  drawSectionHeader('Family Information');
+  drawField('FATHER NAME', student.fatherName);
+  // We will only include the names as per your previous change
+  drawField('MOTHER NAME', student.motherName);
 
-  // 7. Adjust the starting 'y' position for the rest of the content
-  // Start below the header content and the image box
-  y = Math.max(y + 25, imgY + imgHeight) + 5; // Ensure 'y' is below both. Added extra 15 for spacing.
+  // --- vvv NEWLY ADDED SECTIONS vvv ---
+  drawSectionHeader('Disability Details');
+  drawField('TYPE OF DISABILITY', student.disabilityType);
+  drawField('PERCENTAGE', student.disabilityPercentage ? `${student.disabilityPercentage}%` : '');
 
-  // --- 🔼 END OF UPDATED HEADER CODE 🔼 ---
-  
-  const drawField = (label, value) => {
-    checkPageBreak();
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(label || ''), leftCol, y + 6);
-    doc.rect(boxX, y, boxWidth, boxHeight);
-    doc.text(String(value || ''), boxX + 2, y + 6);
-    y += boxHeight + 3;
-  };
+  drawSectionHeader('Identification Marks');
+  drawField('MARKS', student.identificationMarks);
+  // --- ^^^ END OF NEW SECTIONS ^^^ ---
 
-  const drawSectionHeader = (title) => {
-    checkPageBreak();
-    y += 5;
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title, leftCol, y);
-    y += 8;
-  };
+  drawSectionHeader('Academic Information');
+  drawField('CLASS', student.class);
+  drawField('ROLL NUMBER', student.rollNo);
+  drawField('ACADEMIC YEAR', student.academicYear);
+  drawField('ADMISSION NUMBER', student.admissionNumber);
+  drawField('DATE OF ADMISSION', student.admissionDate);
+  drawField('CLASS TEACHER', student.classTeacher);
 
-  drawSectionHeader('Personal Information');
-  drawField('NAME OF THE STUDENT', student.name);
-  drawField('AGE', student.age);
-  drawField('DATE OF BIRTH', student.dob);
-  drawField('GENDER', student.gender);
-  drawField('RELIGION', student.religion);
-  drawField('CASTE', student.caste);
+  drawSectionHeader('Bank Details');
+  drawField('BANK NAME', student.bankName);
+  drawField('ACCOUNT NUMBER', student.accountNumber);
+  drawField('BRANCH', student.branch);
+  drawField('IFSC CODE', student.ifscCode);
 
-  drawSectionHeader('Address Information');
-  drawField('BIRTH PLACE', student.birthPlace);
-  drawField('HOUSE NAME', student.houseName);
-  drawField('STREET NAME', student.streetName);
-  drawField('POST OFFICE', student.postOffice);
-  drawField('PIN CODE', student.pinCode);
-  drawField('REVENUE DISTRICT', student.revenueDistrict);
-  drawField('BLOCK PANCHAYAT', student.blockPanchayat);
-  drawField('LOCAL BODY', student.localBody);
-  drawField('TALUK', student.taluk);
-
-  drawSectionHeader('Contact Information');
-  drawField('PHONE NUMBER', student.phoneNumber);
-  drawField('EMAIL', student.email);
-  drawField('ADDRESS', student.address);
-
-  drawSectionHeader('Family Information');
-  drawField('FATHER NAME', student.fatherName);
-  drawField('FATHER EDUCATION', student.fatherEducation);
-  drawField('FATHER OCCUPATION', student.fatherOccupation);
-  drawField('MOTHER NAME', student.motherName);
-  drawField('MOTHER EDUCATION', student.motherEducation);
-  drawField('MOTHER OCCUPATION', student.motherOccupation);
-  drawField('GUARDIAN NAME', student.guardianName);
-  drawField('GUARDIAN RELATIONSHIP', student.guardianRelationship);
-  drawField('GUARDIAN CONTACT', student.guardianContact);
-
-  drawSectionHeader('Academic Information');
-  drawField('CLASS', student.class);
-  drawField('DIVISION', student.rollNo);
-  drawField('ROLL NUMBER', student.rollNo);
-  drawField('ACADEMIC YEAR', student.academicYear);
-  drawField('ADMISSION NUMBER', student.admissionNumber);
-  drawField('DATE OF ADMISSION', student.admissionDate);
-  drawField('CLASS TEACHER', student.classTeacher);
-
-  drawSectionHeader('Bank Details');
-  drawField('BANK NAME', student.bankName);
-  drawField('ACCOUNT NUMBER', student.accountNumber);
-  drawField('BRANCH', student.branch);
-  drawField('IFSC CODE', student.ifscCode);
-
-  doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
+  doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
 };
 
   if (loading) {
@@ -535,6 +524,14 @@ const handleDownloadProfile = async () => {
                         <p className="text-[#170F49] font-medium">{student?.caste}</p>
                       )}
                     </div>
+                    <div>
+      <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
+      {editMode ? (
+        <input type="text" name="aadharNumber" value={editData?.aadharNumber || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.aadharNumber}</p>
+      )}
+    </div>
                   </div>
                 </div>
               </div>
@@ -649,89 +646,65 @@ const handleDownloadProfile = async () => {
                 </div>
               </div>
 
-              {/* Parent Information Section */}
+              {/* Family Information Section */}
+<div className="col-span-full">
+  <h2 className="text-xl font-semibold text-[#170F49] mb-4">Family Information</h2>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
+    <div>
+      <p className="text-sm text-[#6F6C90]">Father's Name</p>
+      {editMode ? (
+        <input type="text" name="fatherName" value={editData?.fatherName || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.fatherName}</p>
+      )}
+    </div>
+    <div>
+      <p className="text-sm text-[#6F6C90]">Mother's Name</p>
+      {editMode ? (
+        <input type="text" name="motherName" value={editData?.motherName || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.motherName}</p>
+      )}
+    </div>
+  </div>
+</div>
               <div className="col-span-full">
-                <h2 className="text-xl font-semibold text-[#170F49] mb-4">Family Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-white/50 rounded-2xl">
-                  <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Father's Details</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Name</p>
-                        {editMode ? (
-                          <input type="text" name="fatherName" value={editData?.fatherName || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.fatherName}</p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Education</p>
-                        {editMode ? (
-                          <input type="text" name="fatherEducation" value={editData?.fatherEducation || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.fatherEducation}</p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Occupation</p>
-                        {editMode ? (
-                          <input type="text" name="fatherOccupation" value={editData?.fatherOccupation || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.fatherOccupation}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Mother's Details</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Name</p>
-                        {editMode ? (
-                          <input type="text" name="motherName" value={editData?.motherName || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.motherName}</p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Education</p>
-                        {editMode ? (
-                          <input type="text" name="motherEducation" value={editData?.motherEducation || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.motherEducation}</p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Occupation</p>
-                        {editMode ? (
-                          <input type="text" name="motherOccupation" value={editData?.motherOccupation || ''} onChange={handleEditChange} className="input-edit" />
-                        ) : (
-                          <p className="text-[#170F49] font-medium">{student?.motherOccupation}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-white/70 rounded-xl">
-                    <h3 className="text-lg font-medium text-[#170F49] pb-2 border-b border-[#E38B52]/10 mb-4">Guardian's Details</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Name</p>
-                        <p className="text-[#170F49] font-medium">{student?.guardianName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Relationship</p>
-                        <p className="text-[#170F49] font-medium">{student?.guardianRelationship}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Occupation</p>
-                        <p className="text-[#170F49] font-medium">{student?.guardianContact}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <h2 className="text-xl font-semibold text-[#170F49] mb-4">Disability Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
+              <div>
+                <p className="text-sm text-[#6F6C90]">Type of Disability</p>
+                {editMode ? (
+                  <input type="text" name="disabilityType" value={editData?.disabilityType || ''} onChange={handleEditChange} className="input-edit" />
+                ) : (
+                  <p className="text-[#170F49] font-medium">{student?.disabilityType || 'N/A'}</p>
+                )}
               </div>
+              <div>
+                <p className="text-sm text-[#6F6C90]">Percentage of Disability</p>
+                {editMode ? (
+                  <input type="number" name="disabilityPercentage" value={editData?.disabilityPercentage || ''} onChange={handleEditChange} className="input-edit" />
+                ) : (
+                  <p className="text-[#170F49] font-medium">{student?.disabilityPercentage ? `${student.disabilityPercentage}%` : 'N/A'}</p>
+                )}
+              </div>
+            </div>
+            <div className="col-span-full">
+  <h2 className="text-xl font-semibold text-[#170F49] mb-4">Identification Marks</h2>
+  <div className="p-6 bg-white/50 rounded-2xl">
+    {editMode ? (
+      <textarea
+        name="identificationMarks"
+        value={editData?.identificationMarks || ''}
+        onChange={handleEditChange}
+        className="input-edit w-full"
+        rows="3"
+      />
+    ) : (
+      <p className="text-[#170F49] font-medium">{student?.identificationMarks || 'N/A'}</p>
+    )}
+  </div>
+</div>
+          </div>
 
               {/* Academic Information Section */}
               <div className="col-span-full">
@@ -785,6 +758,14 @@ const handleDownloadProfile = async () => {
                       <p className="text-[#170F49] font-medium">{student?.admissionDate}</p>
                     )}
                   </div>
+                  <div>
+      <p className="text-sm text-[#6F6C90]">Class Teacher</p>
+      {editMode ? (
+        <input type="text" name="classTeacher" value={editData?.classTeacher || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.classTeacher || 'N/A'}</p>
+      )}
+    </div>
                 </div>
               </div>
 
