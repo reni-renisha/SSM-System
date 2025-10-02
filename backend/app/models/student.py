@@ -27,6 +27,7 @@ class Student(Base):
     taluk = Column(String, nullable=True)
     phone_number = Column(String)
     email = Column(String)
+    aadhar_number = Column(String, unique=True, index=True, nullable=True)
     
     # Parent/Guardian Information
     father_name = Column(String)
@@ -38,6 +39,11 @@ class Student(Base):
     guardian_name = Column(String)
     guardian_relationship = Column(String)
     guardian_contact = Column(String)
+    # Special Needs Information
+    disability_type = Column(String, nullable=True) 
+    disability_percentage = Column(Float, nullable=True) 
+
+
     
     # Academic Information
     academic_year = Column(String)
@@ -56,6 +62,7 @@ class Student(Base):
     disability_percentage = Column(Float)
     medical_conditions = Column(Text)
     allergies = Column(Text)
+    identification_marks = Column(Text, nullable=True)
     
     # Additional Fields
     photo = Column(LargeBinary, nullable=True) # 👈 Add this line for the image

@@ -52,12 +52,20 @@ class StudentBase(BaseModel):
     account_number: Optional[str] = None
     branch: Optional[str] = None
     ifsc_code: Optional[str] = None
+
+
+    # Additional Fields
+    aadhar_number: Optional[str] = None 
+    disability_type: Optional[str] = None
+    disability_percentage: Optional[float] = None
+
     
     # Special Needs Information
     disability_type: Optional[str] = None
     disability_percentage: Optional[float] = None
     medical_conditions: Optional[str] = None
     allergies: Optional[str] = None
+    identification_marks: Optional[str] = None
 
 class StudentCreate(StudentBase):
     pass

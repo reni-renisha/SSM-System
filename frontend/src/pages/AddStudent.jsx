@@ -81,21 +81,67 @@ const AddStudent = () => {
     account_number: '',
     branch: '',
     ifsc_code: '',
+    aadhar_number: '',
     disability_type: '',
     disability_percentage: '',
     medical_conditions: '',
-    allergies: ''
+    allergies: '',
+    identification_marks: '',
   });
 
   const handleFieldChange = (field) => (e) => {
     setStudentForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
-  const saveStudent = async () => {
-    try {
-      setIsSaving(true);
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      const payload = { ...studentForm };
+ const saveStudent = async () => {
+    try {
+      setIsSaving(true);
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      
+      const payload = {
+        name: studentForm.name,
+        age: studentForm.age,
+        dob: studentForm.dob,
+        gender: studentForm.gender,
+        religion: studentForm.religion,
+        caste: studentForm.caste,
+        class_name: studentForm.class_name,
+        roll_no: studentForm.roll_no,
+        birth_place: studentForm.birth_place,
+        house_name: studentForm.house_name,
+        street_name: studentForm.street_name,
+        post_office: studentForm.post_office,
+        pin_code: studentForm.pin_code,
+        revenue_district: studentForm.revenue_district,
+        block_panchayat: studentForm.block_panchayat,
+        local_body: studentForm.local_body,
+        taluk: studentForm.taluk,
+        phone_number: studentForm.phone_number,
+        email: studentForm.email,
+        father_name: studentForm.father_name,
+        father_education: studentForm.father_education,
+        father_occupation: studentForm.father_occupation,
+        mother_name: studentForm.mother_name,
+        mother_education: studentForm.mother_education,
+        mother_occupation: studentForm.mother_occupation,
+        guardian_name: studentForm.guardian_name,
+        guardian_relationship: studentForm.guardian_relationship,
+        guardian_contact: studentForm.guardian_contact,
+        academic_year: studentForm.academic_year,
+        admission_number: studentForm.admission_number,
+        admission_date: studentForm.admission_date,
+        class_teacher: studentForm.class_teacher,
+        bank_name: studentForm.bank_name,
+        account_number: studentForm.account_number,
+        branch: studentForm.branch,
+        ifsc_code: studentForm.ifsc_code,
+        aadhar_number: studentForm.aadhar_number,
+        disability_type: studentForm.disability_type,
+        disability_percentage: studentForm.disability_percentage,
+        medical_conditions: studentForm.medical_conditions,
+        allergies: studentForm.allergies,
+        identification_marks: studentForm.identification_marks
+      };
       if (!payload.dob) delete payload.dob;
       if (!payload.admission_date) delete payload.admission_date;
       if (payload.age !== undefined && payload.age !== '') {
@@ -565,14 +611,16 @@ const [householdRows, setHouseholdRows] = useState([
                   <h3 className="text-xl font-semibold text-[#170F49] mb-6">Additional Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-[#170F49] mb-2">Aadhar Number</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="Enter aadhar number"
-                        maxLength="12"
-                      />
-                    </div>
+      <label className="block text-sm font-medium text-[#170F49] mb-2">Aadhar Number</label>
+      <input
+        type="text"
+        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg ..."
+        placeholder="Enter Aadhar number"
+        maxLength="12"
+        value={studentForm.aadhar_number}
+        onChange={handleFieldChange('aadhar_number')}
+      />
+    </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Birth</label>
                       <input
@@ -796,8 +844,8 @@ const [householdRows, setHouseholdRows] = useState([
                       className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none"
                       rows="3"
                       placeholder="Enter identification marks"
-                      value={studentForm.medical_conditions}
-                      onChange={handleFieldChange('medical_conditions')}
+                      value={studentForm.identification_marks}
+                      onChange={handleFieldChange('identification_marks')}
                     ></textarea>
                   </div>
                 </div>
