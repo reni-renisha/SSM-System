@@ -653,13 +653,22 @@ const [householdRows, setHouseholdRows] = useState([
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Class Name</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="e.g., X-A or Primary 1"
+                      <select
+                        className={selectClass}
                         value={studentForm.class_name}
                         onChange={handleFieldChange('class_name')}
-                      />
+                      >
+                        <option value="">Select Class</option>
+                        <option value="PrePrimary">PrePrimary</option>
+                        <option value="Primary 1">Primary 1</option>
+                        <option value="Primary 2">Primary 2</option>
+                        <option value="Secondary">Secondary</option>
+                        <option value="Pre vocational 1">Pre vocational 1</option>
+                        <option value="Pre vocational 2">Pre vocational 2</option>
+                        <option value="Care group below 18 years">Care group below 18 years</option>
+                        <option value="Care group Above 18 years">Care group Above 18 years</option>
+                        <option value="Vocational 18-35 years">Vocational 18-35 years</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Roll Number</label>

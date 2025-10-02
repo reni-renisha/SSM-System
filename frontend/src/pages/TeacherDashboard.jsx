@@ -5,6 +5,7 @@ import axios from "axios";
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   //here 1st
+  const [userName, setUserName] = useState("        "); // will be populated from backend
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [reportDate, setReportDate] = useState(() =>
@@ -20,32 +21,8 @@ const TeacherDashboard = () => {
   const [isSearchFloating, setIsSearchFloating] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
-  const [students, setStudents] = useState([
-    {
-      id: "malavika",
-      name: "Malavika",
-      className: "Primary 1", // Changed from 'class' to 'className' to avoid JS keyword
-      rollNo: "33",
-    },
-    {
-      id: "renisha",
-      name: "Renisha",
-      className: "Secondary",
-      rollNo: "44",
-    },
-    {
-      id: "lydia",
-      name: "Lydia",
-      className: "Secondary",
-      rollNo: "32",
-    },
-    {
-      id: "sreedhanya",
-      name: "Sreedhanya",
-      className: "Pre vocational 1",
-      rollNo: "51",
-    },
-  ]);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
   // Add scroll event listener
   useEffect(() => {
     const handleScroll = () => {
@@ -62,6 +39,63 @@ const TeacherDashboard = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Fetch current user name from backend (if token available)
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const { data } = await axios.get("http://localhost:8000/api/v1/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Prefer username, fallback to email local-part
+        if (data?.username) setUserName(data.username);
+        else if (data?.email) setUserName(data.email.split("@")[0]);
+      } catch (err) {
+        // silently fail and keep fallback
+        // console.error("Failed to fetch current user:", err);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // Fetch students from backend (similar to HeadMaster)
+  useEffect(() => {
+    const fetchStudents = async () => {
+      // require userName to be available to filter by logged-in teacher
+      if (!userName) return;
+      setStudentsLoading(true);
+      try {
+        const params = {
+          page: 1,
+          page_size: 100,
+        };
+        if (studentSearch && studentSearch.trim()) params.search = studentSearch.trim();
+        if (selectedClass && selectedClass !== "all") params.class_name = selectedClass;
+
+        const { data } = await axios.get("http://localhost:8000/api/v1/students/", { params });
+        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        const sortedStudents = [...items].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+        // Filter students where class_teacher matches the logged-in username (case-insensitive)
+        const filteredByTeacher = sortedStudents.filter((s) => {
+          const ct = (s.class_teacher || s.classTeacher || "").toString().trim().toLowerCase();
+          return ct && userName && ct === userName.toLowerCase();
+        });
+
+        setStudents(filteredByTeacher);
+      } catch (err) {
+        console.error("Error fetching students:", err);
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+
+    // fetch when search, class filter, or userName change
+    fetchStudents();
+  }, [studentSearch, selectedClass, userName]);
 
   // Add this function to handle logout
   const handleLogout = () => {
@@ -103,7 +137,7 @@ const TeacherDashboard = () => {
       {/* Header Text */}
       <div className="text-center mb-12 z-10">
         <h1 className="text-4xl font-bold text-[#170F49] font-baskervville">
-          Hi Smini
+          Hi {userName}
         </h1>
         <p className="text-[#6F6C8F] mt-2">View and Manage Students</p>
         <p className="text-[#6F6C8F] text-sm mt-1">
@@ -276,19 +310,20 @@ const TeacherDashboard = () => {
           <div className="grid grid-cols-1 gap-4 px-4">
             {students
               .filter((student) => {
-                // Search by name or class
+                // Search by name or class (support different field names from API)
+                const studentClassLabel = (student.class_name || student.className || "").toString();
                 const matchesSearch =
-                  student.name
+                  (student.name || "")
                     .toLowerCase()
                     .includes(studentSearch.toLowerCase()) ||
-                  student.className
+                  studentClassLabel
                     .toLowerCase()
                     .includes(studentSearch.toLowerCase());
 
                 // Class filter
                 const matchesClass =
                   selectedClass === "all" ||
-                  student.className
+                  studentClassLabel
                     .toLowerCase()
                     .includes(selectedClass.toLowerCase());
 
@@ -319,11 +354,11 @@ const TeacherDashboard = () => {
                       <div className="space-y-1">
                         <p className="text-sm text-[#6F6C8F]">
                           <span className="font-medium">Class:</span>{" "}
-                          {student.className}
+                          {student.class_name || student.className || "-"}
                         </p>
                         <p className="text-sm text-[#6F6C8F]">
                           <span className="font-medium">Roll No:</span>{" "}
-                          {student.rollNo}
+                          {student.roll_no || student.rollNo || "-"}
                         </p>
                       </div>
                     </div>

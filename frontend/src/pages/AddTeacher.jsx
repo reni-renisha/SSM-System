@@ -410,15 +410,15 @@ const AddTeacher = () => {
                         className={selectClassName}
                       >
                         <option value="">Select Class</option>
-                        <option value="preprimary">PrePrimary</option>
-                        <option value="primary1">Primary 1</option>
-                        <option value="primary2">Primary 2</option>
-                        <option value="secondary">Secondary</option>
-                        <option value="prevocational1">Pre vocational 1</option>
-                        <option value="prevocational2">Pre vocational 2</option>
-                        <option value="caregroup-below-18">Care group below 18 years</option>
-                        <option value="caregroup-above-18">Care group Above 18 years</option>
-                        <option value="vocational">Vocational 18-35 years</option>
+                        <option value="PrePrimary">PrePrimary</option>
+                        <option value="Primary 1">Primary 1</option>
+                        <option value="Primary 2">Primary 2</option>
+                        <option value="Secondary">Secondary</option>
+                        <option value="Pre vocational 1">Pre vocational 1</option>
+                        <option value="Pre vocational 2">Pre vocational 2</option>
+                        <option value="Care group below 18 years">Care group below 18 years</option>
+                        <option value="Care group Above 18 years">Care group Above 18 years</option>
+                        <option value="Vocational 18-35 years">Vocational 18-35 years</option>
                       </select>
                     </div>
 
