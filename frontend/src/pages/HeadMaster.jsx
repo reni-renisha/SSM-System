@@ -107,9 +107,15 @@ const HeadMaster = () => {
         if (studentSearch && studentSearch.trim()) params.search = studentSearch.trim();
         if (selectedClass && selectedClass !== 'all') params.class_name = selectedClass;
         const { data } = await axios.get('http://localhost:8000/api/v1/students/', { params });
-        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-  const sortedStudents = [...items].sort((a, b) => a.name.localeCompare(b.name));
-  setStudents(sortedStudents);
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+  console.debug('fetchStudents: raw items', items);
+        // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
+        const normalized = items.map(s => ({
+          ...s,
+          photo_url: s.photo_url || s.photoUrl || null,
+        }));
+        const sortedStudents = [...normalized].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        setStudents(sortedStudents);
       } catch (error) {
         console.error('Error fetching students:', error);
       } finally {
@@ -592,65 +598,72 @@ const HeadMaster = () => {
 
               {/* Teachers List */}
               <div className="grid grid-cols-1 gap-4 px-4">
-                {teachers
-                  .filter(teacher =>
-                    teacher.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
-                    (teacher.qualifications_details && teacher.qualifications_details.toLowerCase().includes(teacherSearch.toLowerCase())) ||
-                    (teacher.mobile_number && teacher.mobile_number.includes(teacherSearch))
-                  )
-                  .map((teacher) => (
-                    <div 
-                      key={teacher.id}
-                      onClick={() => handleTeacherClick(teacher.id)}
-                      className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-4 text-[#170F49]">
-                        <div className="w-16 h-16 rounded-lg overflow-hidden">
-                          <img 
-                            src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
-                            alt="Teacher"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-[#170F49]">
-                            {teacher.name}
-                          </h3>
-                          <div className="space-y-1">
-                            <p className="text-sm text-[#6F6C8F]">
-                              <span className="font-medium">Mobile:</span> {teacher.mobile_number}
-                            </p>
-                            <p className="text-sm text-[#6F6C8F]">
-                              <span className="font-medium">Qualifications:</span> {teacher.qualifications_details}
-                            </p>
+                {teachers.filter(teacher =>
+                  teacher.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                  (teacher.qualifications_details && teacher.qualifications_details.toLowerCase().includes(teacherSearch.toLowerCase())) ||
+                  (teacher.mobile_number && teacher.mobile_number.includes(teacherSearch))
+                ).length === 0 ? (
+                  <div className="text-center text-[#6F6C8F]">No teachers found.</div>
+                ) : (
+                  teachers
+                    .filter(teacher =>
+                      teacher.name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+                      (teacher.qualifications_details && teacher.qualifications_details.toLowerCase().includes(teacherSearch.toLowerCase())) ||
+                      (teacher.mobile_number && teacher.mobile_number.includes(teacherSearch))
+                    )
+                    .map((teacher) => (
+                      <div 
+                        key={teacher.id}
+                        onClick={() => handleTeacherClick(teacher.id)}
+                        className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-4 text-[#170F49]">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden">
+                            <img 
+                              src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
+                              alt="Teacher"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-[#170F49]">
+                              {teacher.name}
+                            </h3>
+                            <div className="space-y-1">
+                              <p className="text-sm text-[#6F6C8F]">
+                                <span className="font-medium">Mobile:</span> {teacher.mobile_number}
+                              </p>
+                              <p className="text-sm text-[#6F6C8F]">
+                                <span className="font-medium">Qualifications:</span> {teacher.qualifications_details}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={() => handleTeacherClick(teacher.id)}
+                              className="text-[#E38B52] hover:text-[#E38B52]/90 transition-colors p-2 rounded-lg hover:bg-[#E38B52]/10"
+                              title="View Teacher Details"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTeacher(teacher.id, teacher.name);
+                              }}
+                              className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-[rgba(227,139,82,0.2)]"
+                              title="Delete Teacher"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => handleTeacherClick(teacher.id)}
-                            className="text-[#E38B52] hover:text-[#E38B52]/90 transition-colors p-2 rounded-lg hover:bg-[#E38B52]/10"
-                            title="View Teacher Details"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTeacher(teacher.id, teacher.name);
-                            }}
-                            className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-[rgba(227,139,82,0.2)]"
-                            title="Delete Teacher"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  ))}
+                  )))}
               </div>
             </>
           )}

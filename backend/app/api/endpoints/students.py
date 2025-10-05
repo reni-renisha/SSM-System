@@ -32,17 +32,23 @@ def read_students(
         class_name=class_name
     )
 
-    # ++ NEW: Process photos for each student in the list ++
+    # Serialize students safely (drop raw binary `photo`, add `photo_url`)
     students_with_photos = []
     for student_obj in students_from_db:
-        student_data = student_obj.__dict__
-        if student_obj.photo:
-            b64_photo = base64.b64encode(student_obj.photo).decode("utf-8")
-            student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+        # Only include table columns to avoid _sa_instance_state and binary data issues
+        student_data = {c.name: getattr(student_obj, c.name) for c in student_obj.__table__.columns}
+        # Convert photo bytes to base64 URL if present
+        if student_data.get('photo'):
+            try:
+                b64_photo = base64.b64encode(student_data['photo']).decode('utf-8')
+                student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+            except Exception:
+                student_data['photo_url'] = None
         else:
             student_data['photo_url'] = None
+        # Remove raw photo bytes to keep payload JSON-serializable
+        student_data.pop('photo', None)
         students_with_photos.append(student_data)
-    # ++ END OF NEW PHOTO LOGIC ++
 
     # Get the total count for pagination
     query = db.query(crud_student.model)
@@ -62,7 +68,7 @@ def read_students(
 
     # Return the new list that contains the photo URLs
     return Page.create(
-        items=students_with_photos, # Use the new list with photo URLs
+        items=students_with_photos,
         total=total,
         params=pagination
     )
@@ -79,6 +85,7 @@ def create_student(
     """
     Create a new student.
     """
+    
     if student_in.admission_number:
         db_student = crud_student.get_by_admission_number(db, admission_number=student_in.admission_number)
         if db_student:
@@ -115,13 +122,17 @@ def read_student(
     if db_student is None:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    student_data = db_student.__dict__
-    
-    if db_student.photo:
-        b64_photo = base64.b64encode(db_student.photo).decode("utf-8")
-        student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+    # Build a safe, JSON-serializable dict from table columns
+    student_data = {c.name: getattr(db_student, c.name) for c in db_student.__table__.columns}
+    if student_data.get('photo'):
+        try:
+            b64_photo = base64.b64encode(student_data['photo']).decode('utf-8')
+            student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+        except Exception:
+            student_data['photo_url'] = None
     else:
         student_data['photo_url'] = None
+    student_data.pop('photo', None)
 
     return student_data
 
@@ -142,8 +153,19 @@ def upload_student_photo(
     contents = file.file.read()
     update_data = {"photo": contents}
     updated_student = crud_student.update(db=db, db_obj=db_student, obj_in=update_data)
-    
-    return updated_student
+
+    # Return serialized student data with photo_url
+    student_data = {c.name: getattr(updated_student, c.name) for c in updated_student.__table__.columns}
+    if student_data.get('photo'):
+        try:
+            b64_photo = base64.b64encode(student_data['photo']).decode('utf-8')
+            student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+        except Exception:
+            student_data['photo_url'] = None
+    else:
+        student_data['photo_url'] = None
+    student_data.pop('photo', None)
+    return student_data
 
 @router.put("/{student_id}", response_model=Student)
 def update_student(
@@ -164,13 +186,17 @@ def update_student(
         update_data['photo'] = update_data['photo']  # bytes expected
     db_student = crud_student.update(db=db, db_obj=db_student, obj_in=update_data)
 
-    # Prepare response with photo_url if photo exists
-    student_data = db_student.__dict__
-    if db_student.photo:
-        b64_photo = base64.b64encode(db_student.photo).decode("utf-8")
-        student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+    # Serialize the updated student safely
+    student_data = {c.name: getattr(db_student, c.name) for c in db_student.__table__.columns}
+    if student_data.get('photo'):
+        try:
+            b64_photo = base64.b64encode(student_data['photo']).decode('utf-8')
+            student_data['photo_url'] = f"data:image/jpeg;base64,{b64_photo}"
+        except Exception:
+            student_data['photo_url'] = None
     else:
         student_data['photo_url'] = None
+    student_data.pop('photo', None)
     return student_data
 
 @router.delete("/{student_id}")
