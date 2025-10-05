@@ -1,8 +1,89 @@
+
+
 import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
-
 import { useParams } from "react-router-dom";
 import axios from "axios";
+const DynamicScrollButtons = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isScrollingUp, setIsScrollingUp] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // 1. Define "dead zones" at the top and bottom of the page
+      const topThreshold = 200;
+      const bottomOffset = 200;
+      
+      const isNearBottom = window.innerHeight + currentScrollY >= document.documentElement.offsetHeight - bottomOffset;
+
+      // 2. Set visibility: only show buttons if we are outside the dead zones
+      if (currentScrollY > topThreshold && !isNearBottom) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+
+      // 3. Determine scroll direction
+      if (currentScrollY > lastScrollY.current) {
+        setIsScrollingUp(false); // User is scrolling DOWN
+      } else {
+        setIsScrollingUp(true);  // User is scrolling UP
+      }
+
+      // 4. Update the last scroll position for the next event
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // Run on initial mount
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  };
+
+  return (
+    <div className={`fixed z-50 bottom-8 right-8 flex flex-col gap-3 transition-opacity duration-300 ${
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}
+    >
+      {isScrollingUp ? (
+        // Show Scroll to Top Button when scrolling UP
+        <button
+          onClick={scrollToTop}
+          title="Back to Top"
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-[#E38B52] text-white shadow-lg transition-transform duration-300 hover:scale-110 hover:bg-[#C8742F] focus:outline-none"
+          aria-label="Back to Top"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      ) : (
+        // Show Scroll to Bottom Button when scrolling DOWN
+        <button
+          onClick={scrollToBottom}
+          title="Scroll to Bottom"
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-[#E38B52] text-white shadow-lg transition-transform duration-300 hover:scale-110 hover:bg-[#C8742F] focus:outline-none"
+          aria-label="Scroll to Bottom"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+};
 
 const StudentPage = () => {
   const [activeTab, setActiveTab] = useState("student-details");
@@ -14,6 +95,36 @@ const StudentPage = () => {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const fileInputRef = useRef(null);
+  const caseRecordCompletion = React.useMemo(() => {
+    if (!student) return 0;
+
+    // Define the key fields that constitute a "complete" case record
+    const fieldsToCheck = [
+      student.bloodGroup,
+      student.category,
+      student.informantName,
+      student.presentComplaints,
+      student.previousTreatments,
+      student.totalFamilyIncome,
+      student.household?.length > 0, // Check if there are any household members
+      Object.keys(student.familyHistory || {}).length > 0, // Check for any family history
+      Object.keys(student.birthHistory || {}).length > 0,
+      Object.keys(student.developmentHistory || {}).length > 0,
+      Object.keys(student.assessment || {}).length > 0,
+    ];
+
+    const completedFields = fieldsToCheck.filter(field => {
+      if (typeof field === 'boolean') return field === true;
+      return field; // This checks for non-empty strings, non-zero numbers, etc.
+    }).length;
+
+    const totalFields = fieldsToCheck.length;
+    if (totalFields === 0) return 100;
+
+    const percentage = Math.round((completedFields / totalFields) * 100);
+    return percentage;
+  }, [student]); // This calculation re-runs only when the 'student' object changes
+
 
   // Start editing: initialize editData
 const handleEditStart = () => {
@@ -85,20 +196,50 @@ const handleEditSave = async () => {
       bank_name: editData.bankName,
       account_number: editData.accountNumber,
       branch: editData.branch,
-      ifsc_code: editData.ifscCode
+      ifsc_code: editData.ifscCode,
+      blood_group: editData.bloodGroup,
+      category: editData.category
+
     };
     // If photoFile is set, upload photo first, then update details
     if (photoFile) {
       const formData = new FormData();
       formData.append("file", photoFile);
-      await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
-      setPhotoFile(null);
-      setPhotoPreview(null);
+      try {
+        const res = await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
+        const returned = res.data;
+        console.debug('Photo upload (during save) response:', returned);
+        const returnedPhoto = returned?.photo_url || returned?.photoUrl || null;
+        if (returnedPhoto) {
+          // set both conventions so other components can read either
+          setStudent(prev => ({ ...(prev || {}), photoUrl: returnedPhoto, photo_url: returnedPhoto }));
+        } else {
+          console.warn('Photo upload returned no photo_url/photoUrl during save:', returned);
+        }
+        // clear file input and revoke preview
+        try { if (fileInputRef && fileInputRef.current) fileInputRef.current.value = null; } catch (err) {}
+        if (photoPreview) {
+          try { URL.revokeObjectURL(photoPreview); } catch (err) {}
+        }
+      } catch (err) {
+        console.warn('Photo upload during save failed', err);
+      } finally {
+        setPhotoFile(null);
+        setPhotoPreview(null);
+      }
     }
-    await axios.put(`${baseUrl}/api/v1/students/${id}`, payload);
-    
-    // Refresh the data cleanly and exit edit mode
-    fetchStudent(); 
+    const putRes = await axios.put(`${baseUrl}/api/v1/students/${id}`, payload);
+    const putData = putRes?.data;
+    // If backend returned updated student with photo, update UI immediately
+    if (putData) {
+      const pdPhoto = putData.photo_url || putData.photoUrl || null;
+      if (pdPhoto) {
+        setStudent(prev => ({ ...(prev || {}), photoUrl: pdPhoto, photo_url: pdPhoto }));
+      }
+    }
+
+    // Refresh the data cleanly (best-effort) and exit edit mode
+    try { await fetchStudent(); } catch (err) { console.warn('Could not refresh after save', err); }
     setEditMode(false);
 
   } catch (e) {
@@ -109,8 +250,13 @@ const handleEditSave = async () => {
   const handlePhotoChange = (e) => {
   const file = e.target.files[0];
   if (file) {
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file)); // Creates a temporary preview URL
+      // Revoke previous preview to avoid leaking object URLs
+      if (photoPreview) {
+        try { URL.revokeObjectURL(photoPreview); } catch (err) { /* ignore */ }
+      }
+      setPhotoFile(file);
+      const tmpUrl = URL.createObjectURL(file);
+      setPhotoPreview(tmpUrl); // Creates a temporary preview URL
   }
 };
 
@@ -122,83 +268,222 @@ const handlePhotoUpload = async () => {
 
   try {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-    await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
-    
-    alert("Photo uploaded successfully!");
-    setPhotoFile(null);
-    setPhotoPreview(null);
-    fetchStudent(); // This will refresh the data to show the new photo
+      // Use the returned student object from the upload endpoint to immediately update UI
+      const res = await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
+      const returned = res.data;
+      console.debug('Photo upload response:', returned);
+      const returnedPhotoStandalone = returned?.photo_url || returned?.photoUrl || null;
+      if (returnedPhotoStandalone) {
+        setStudent(prev => ({ ...(prev || {}), photoUrl: returnedPhotoStandalone, photo_url: returnedPhotoStandalone }));
+      } else {
+        console.warn('Photo uploaded but server did not return photo_url/photoUrl:', returned);
+      }
+
+      // Clear the file input element so the same file can be selected again later
+      try { if (fileInputRef && fileInputRef.current) fileInputRef.current.value = null; } catch (err) { /* ignore */ }
+
+      alert("Photo uploaded successfully!");
+
+      // Clean up preview and file state
+      if (photoPreview) {
+        try { URL.revokeObjectURL(photoPreview); } catch (err) { /* ignore */ }
+      }
+      setPhotoFile(null);
+      setPhotoPreview(null);
+
+      // Try to refresh the full student record in the background; if it fails, we already have the photo
+      try { await fetchStudent(); } catch (err) { console.warn('Could not refresh student after photo upload', err); }
   } catch (error) {
     console.error("Error uploading photo:", error);
     alert("Failed to upload photo.");
   }
 };
 
+// In StudentPage.js -> fetchStudent()
+
 const fetchStudent = async () => {
-  try {
-    setLoading(true);
-    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-    const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
+    try {
+        setLoading(true);
+        const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+  const { data } = await axios.get(`${baseUrl}/api/v1/students/${id}`);
+  console.debug('fetchStudent: raw API response for student', data);
 
-    const mappedForDisplay = { // This object is for displaying data
-      name: data.name,
-      age: data.age,
-      studentId: data.student_id,
-      dob: data.dob,
-      gender: data.gender,
-      religion: data.religion,
-      caste: data.caste,
-      class: data.class_name,
-      rollNo: data.roll_no,
-      birthPlace: data.birth_place,
-      houseName: data.house_name,
-      streetName: data.street_name,
-      postOffice: data.post_office,
-      pinCode: data.pin_code,
-      revenueDistrict: data.revenue_district,
-      blockPanchayat: data.block_panchayat,
-      localBody: data.local_body,
-      taluk: data.taluk,
-      phoneNumber: data.phone_number,
-      email: data.email,
-      address: [data.house_name, data.street_name, data.post_office, data.revenue_district, data.pin_code].filter(Boolean).join(', '),
-      fatherName: data.father_name,
-      fatherEducation: data.father_education,
-      fatherOccupation: data.father_occupation,
-      motherName: data.mother_name,
-      motherEducation: data.mother_education,
-      motherOccupation: data.mother_occupation,
-      guardianName: data.guardian_name,
-      guardianRelationship: data.guardian_relationship,
-      guardianContact: data.guardian_contact,
-      aadharNumber: data.aadhar_number,
-      academicYear: data.academic_year,
-      admissionNumber: data.admission_number,
-      admissionDate: data.admission_date,
-      classTeacher: data.class_teacher,
-      bankName: data.bank_name,
-      accountNumber: data.account_number,
-      branch: data.branch,
-      ifscCode: data.ifsc_code,
-      disabilityType: data.disability_type,
-      disabilityPercentage: data.disability_percentage,
-      identificationMarks: data.identification_marks,
-      photoUrl: data.photo_url 
-    };
-    setStudent(mappedForDisplay);
+        // --- REPLACE your old mapping object with this new one ---
+        const mappedForDisplay = {
+            // == Core & Academic ==
+            name: data.name,
+            age: data.age,
+            studentId: data.student_id,
+            dob: data.dob,
+            gender: data.gender,
+            class: data.class_name,
+            rollNo: data.roll_no,
+            academicYear: data.academic_year,
+            admissionNumber: data.admission_number,
+            admissionDate: data.admission_date,
+            classTeacher: data.class_teacher,
 
-    // Always strip non-editable fields for editData
-    const {
-      studentId, photoUrl, address, // non-editable
-      ...editableFields
-    } = mappedForDisplay;
-    setEditData(editableFields);
+            // == Personal & Contact ==
+            religion: data.religion,
+            caste: data.caste,
+            category: data.category,
+            bloodGroup: data.blood_group,
+            aadharNumber: data.aadhar_number,
+            phoneNumber: data.phone_number,
+            email: data.email,
 
-  } catch (e) {
-    setStudent(null);
-  } finally {
-    setLoading(false);
-  }
+            // == Address ==
+            birthPlace: data.birth_place,
+            houseName: data.house_name,
+            streetName: data.street_name,
+            postOffice: data.post_office,
+            pinCode: data.pin_code,
+            revenueDistrict: data.revenue_district,
+            blockPanchayat: data.block_panchayat,
+            localBody: data.local_body,
+            taluk: data.taluk,
+            address: [data.house_name, data.street_name, data.post_office].filter(Boolean).join(', '),
+            address_and_phone: data.address_and_phone,
+
+            // == Family Info ==
+            fatherName: data.father_name,
+            fatherEducation: data.father_education,
+            fatherOccupation: data.father_occupation,
+            motherName: data.mother_name,
+            motherEducation: data.mother_education,
+            motherOccupation: data.mother_occupation,
+            guardianName: data.guardian_name,
+            guardianOccupation: data.guardian_occupation,
+            guardianRelationship: data.guardian_relationship,
+            guardianContact: data.guardian_contact,
+            totalFamilyIncome: data.total_family_income,
+
+            // == Bank Details ==
+            bankName: data.bank_name,
+            accountNumber: data.account_number,
+            branch: data.branch,
+            ifscCode: data.ifsc_code,
+
+            // == Medical & ID ==
+            disabilityType: data.disability_type,
+            disabilityPercentage: data.disability_percentage,
+            identificationMarks: data.identification_marks,
+            photoUrl: data.photo_url,
+            specific_diagnostic: data.specific_diagnostic,
+            medical_conditions: data.medical_conditions,
+            is_on_regular_drugs: data.is_on_regular_drugs,
+            allergies: data.allergies,
+            drug_allergy: data.drug_allergy,
+            food_allergy: data.food_allergy,
+            // Raw drug history array from the API (array of {name, dose})
+            drug_history: data.drug_history || [],
+            
+            // == Case Record Fields ==
+            informantName: data.informant_name,
+            informantRelationship: data.informant_relationship,
+            durationOfContact: data.duration_of_contact,
+            presentComplaints: data.present_complaints,
+            previousTreatments: data.previous_treatments,
+            
+            // Re-structured for simplicity
+            familyHistory: {
+                mental_illness: data.family_history_mental_illness,
+                mental_retardation: data.family_history_mental_retardation,
+                epilepsy: data.family_history_epilepsy,
+            },
+            birthHistory: {
+                prenatal: data.prenatal_history,
+                natal: data.natal_history,
+                postnatal: data.postnatal_history,
+            },
+            developmentHistory: {
+                smiles_at_other: data.smiles_at_other,
+                head_control: data.head_control,
+                sitting: data.sitting,
+                responds_to_name: data.responds_to_name,
+                babbling: data.babbling,
+                first_words: data.first_words,
+                standing: data.standing,
+                walking: data.walking,
+                two_word_phrases: data.two_word_phrases,
+                toilet_control: data.toilet_control,
+                sentences: data.sentences,
+                physical_deformity: data.physical_deformity,
+            },
+            additionalInfo: { // You can map these individually if you prefer
+                school_history: data.school_history,
+                occupational_history: data.occupational_history,
+                behaviour_problems: data.behaviour_problems,
+            },
+      // Build a nested assessment object from flat DB fields so the UI can read it
+      assessment: {
+        self_help: {
+          food_habits: {
+            eating: data.eating_habits,
+            drinking: data.drinking_habits,
+          },
+          toilet_habits: data.toilet_habits,
+          brushing: data.brushing,
+          bathing: data.bathing,
+          dressing: {
+            removing_and_wearing: data.dressing_removing_wearing,
+            buttoning: data.dressing_buttoning,
+            footwear: data.dressing_footwear,
+            grooming: data.dressing_grooming,
+          }
+        },
+        motor: {
+          gross_motor: data.gross_motor,
+          fine_motor: data.fine_motor,
+        },
+        sensory: data.sensory,
+        socialization: {
+          language_communication: data.language_communication,
+          social_behaviour: data.social_behaviour,
+          mobility: data.mobility_in_neighborhood,
+        },
+        cognitive: {
+          attention: data.attention,
+          identification_of_objects: data.identification_of_objects,
+          use_of_objects: data.use_of_objects,
+          following_instruction: data.following_instruction,
+          awareness_of_danger: data.awareness_of_danger,
+          concept_formation: {
+            color: data.concept_color,
+            size: data.concept_size,
+            sex: data.concept_sex,
+            shape: data.concept_shape,
+            number: data.concept_number,
+            time: data.concept_time,
+            money: data.concept_money,
+          }
+        },
+        academic: {
+          reading: data.academic_reading,
+          writing: data.academic_writing,
+          arithmetic: data.academic_arithmetic,
+        },
+        prevocational: {
+          ability_and_interest: data.prevocational_ability,
+          items_of_interest: data.prevocational_interest,
+          items_of_dislike: data.prevocational_dislike,
+        },
+        behaviour_problems: data.behaviour_problems,
+        any_other: data.any_other,
+        recommendation: data.recommendation,
+      },
+        };
+
+        setStudent(mappedForDisplay);
+        const { studentId, photoUrl, address, ...editableFields } = mappedForDisplay;
+        setEditData(editableFields);
+
+    } catch (e) {
+        setStudent(null);
+        console.error("Failed to fetch student data:", e);
+    } finally {
+        setLoading(false);
+    }
 };
 
 useEffect(() => {
@@ -256,15 +541,39 @@ const handleDownloadProfile = async () => {
   y = Math.max(y + 25, imgY + imgHeight) + 5;
   // --- End Header ---
 
-  const drawField = (label, value) => {
-    checkPageBreak();
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(label || ''), leftCol, y + 6);
-    doc.rect(boxX, y, boxWidth, boxHeight);
-    doc.text(String(value || ''), boxX + 2, y + 6);
-    y += boxHeight + 3;
-  };
+  const drawField = (label, value) => {
+    // Multiline-aware field renderer. Calculates needed box height based on
+    // wrapped text and prevents page overflow.
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+
+    const text = String(value || '');
+    const maxTextWidth = boxWidth - 4; // padding inside box
+    const lines = text ? doc.splitTextToSize(text, maxTextWidth) : [''];
+    const lineHeight = 6;
+    const neededHeight = Math.max(boxHeight, lines.length * lineHeight + 4);
+
+    // If the field won't fit on the current page, start a new page
+    if (y + neededHeight > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // Label on the left
+    doc.text(String(label || ''), leftCol, y + 6);
+    // Draw box sized for content
+    const boxY = y;
+    doc.rect(boxX, boxY, boxWidth, neededHeight);
+
+    // Write wrapped text inside the box
+    let textY = boxY + 6; // first line baseline
+    lines.forEach((ln) => {
+      doc.text(ln, boxX + 2, textY);
+      textY += lineHeight;
+    });
+
+    y += neededHeight + 6;
+  };
 
   const drawSectionHeader = (title) => {
     checkPageBreak();
@@ -329,6 +638,227 @@ const handleDownloadProfile = async () => {
   drawField('IFSC CODE', student.ifscCode);
 
   doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
+};
+
+// Download CASE RECORD only (same template style but restricted fields)
+const handleDownloadCaseRecord = async () => {
+  if (!student) return;
+
+  const doc = new jsPDF();
+  let y = 20; // Initial y position
+
+  // --- Document Constants ---
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const leftMargin = 15;
+  const rightMargin = 15;
+  const contentWidth = doc.internal.pageSize.getWidth() - leftMargin - rightMargin;
+  const labelColumnWidth = 60; // Width for the label/title part
+  const valueColumnX = leftMargin + labelColumnWidth + 5;
+  const valueColumnWidth = contentWidth - labelColumnWidth - 5;
+  const defaultBoxHeight = 8;
+  const lineHeight = 6;
+  const fieldGap = 5; // Vertical gap between fields
+  const sectionGap = 8; // Vertical gap after a section header
+
+  // --- Helper Functions ---
+
+  const checkPageBreak = (neededHeight) => {
+    if (y + neededHeight > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+  };
+
+  const drawSectionHeader = (title) => {
+    checkPageBreak(20); // Check if header fits
+    y += sectionGap;
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, leftMargin, y);
+    y += sectionGap;
+    doc.setFont("helvetica", "normal");
+  };
+  
+  const drawSubHeader = (title) => {
+      checkPageBreak(15);
+      y += 4;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, leftMargin, y);
+      y += 7;
+      doc.setFont('helvetica', 'normal');
+  };
+
+  const drawField = (label, value) => {
+    const text = String(value || "N/A");
+    const lines = doc.splitTextToSize(text, valueColumnWidth - 4);
+    const neededHeight = Math.max(defaultBoxHeight, lines.length * lineHeight + 4);
+
+    checkPageBreak(neededHeight + fieldGap);
+
+    // Draw Label
+    doc.setFontSize(11);
+    doc.text(label, leftMargin, y + 6);
+
+    // Draw Value Box
+    doc.rect(valueColumnX, y, valueColumnWidth, neededHeight);
+
+    // Draw Value Text (multiline)
+    let textY = y + 6;
+    lines.forEach((line) => {
+      doc.text(line, valueColumnX + 2, textY);
+      textY += lineHeight;
+    });
+
+    y += neededHeight + fieldGap;
+  };
+
+  // --- PDF Generation Starts Here ---
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("CASE RECORD", doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
+  y += 15;
+
+  // 1. Identification Data
+  drawSectionHeader("Identification Data");
+  drawField("Name of Student", student.name);
+  drawField("Admission Number", student.admissionNumber);
+  drawField("Date of Birth", student.dob);
+  drawField("Age", student.age);
+  drawField("Gender", student.gender);
+  drawField("Education", student.class);
+  drawField("Blood Group", student.bloodGroup);
+  drawField("Religion", student.religion);
+  drawField("Category", student.category);
+  drawField("Aadhar Number", student.aadharNumber);
+
+  // 2. Demographic Data
+  drawSectionHeader("Demographic Data");
+  drawField("Father's Name", student.fatherName);
+  drawField("Father's Education", student.fatherEducation);
+  drawField("Father's Occupation", student.fatherOccupation);
+  drawField("Mother's Name", student.motherName);
+  drawField("Mother's Education", student.motherEducation);
+  drawField("Mother's Occupation", student.motherOccupation);
+  drawField("Guardian's Name", student.guardianName);
+  drawField("Guardian's Relationship", student.guardianRelationship);
+  drawField("Guardian's Occupation", student.guardianOccupation);
+  drawField("Total Family Income", student.totalFamilyIncome);
+  drawField("Address & Phone", student.address_and_phone || `${student.address || ""}${student.phoneNumber ? " | " + student.phoneNumber : ""}`);
+  
+  // 3. Informant Detail
+  drawSectionHeader("Informant Detail");
+  drawField("Informant Name", student.informantName);
+  drawField("Informant Relationship", student.informantRelationship);
+  drawField("Duration of Contact", student.durationOfContact);
+  drawField("Present Complaints", student.presentComplaints);
+  drawField("Previous Consultation and Treatments", student.previousTreatments);
+
+  // 4. Family History
+  drawSectionHeader("Family History");
+  drawField("Mental Illness", student.familyHistory?.mental_illness);
+  drawField("Mental Retardation", student.familyHistory?.mental_retardation);
+  drawField("Epilepsy and Others", student.familyHistory?.epilepsy);
+
+  // 5. Birth History
+  drawSectionHeader("Birth History");
+  drawField("Prenatal History", student.birthHistory?.prenatal);
+  drawField("Natal / Neonatal History", student.birthHistory?.natal);
+  drawField("Postnatal History", student.birthHistory?.postnatal);
+  
+  // 6. Developmental History
+  drawSectionHeader("Developmental History");
+  const dev = student.developmentHistory || {};
+  const yesNo = (v) => (v ? 'Yes' : 'No');
+  drawField('Smiles at others', yesNo(dev.smiles_at_other));
+  drawField('Head control', yesNo(dev.head_control));
+  drawField('Sitting', yesNo(dev.sitting));
+  drawField('Responds to name', yesNo(dev.responds_to_name));
+  drawField('Babbling', yesNo(dev.babbling));
+  drawField('First words', yesNo(dev.first_words));
+  drawField('Standing', yesNo(dev.standing));
+  drawField('Walking', yesNo(dev.walking));
+  drawField('Two-word phrases', yesNo(dev.two_word_phrases));
+  drawField('Toilet control', yesNo(dev.toilet_control));
+  drawField('Sentences', yesNo(dev.sentences));
+  drawField('Physical deformity', yesNo(dev.physical_deformity));
+
+  // 7. Special Education Assessment
+  drawSectionHeader("Special Education Assessment");
+  const assessment = student.assessment || {};
+  
+  drawSubHeader("Self Help / ADL");
+  drawField("Eating Habits", assessment.self_help?.food_habits?.eating);
+  drawField("Drinking Habits", assessment.self_help?.food_habits?.drinking);
+  drawField("Toilet Habits", assessment.self_help?.toilet_habits);
+  drawField("Brushing", assessment.self_help?.brushing);
+  drawField("Bathing", assessment.self_help?.bathing);
+  drawField("Dressing (Removing/Wearing)", assessment.self_help?.dressing?.removing_and_wearing);
+  drawField("Dressing (Buttoning)", assessment.self_help?.dressing?.buttoning);
+  drawField("Dressing (Footwear)", assessment.self_help?.dressing?.footwear);
+  drawField("Grooming", assessment.self_help?.dressing?.grooming);
+
+  drawSubHeader("Motor");
+  drawField("Gross Motor", assessment.motor?.gross_motor);
+  drawField("Fine Motor", assessment.motor?.fine_motor);
+
+  drawSubHeader("Sensory");
+  drawField("Sensory Skills", assessment.sensory);
+
+  drawSubHeader("Socialization");
+  drawField("Language/Communication", assessment.socialization?.language_communication);
+  drawField("Social Behaviour", assessment.socialization?.social_behaviour);
+  drawField("Mobility in Neighborhood", assessment.socialization?.mobility);
+  
+  drawSubHeader("Cognitive");
+  drawField("Attention", assessment.cognitive?.attention);
+  drawField("Identification of Objects", assessment.cognitive?.identification_of_objects);
+  drawField("Use of Objects", assessment.cognitive?.use_of_objects);
+  drawField("Following Instruction", assessment.cognitive?.following_instruction);
+  drawField("Awareness of Danger", assessment.cognitive?.awareness_of_danger);
+  drawField("Concept - Color", assessment.cognitive?.concept_formation?.color);
+  drawField("Concept - Size", assessment.cognitive?.concept_formation?.size);
+  drawField("Concept - Sex", assessment.cognitive?.concept_formation?.sex);
+  drawField("Concept - Shape", assessment.cognitive?.concept_formation?.shape);
+  drawField("Concept - Number", assessment.cognitive?.concept_formation?.number);
+  drawField("Concept - Time", assessment.cognitive?.concept_formation?.time);
+  drawField("Concept - Money", assessment.cognitive?.concept_formation?.money);
+
+  drawSubHeader("Academic");
+  drawField("Reading", assessment.academic?.reading);
+  drawField("Writing", assessment.academic?.writing);
+  drawField("Arithmetic", assessment.academic?.arithmetic);
+
+  drawSubHeader("Prevocational / Domestic");
+  drawField("Ability & Interest", assessment.prevocational?.ability_and_interest);
+  drawField("Items of Interest", assessment.prevocational?.items_of_interest);
+  drawField("Items of Dislike", assessment.prevocational?.items_of_dislike);
+  
+  drawSubHeader("Observations & Recommendations");
+  drawField("Behaviour Problems", assessment.behaviour_problems);
+  drawField("Any Other Information", assessment.any_other);
+  drawField("Recommendation", assessment.recommendation);
+  
+  // 8. Medical, Allergies & Drug History
+  drawSectionHeader("Medical, Allergies & Drug History");
+  drawField('Medical conditions', student.medical_conditions);
+  drawField('Specific diagnostic', student.specific_diagnostic);
+  drawField('Is on regular drugs', student.is_on_regular_drugs ? 'Yes' : 'No');
+  drawField('Drug allergy', student.drug_allergy);
+  drawField('Food allergy', student.food_allergy);
+
+  if (Array.isArray(student.drug_history) && student.drug_history.length > 0) {
+      drawSubHeader('Drug History Details');
+      student.drug_history.forEach((drug, idx) => {
+          drawField(`Drug ${idx + 1}: ${drug.name || 'Unnamed'}`, `Dose: ${drug.dose || 'N/A'}`);
+      });
+  }
+
+  // Save with a clean filename
+  const safeName = (student.name || "student").replace(/[^a-z0-9_-]/gi, "_");
+  doc.save(`case-record_${safeName}.pdf`);
 };
 
   if (loading) {
@@ -524,6 +1054,21 @@ const handleDownloadProfile = async () => {
                         <p className="text-[#170F49] font-medium">{student?.caste}</p>
                       )}
                     </div>
+                    {/* Blood Group - EDIT ONLY */}
+                  {editMode && (
+                    <div>
+                      <p className="text-sm text-[#6F6C90]">Blood Group</p>
+                      <input type="text" name="bloodGroup" value={editData?.bloodGroup || ''} onChange={handleEditChange} className="input-edit" />
+                    </div>
+                  )}
+
+                  {/* Category - EDIT ONLY */}
+                  {editMode && (
+                    <div>
+                      <p className="text-sm text-[#6F6C90]">Category</p>
+                      <input type="text" name="category" value={editData?.category || ''} onChange={handleEditChange} className="input-edit" />
+                    </div>
+                  )}
                     <div>
       <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
       {editMode ? (
@@ -1111,97 +1656,193 @@ const handleDownloadProfile = async () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6">
-              {/* Identification Data Section */}
-              <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                  </svg>
-                  Identification Data
-                </h2>
-                <div className="p-6 bg-white/50 rounded-2xl mb-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Type of Disability</p>
-                      <p className="text-[#170F49] font-medium">Multiple Disabilities</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Percentage of Disability</p>
-                      <p className="text-[#170F49] font-medium">75%</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Blood Group</p>
-                      <p className="text-[#170F49] font-medium">B+</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
-                      <p className="text-[#170F49] font-medium">XXXX-XXXX-1234</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Category</p>
-                      <p className="text-[#170F49] font-medium">OBC</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+  <div className="grid grid-cols-1 gap-8">
+    {/* Case Record Completion Progress Bar */}
+    <div className="col-span-full bg-white/50 rounded-2xl p-6 shadow-lg border border-white/30">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold text-[#170F49]">Case Record Completion</h3>
+        <span className="text-xl font-bold text-[#E38B52]">{caseRecordCompletion}%</span>
+      </div>
+      <div className="w-full bg-white/50 rounded-full h-3 shadow-inner">
+        <div
+          className="bg-gradient-to-r from-[#F58540] to-[#E38B52] h-3 rounded-full shadow-md transition-all duration-700 ease-out"
+          style={{ width: `${caseRecordCompletion}%` }}
+        ></div>
+      </div>
+    </div>
 
-              {/* Demographic Data Section */}
-              <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  Demographic Data
-                </h2>
-                <div className="p-6 bg-white/50 rounded-2xl mb-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Total Family Income per Month</p>
-                      <p className="text-[#170F49] font-medium">₹45,000</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#6F6C90]">Duration of Contact</p>
-                      <p className="text-[#170F49] font-medium">2 Years</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+    {/* Identification Data Section */}
+    <div className="col-span-full">
+      <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+        </svg>
+        Identification Data
+      </h2>
+      <div className="p-6 bg-white/50 rounded-2xl mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Name</p>
+            <p className="text-[#170F49] font-medium">{student?.name || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Admission No</p>
+            <p className="text-[#170F49] font-medium">{student?.admissionNumber || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Date of Birth</p>
+            <p className="text-[#170F49] font-medium">{student?.dob || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Age</p>
+            <p className="text-[#170F49] font-medium">{student?.age || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Sex</p>
+            <p className="text-[#170F49] font-medium">{student?.gender || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Education</p>
+            <p className="text-[#170F49] font-medium">{student?.class || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Blood Group</p>
+            <p className="text-[#170F49] font-medium">{student?.bloodGroup || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Religion</p>
+            <p className="text-[#170F49] font-medium">{student?.religion || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-[#6F6C90]">Category (SC/ST/OBC/OEC)</p>
+            <p className="text-[#170F49] font-medium">{student?.category || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-4">
+            <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
+            <p className="text-[#170F49] font-medium">{student?.aadharNumber || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
-              {/* Contact & Medical Information */}
-              <div className="col-span-full">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Contact & Medical Information
-                </h2>
-                <div className="p-6 bg-white/50 rounded-2xl mb-8">
-                  <h3 className="text-lg font-semibold text-[#170F49] mb-4">Contact Information</h3>
-                  <div className="p-4 bg-white/70 rounded-xl mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Address and Phone Number</p>
-                        <p className="text-[#170F49] font-medium">{student?.address}, {student?.phoneNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Informant's Name</p>
-                        <p className="text-[#170F49] font-medium">{student?.guardianName} (Guardian)</p>
-                      </div>
-                    </div>
-                  </div>
+{/* Demographic Data Section */}
+<div className="col-span-full">
+  <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+    </svg>
+    Demographic Data
+  </h2>
+  <div className="space-y-6">
+    {/* Family Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Father's Card */}
+      <div className="bg-white/50 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow duration-300">
+        <h3 className="text-lg font-semibold text-[#170F49] mb-4">Father's Information</h3>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Name</p>
+            <p className="text-[#170F49] font-medium">{student?.fatherName || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Education</p>
+            <p className="text-[#170F49] font-medium">{student?.fatherEducation || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Occupation</p>
+            <p className="text-[#170F49] font-medium">{student?.fatherOccupation || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
 
-                  <h3 className="text-lg font-semibold text-[#170F49] mb-4">Present Complaints</h3>
-                  <div className="p-4 bg-white/70 rounded-xl mb-6">
-                    <p className="text-[#170F49]">Difficulty in concentration and learning new concepts. Shows signs of anxiety in new social situations.</p>
-                  </div>
+      {/* Mother's Card */}
+      <div className="bg-white/50 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow duration-300">
+        <h3 className="text-lg font-semibold text-[#170F49] mb-4">Mother's Information</h3>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Name</p>
+            <p className="text-[#170F49] font-medium">{student?.motherName || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Education</p>
+            <p className="text-[#170F49] font-medium">{student?.motherEducation || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Occupation</p>
+            <p className="text-[#170F49] font-medium">{student?.motherOccupation || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
 
-                  <h3 className="text-lg font-semibold text-[#170F49] mb-4">Previous Consultation and Treatments</h3>
-                  <div className="p-4 bg-white/70 rounded-xl">
-                    <p className="text-[#170F49]">Consulted with Dr. Johnson at City Hospital in 2022. Received speech therapy for 6 months with moderate improvement.</p>
-                  </div>
-                </div>
-              </div>
+      {/* Guardian's Card */}
+      <div className="bg-white/50 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow duration-300">
+        <h3 className="text-lg font-semibold text-[#170F49] mb-4">Guardian's Information</h3>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Name</p>
+            <p className="text-[#170F49] font-medium">{student?.guardianName || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Relationship</p>
+            <p className="text-[#170F49] font-medium">{student?.guardianRelationship || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Occupation</p>
+            <p className="text-[#170F49] font-medium">{student?.guardianOccupation || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Additional Info Section */}
+    <div className="bg-white/50 rounded-2xl p-6 mt-6 shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <p className="text-sm text-[#6F6C90]">Total Family Income per Month</p>
+          <p className="text-[#170F49] font-medium">{student?.totalFamilyIncome || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Address & Phone Number</p>
+          <p className="text-[#170F49] font-medium">{student?.address_and_phone || `${student?.address}, ${student?.phoneNumber}`}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* Contact & Medical Information */}
+<div className="col-span-full">
+    <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2z" />
+        </svg>
+        Contact & Medical Information
+    </h2>
+    <div className="p-8 bg-white/50 rounded-2xl mb-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-white/60">
+            <div>
+                <p className="text-sm text-[#6F6C90]">Informant's Name</p>
+                <p className="text-lg text-[#170F49] font-medium">{student?.informantName || 'N/A'}</p>
+            </div>
+            <div>
+                <p className="text-sm text-[#6F6C90]">Relationship</p>
+                <p className="text-lg text-[#170F49] font-medium">{student?.informantRelationship || 'N/A'}</p>
+            </div>
+        </div>
+        <div className="pb-6 border-b border-white/60">
+            <p className="text-sm text-[#6F6C90]">Duration of Contact</p>
+            <p className="text-lg text-[#170F49] font-medium">{student?.durationOfContact || 'N/A'}</p>
+        </div>
+        <div className="pb-6 border-b border-white/60">
+            <p className="text-sm text-[#6F6C90]">Present Complaints</p>
+            <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.presentComplaints || 'N/A'}</p>
+        </div>
+        <div>
+            <p className="text-sm text-[#6F6C90]">Previous Consultation and Treatments</p>
+            <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.previousTreatments || 'N/A'}</p>
+        </div>
+    </div>
+</div>
 
               {/* Family History */}
               <div className="col-span-full">
@@ -1262,45 +1903,331 @@ const handleDownloadProfile = async () => {
                   </div>
 
                   {/* Medical History */}
-                  <div className="p-6 bg-white/50 rounded-2xl">
-                    <h3 className="text-lg font-semibold text-[#170F49] mb-4">Medical History</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Family History of Mental Illness</p>
-                        <p className="text-[#170F49] font-medium">None reported</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Family History of Mental Retardation</p>
-                        <p className="text-[#170F49] font-medium">None reported</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Family History of Epilepsy and Others</p>
-                        <p className="text-[#170F49] font-medium">Maternal grandfather had epilepsy</p>
-                      </div>
-                    </div>
-                  </div>
+<div className="p-6 bg-white/50 rounded-2xl">
+  <h3 className="text-lg font-semibold text-[#170F49] mb-4">Medical History</h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <p className="text-sm text-[#6F6C90]">Family History of Mental Illness</p>
+      <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_illness || 'N/A'}</p>
+    </div>
+    <div>
+      <p className="text-sm text-[#6F6C90]">Family History of Mental Retardation</p>
+      <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_retardation || 'N/A'}</p>
+    </div>
+    <div>
+      <p className="text-sm text-[#6F6C90]">Family History of Epilepsy and Others</p>
+      <p className="text-[#170F49] font-medium">{student?.familyHistory?.epilepsy || 'N/A'}</p>
+    </div>
+  </div>
+</div>
 
-                  {/* Birth History */}
-                  <div className="p-6 bg-white/50 rounded-2xl">
-                    <h3 className="text-lg font-semibold text-[#170F49] mb-4">Birth History</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Prenatal History</p>
-                        <p className="text-[#170F49] font-medium">Normal pregnancy with regular checkups</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Natal and Neonatal</p>
-                        <p className="text-[#170F49] font-medium">Cesarean delivery due to fetal distress. Birth weight: 2.8kg</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-[#6F6C90]">Postnatal History</p>
-                        <p className="text-[#170F49] font-medium">Mild jaundice treated with phototherapy for 2 days</p>
-                      </div>
-                    </div>
-                  </div>
+                 {/* Birth History */}
+<div className="p-6 bg-white/50 rounded-2xl">
+  <h3 className="text-lg font-semibold text-[#170F49] mb-4">Birth History</h3>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div>
+      <p className="text-sm text-[#6F6C90]">Prenatal History</p>
+      <p className="text-[#170F49] font-medium">{student?.birthHistory?.prenatal || 'N/A'}</p>
+    </div>
+    <div>
+      <p className="text-sm text-[#6F6C90]">Natal and Neonatal</p>
+      <p className="text-[#170F49] font-medium">{student?.birthHistory?.natal || 'N/A'}</p>
+    </div>
+    <div>
+      <p className="text-sm text-[#6F6C90]">Postnatal History</p>
+      <p className="text-[#170F49] font-medium">{student?.birthHistory?.postnatal || 'N/A'}</p>
+    </div>
+  </div>
+</div>
                 </div>
               </div>
+{/* Developmental History */}
+<div className="p-6 bg-white/50 rounded-2xl mt-6">
+    <h3 className="text-lg font-semibold text-[#170F49] mb-4">Developmental History</h3>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 p-4 bg-white/70 rounded-xl">
+        {/* Check if developmentHistory exists and has entries */}
+        {student?.developmentHistory && Object.keys(student.developmentHistory).length > 0 ? (
+            Object.entries(student.developmentHistory).map(([key, value]) => (
+                <div key={key} className="flex items-center">
+                    {/* Display a green check for true, red cross for false */}
+                    {value ? (
+                        <span className="text-green-500 font-bold mr-2 text-xl">✓</span>
+                    ) : (
+                        <span className="text-red-500 font-bold mr-2 text-xl">✗</span>
+                    )}
+                    {/* Format the key from snake_case to Title Case */}
+                    <p className="text-[#170F49] font-medium capitalize">
+                        {key.replace(/_/g, ' ')}
+                    </p>
+                </div>
+            ))
+        ) : (
+            <p className="col-span-full text-center text-[#6F6C90]">No development history recorded.</p>
+        )}
+    </div>
+</div>
+{/* Additional Information Section */}
+<div className="col-span-full mt-6">
+  <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    Additional Information
+  </h2>
 
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* Check if additionalInfo exists and has keys */}
+    {student?.additionalInfo && Object.keys(student.additionalInfo).length > 0 ? (
+      Object.entries(student.additionalInfo).map(([key, value]) => (
+        <div key={key} className="bg-white/50 rounded-2xl p-6 shadow-sm min-h-[120px]">
+          <h3 className="text-md font-semibold text-[#170F49] mb-2 capitalize">
+            {key.replace(/_/g, ' ')}
+          </h3>
+          <p className="text-[#170F49] text-base leading-relaxed">
+            {value || 'N/A'}
+          </p>
+        </div>
+      ))
+    ) : (
+      <div className="md:col-span-2 text-center p-6 bg-white/50 rounded-2xl">
+        <p className="text-[#6F6C90]">No additional information has been recorded.</p>
+      </div>
+    )}
+  </div>
+</div>
+{/* Special Education Assessment Section */}
+<div className="col-span-full mt-6">
+  <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h2" />
+    </svg>
+    Special Education Assessment
+  </h2>
+
+  {/* Self Help Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Self Help</h3>
+    <div className="space-y-4">
+
+      {/* Food Habits */}
+      <div className="bg-white/70 rounded-xl p-4">
+        <h4 className="text-md font-medium text-[#170F49] mb-3">Food Habits</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Eating</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.food_habits?.eating || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Drinking</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.food_habits?.drinking || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Other Habits */}
+      <div className="bg-white/70 rounded-xl p-4 space-y-3">
+        <div>
+          <p className="text-sm text-[#6F6C90]">Toilet Habits</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.toilet_habits || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Brushing</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.brushing || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Bathing</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.bathing || 'N/A'}</p>
+        </div>
+      </div>
+
+      {/* Dressing */}
+      <div className="bg-white/70 rounded-xl p-4">
+        <h4 className="text-md font-medium text-[#170F49] mb-3">Dressing</h4>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Removing and wearing clothes</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.removing_and_wearing || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Unbuttoning and Buttoning</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.buttoning || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Wearing shoes/Slippers</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.footwear || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Grooming</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.grooming || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {/* The other sections like Motor, Sensory, etc. will follow the same pattern here */}
+</div>
+{/* Motor Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Motor</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/70 rounded-xl p-4">
+      <div>
+        <p className="text-sm text-[#6F6C90]">Gross Motor</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.gross_motor || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Fine Motor</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.fine_motor || 'N/A'}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* Sensory Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Sensory</h3>
+    <div className="bg-white/70 rounded-xl p-4">
+      <p className="text-[#170F49] font-medium">{student?.assessment?.sensory || 'N/A'}</p>
+    </div>
+  </div>
+
+  {/* Socialization Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Socialization</h3>
+    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+      <div>
+        <p className="text-sm text-[#6F6C90]">Language/Communication</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.language_communication || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Social Behaviour</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.social_behaviour || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Mobility in the Neighborhood</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.mobility || 'N/A'}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* Cognitive Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Cognitive</h3>
+    <div className="space-y-4">
+      <div className="bg-white/70 rounded-xl p-4 space-y-4">
+        <div>
+          <p className="text-sm text-[#6F6C90]">Attention</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.attention || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Identification of familiar objects</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.identification_of_objects || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Use of familiar objects</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.use_of_objects || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Following simple instruction</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.following_instruction || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-[#6F6C90]">Awareness of danger and hazards</p>
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.awareness_of_danger || 'N/A'}</p>
+        </div>
+      </div>
+      
+      {/* Concept Formation */}
+      <div className="bg-white/70 rounded-xl p-4">
+        <h4 className="text-md font-medium text-[#170F49] mb-3">Concept Formation</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-[#6F6C90]">Color</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.color || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Size</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.size || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Sex</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.sex || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Shape</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.shape || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Number</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.number || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Time</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.time || 'N/A'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-[#6F6C90]">Money</p>
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.money || 'N/A'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Academic Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Academic</h3>
+    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+      <div>
+        <p className="text-sm text-[#6F6C90]">Reading</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.reading || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Writing</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.writing || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Arithmetic</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.arithmetic || 'N/A'}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* Prevocational/Domestic Section Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Prevocational/Domestic</h3>
+    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+      <div>
+        <p className="text-sm text-[#6F6C90]">Ability and Interest</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.ability_and_interest || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Items of Interest</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_interest || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Items of Dislike</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_dislike || 'N/A'}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* Observations and Recommendations Card */}
+  <div className="bg-white/50 rounded-2xl p-6 shadow-sm">
+    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Observations & Recommendations</h3>
+    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+      <div>
+        <p className="text-sm text-[#6F6C90]">Any peculiar behaviour/behaviour problems observed</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.behaviour_problems || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Any other</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.any_other || 'N/A'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-[#6F6C90]">Recommendation</p>
+        <p className="text-[#170F49] font-medium">{student?.assessment?.recommendation || 'N/A'}</p>
+      </div>
+    </div>
+  </div>
               {/* Medical Information */}
               <div className="col-span-full">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
@@ -1316,14 +2243,19 @@ const handleDownloadProfile = async () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Specific Diagnostic</p>
-                        <p className="text-[#170F49] font-medium">Autism Spectrum Disorder with ADHD features</p>
+                        <p className="text-[#170F49] font-medium">{student?.specific_diagnostic || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Medical Conditions</p>
                         <div className="flex flex-wrap gap-2 mt-1">
-                          <span className="px-3 py-1 bg-white/70 rounded-full text-sm text-[#170F49]">History of fits (seizures)</span>
-                          <span className="px-3 py-1 bg-white/70 rounded-full text-sm text-[#170F49]">Using spectacles</span>
+                          {(student?.medical_conditions || '').toString().split(',').filter(Boolean).map((c, idx) => (
+                            <span key={idx} className="px-3 py-1 bg-white/70 rounded-full text-sm text-[#170F49]">{c.trim()}</span>
+                          ))}
                         </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-[#6F6C90]">On Regular Drugs</p>
+                        <p className="text-[#170F49] font-medium">{student?.is_on_regular_drugs || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -1331,7 +2263,7 @@ const handleDownloadProfile = async () => {
                   {/* Drug History */}
                   <div className="p-6 bg-white/50 rounded-2xl">
                     <h3 className="text-lg font-semibold text-[#170F49] mb-4">Drug History</h3>
-                    <p className="text-[#170F49] mb-4">The child is on regular medication</p>
+                    <p className="text-[#170F49] mb-4">{student?.is_on_regular_drugs ? student.is_on_regular_drugs : 'N/A'}</p>
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse rounded-xl overflow-hidden">
                         <thead className="bg-[#E38B52]/10">
@@ -1342,16 +2274,13 @@ const handleDownloadProfile = async () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white/70">
-                          <tr className="border-b border-[#E38B52]/10">
-                            <td className="px-4 py-3 text-sm text-[#170F49]">1</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Methylphenidate</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">10mg once daily</td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">2</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Risperidone</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">0.5mg at bedtime</td>
-                          </tr>
+                          {(student?.drug_history || []).map((d, i) => (
+                            <tr key={i} className="border-b border-[#E38B52]/10">
+                              <td className="px-4 py-3 text-sm text-[#170F49]">{i + 1}</td>
+                              <td className="px-4 py-3 text-sm text-[#170F49]">{d?.name || 'N/A'}</td>
+                              <td className="px-4 py-3 text-sm text-[#170F49]">{d?.dose || 'N/A'}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -1363,15 +2292,15 @@ const handleDownloadProfile = async () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Drug Allergy</p>
-                        <p className="text-[#170F49] font-medium">Penicillin</p>
+                        <p className="text-[#170F49] font-medium">{student?.drug_allergy || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Food Allergy</p>
-                        <p className="text-[#170F49] font-medium">Peanuts</p>
+                        <p className="text-[#170F49] font-medium">{student?.food_allergy || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Other Allergies</p>
-                        <p className="text-[#170F49] font-medium">Dust mites</p>
+                        <p className="text-[#170F49] font-medium">{student?.allergies || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -1521,12 +2450,21 @@ const handleDownloadProfile = async () => {
                 Edit Details
               </button>
             )}
-            <button
-              className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
-              onClick={handleDownloadProfile}
-            >
-              Download Profile
-            </button>
+            {activeTab === 'case-record' ? (
+              <button
+                className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
+                onClick={handleDownloadCaseRecord}
+              >
+                Download Case Record
+              </button>
+            ) : (
+              <button
+                className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
+                onClick={handleDownloadProfile}
+              >
+                Download Profile
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1601,8 +2539,12 @@ const handleDownloadProfile = async () => {
           animation: float-particle 5s infinite ease-in-out;
         }
       `}</style>
-    </div>
-  );
+      
+      {/* Move the button component INSIDE the main div */}
+      <DynamicScrollButtons /> 
+
+    </div>
+  );
 };
 
 export default StudentPage;

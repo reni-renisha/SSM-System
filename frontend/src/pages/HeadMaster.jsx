@@ -107,9 +107,15 @@ const HeadMaster = () => {
         if (studentSearch && studentSearch.trim()) params.search = studentSearch.trim();
         if (selectedClass && selectedClass !== 'all') params.class_name = selectedClass;
         const { data } = await axios.get('http://localhost:8000/api/v1/students/', { params });
-        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-  const sortedStudents = [...items].sort((a, b) => a.name.localeCompare(b.name));
-  setStudents(sortedStudents);
+  const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+  console.debug('fetchStudents: raw items', items);
+        // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
+        const normalized = items.map(s => ({
+          ...s,
+          photo_url: s.photo_url || s.photoUrl || null,
+        }));
+        const sortedStudents = [...normalized].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        setStudents(sortedStudents);
       } catch (error) {
         console.error('Error fetching students:', error);
       } finally {
