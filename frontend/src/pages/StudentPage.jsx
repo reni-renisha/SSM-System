@@ -130,6 +130,7 @@ const StudentPage = () => {
   const [generatingReport, setGeneratingReport] = useState(false);
   // AI summary related state
   const [aiSummary, setAiSummary] = useState("");
+  const [aiAnalysis, setAiAnalysis] = useState(null); // Full comprehensive analysis
   const [aiSummarizing, setAiSummarizing] = useState(false);
   const [aiSummaryError, setAiSummaryError] = useState(null);
   const [aiModel, setAiModel] = useState("facebook/bart-large-cnn");
@@ -137,6 +138,7 @@ const StudentPage = () => {
   const handleAISummarize = async () => {
     setAiSummaryError(null);
     setAiSummary("");
+    setAiAnalysis(null);
     // Build server payload based on current filters
     const payload = {
       student_id: student?.studentId || id,
@@ -168,6 +170,9 @@ const StudentPage = () => {
         throw new Error(`${res.status} ${text}`);
       }
       const data = await res.json();
+      
+      // Set the comprehensive analysis data
+      setAiAnalysis(data);
       setAiSummary(data.summary || '(No summary returned)');
     } catch (e) {
       console.error('AI summarize failed', e);
@@ -1335,21 +1340,20 @@ const handleGenerateSummaryReport = () => {
                     </div>
                   </div>
                 </div>
-                {/* AI Summarization Panel */}
+                {/* AI Comprehensive Analysis Panel */}
                 <div className="mb-6 p-4 border border-[#E38B52]/20 rounded-xl bg-white/70">
                   <h3 className="text-lg font-semibold text-[#170F49] mb-3 flex items-center gap-2">
                     <svg className="w-5 h-5 text-[#E38B52]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                      <circle cx="12" cy="12" r="10" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    AI Summary (Server)
+                    AI Comprehensive Analysis
                   </h3>
                   <div className="flex flex-col md:flex-row gap-3 mb-2">
                     <select
                       className="input-edit md:w-1/3"
                       value={aiModel}
                       onChange={(e) => setAiModel(e.target.value)}
-                      title="Choose summarization model"
+                      title="Choose AI analysis model"
                     >
                       <option value="facebook/bart-large-cnn">BART Large CNN</option>
                       <option value="google/pegasus-xsum">Pegasus XSum</option>
@@ -1360,18 +1364,116 @@ const handleGenerateSummaryReport = () => {
                       disabled={aiSummarizing}
                       className={`px-4 py-2 rounded-md text-white font-medium transition ${aiSummarizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E38B52] hover:bg-[#c8742f]'}`}
                     >
-                      {aiSummarizing ? 'Summarizing...' : 'AI Summarize'}
+                      {aiSummarizing ? 'Analyzing...' : 'Generate AI Analysis'}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">Generates a condensed summary of the filtered reports using the backend Hugging Face integration.</p>
+                  <p className="text-xs text-gray-500 mb-3">Generates comprehensive therapy analysis including progress tracking, start/end comparisons, and improvement metrics.</p>
+                  
                   {aiSummaryError && (
                     <div className="p-2 mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">{aiSummaryError}</div>
                   )}
+                  
                   {aiSummarizing && (
-                    <div className="text-sm text-gray-600 animate-pulse">Generating AI summary...</div>
+                    <div className="text-sm text-gray-600 animate-pulse flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-[#E38B52] border-t-transparent rounded-full animate-spin"></div>
+                      Generating comprehensive AI analysis...
+                    </div>
                   )}
-                  {aiSummary && !aiSummarizing && (
-                    <div className="mt-2 p-3 border rounded bg-gray-50 whitespace-pre-wrap text-sm leading-relaxed max-h-72 overflow-auto">{aiSummary}</div>
+                  
+                  {aiAnalysis && !aiSummarizing && (
+                    <div className="mt-4 space-y-4">
+                      {/* Brief Overview Section */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Brief Overview
+                        </h4>
+                        <p className="text-sm text-gray-700 leading-relaxed">{aiAnalysis?.brief_overview || 'No overview available'}</p>
+                        <div className="mt-2 text-xs text-blue-600">
+                          Analysis Period: {aiAnalysis?.date_range?.start_date || 'N/A'} to {aiAnalysis?.date_range?.end_date || 'N/A'}
+                          {aiAnalysis?.date_range?.total_days > 0 && ` (${aiAnalysis.date_range.total_days} days)`}
+                        </div>
+                      </div>
+
+                      {/* Progress Comparison: Start vs Current */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {/* Start Date Analysis */}
+                        <div className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
+                          <h4 className="text-sm font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Initial Assessment
+                          </h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">{aiAnalysis?.start_date_analysis || 'No initial assessment available'}</p>
+                        </div>
+
+                        {/* Current Status Analysis */}
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                          <h4 className="text-sm font-semibold text-green-900 mb-2 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Current Status
+                          </h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">{aiAnalysis?.end_date_analysis || 'No current status available'}</p>
+                        </div>
+                      </div>
+
+                      {/* Improvement Metrics */}
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                        <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                          Progress Metrics
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                          {aiAnalysis?.improvement_metrics && typeof aiAnalysis.improvement_metrics === 'object' ? 
+                            Object.entries(aiAnalysis.improvement_metrics).map(([key, value]) => (
+                              <div key={key} className="bg-white/60 p-2 rounded border">
+                                <div className="font-medium text-purple-800 capitalize">
+                                  {key.replace(/_/g, ' ')}
+                                </div>
+                                <div className="text-gray-700">
+                                  {typeof value === 'object' ? JSON.stringify(value) : value}
+                                </div>
+                              </div>
+                            )) : 
+                            <div className="col-span-full text-center text-gray-500">No metrics available</div>
+                          }
+                        </div>
+                      </div>
+
+                      {/* Recommendations */}
+                      <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-4 rounded-lg border border-teal-200">
+                        <h4 className="text-sm font-semibold text-teal-900 mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          AI Recommendations
+                        </h4>
+                        <p className="text-sm text-gray-700 leading-relaxed">{aiAnalysis?.recommendations || 'No recommendations available'}</p>
+                      </div>
+
+                      {/* Detailed Summary */}
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Detailed Summary ({aiAnalysis?.used_reports || 0} reports analyzed)
+                        </h4>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap max-h-48 overflow-auto">{aiAnalysis?.summary || 'No detailed summary available'}</p>
+                        {aiAnalysis?.truncated && (
+                          <div className="mt-2 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                            ⚠️ Analysis was truncated due to content length. Consider filtering by date range for more detailed analysis.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 
