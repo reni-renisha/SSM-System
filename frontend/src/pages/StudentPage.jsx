@@ -90,6 +90,11 @@ const StudentPage = () => {
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5); // show latest 5 by default
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -474,6 +479,14 @@ const fetchStudent = async () => {
       },
         };
 
+            // After mapping student, fetch therapy reports for this student
+            try {
+              // backend endpoint expects numeric DB id, use data.id if available, otherwise fallback to route id
+              fetchReports(data.id || id);
+            } catch (err) {
+              console.warn('Could not fetch reports after student load', err);
+            }
+
         setStudent(mappedForDisplay);
         const { studentId, photoUrl, address, ...editableFields } = mappedForDisplay;
         setEditData(editableFields);
@@ -484,6 +497,29 @@ const fetchStudent = async () => {
     } finally {
         setLoading(false);
     }
+};
+
+// Fetch therapy reports for a student id
+const fetchReports = async (studentId) => {
+  try {
+    setReportsLoading(true);
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token
+      ? { headers: { Authorization: `Bearer ${token}` } }
+      : {};
+    const { data } = await axios.get(`${baseUrl}/api/v1/therapy-reports/student/${studentId}`, config);
+    // data is expected to be an array of reports
+    const list = Array.isArray(data) ? data : [];
+    // sort by report_date desc
+    list.sort((a, b) => (b.report_date || b.created_at || '').localeCompare(a.report_date || a.created_at || ''));
+    setReports(list);
+  } catch (err) {
+    console.error('Failed to fetch reports:', err);
+    setReports([]);
+  } finally {
+    setReportsLoading(false);
+  }
 };
 
 useEffect(() => {
@@ -904,12 +940,17 @@ const handleDownloadCaseRecord = async () => {
 
         {/* Tabs */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-2 inline-flex gap-2 shadow-lg relative w-[372px]">
+          <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-2 inline-flex gap-2 shadow-lg relative w-[560px]">
             {/* Active Tab Background */}
             <div
               className="absolute h-[calc(100%-8px)] top-[4px] transition-all duration-300 ease-in-out rounded-xl bg-[#E38B52] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
               style={{
-                left: activeTab === "student-details" ? "4px" : "188px",
+                left:
+                  activeTab === "student-details"
+                    ? "4px"
+                    : activeTab === "case-record"
+                    ? "188px"
+                    : "372px",
                 width: "180px",
                 background: 'linear-gradient(135deg, #E38B52 0%, #E38B52 100%)',
               }}
@@ -945,12 +986,109 @@ const handleDownloadCaseRecord = async () => {
             >
               Case Record
             </button>
+
+            {/* Therapy Reports Tab */}
+            <button
+              onClick={() => setActiveTab("therapy-reports")}
+              className={`w-[180px] px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 text-center whitespace-nowrap ${
+                activeTab === "therapy-reports"
+                  ? "text-white"
+                  : "text-[#170F49] hover:text-[#E38B52]"
+              }`}
+            >
+              Therapy Reports
+            </button>
           </div>
         </div>
         
         {/* Main content container */}
         <div className="relative bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
-          {activeTab === "student-details" ? (
+          {activeTab === "therapy-reports" ? (
+            <div className="w-full">
+              <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6" />
+                </svg>
+                Therapy Reports
+              </h2>
+              <div className="p-6 bg-white/50 rounded-2xl">
+                {/* Date range filters */}
+                <div className="flex items-center gap-3 mb-4">
+                  <label className="text-sm text-[#6F6C90]">From:</label>
+                  <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
+                  <label className="text-sm text-[#6F6C90]">To:</label>
+                  <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
+                  <button onClick={() => { setFromDate(''); setToDate(''); setVisibleCount(5); }} className="ml-auto px-3 py-2 bg-[#E38B52] text-white rounded-md">Reset</button>
+                </div>
+
+                {reportsLoading ? (
+                  <p className="text-sm text-[#6F6C90]">Loading reports...</p>
+                ) : reports.length === 0 ? (
+                  <p className="text-sm text-[#6F6C90]">No therapy reports found for this student.</p>
+                ) : (
+                  (() => {
+                    const filtered = reports.filter((r) => {
+                      if (fromDate) {
+                        if (!r.report_date || new Date(r.report_date) < new Date(fromDate)) return false;
+                      }
+                      if (toDate) {
+                        if (!r.report_date || new Date(r.report_date) > new Date(toDate)) return false;
+                      }
+                      return true;
+                    });
+
+                    const visible = filtered.slice(0, visibleCount);
+
+                    return (
+                      <div className="space-y-4">
+                        {visible.map((r) => (
+                          <details key={r.id} className="bg-white rounded-lg border p-4 shadow-sm">
+                            <summary className="flex justify-between items-center cursor-pointer">
+                              <div>
+                                <div className="text-sm text-[#6F6C90]">{new Date(r.report_date).toLocaleDateString()}</div>
+                                <div className="text-lg font-semibold text-[#170F49]">{r.therapy_type || 'Therapy'}</div>
+                              </div>
+                              <div className="text-sm text-[#6F6C90]">{r.progress_level || ''}</div>
+                            </summary>
+                            <div className="mt-4 text-sm text-[#333] space-y-3">
+                              {r.progress_notes && (
+                                <div>
+                                  <div className="text-xs text-[#6F6C90]">Progress Notes</div>
+                                  <div className="text-sm">{r.progress_notes}</div>
+                                </div>
+                              )}
+                              {r.goals_achieved && (
+                                <div>
+                                  <div className="text-xs text-[#6F6C90]">Goals Achieved</div>
+                                  <div className="text-sm">{r.goals_achieved}</div>
+                                </div>
+                              )}
+                              <div className="text-xs text-[#6F6C90]">Recorded</div>
+                              <div className="text-sm">{new Date(r.created_at).toLocaleString()}</div>
+                            </div>
+                          </details>
+                        ))}
+
+                        {filtered.length > visibleCount && (
+                          <div className="text-center mt-4">
+                            <button
+                              onClick={() => setVisibleCount((v) => v + 5)}
+                              className="px-4 py-2 bg-[#E38B52] text-white rounded-md"
+                            >
+                              Load more
+                            </button>
+                          </div>
+                        )}
+                        {filtered.length === 0 && (
+                          <p className="text-sm text-[#6F6C90]">No reports match the selected date range.</p>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            </div>
+          ) : activeTab === "student-details" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {/* Basic Information Section */}
               <div className="col-span-full">
@@ -1005,7 +1143,9 @@ const handleDownloadCaseRecord = async () => {
                     <div>
                       <p className="text-sm text-[#6F6C90]">Full Name</p>
                       {editMode ? (
+                        <>
                         <input type="text" name="name" value={editData?.name || ''} onChange={handleEditChange} className="input-edit" />
+                        </>
                       ) : (
                         <p className="text-[#170F49] font-medium">{student?.name}</p>
                       )}
@@ -1490,43 +1630,7 @@ const handleDownloadCaseRecord = async () => {
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Completed Therapies */}
-                <div className="p-6 bg-white/50 rounded-2xl">
-                  <h3 className="text-lg font-medium text-[#170F49] mb-4">Completed Therapies</h3>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-white/70 rounded-xl">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-[#170F49] font-medium mb-1">Physical Therapy</h4>
-                          <p className="text-sm text-[#6F6C90]">Completed on: 15 Dec 2023</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">Completed</span>
-                          <button className="p-2 hover:bg-white/80 rounded-lg transition-all duration-200">
-                            <svg 
-                              width="20" 
-                              height="20" 
-                              viewBox="0 0 24 24" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              strokeWidth="2" 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round"
-                            >
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                              <polyline points="14 2 14 8 20 8"/>
-                              <line x1="16" y1="13" x2="8" y2="13"/>
-                              <line x1="16" y1="17" x2="8" y2="17"/>
-                              <line x1="10" y1="9" x2="8" y2="9"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </div>                
               </div>
 
               {/* Certificates Section */}
