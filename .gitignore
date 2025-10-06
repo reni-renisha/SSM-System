@@ -27,6 +27,7 @@ ENV/
 env.bak/
 venv.bak/
 .env
+*.env
 .venv/
 
 # Django stuff

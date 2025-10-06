@@ -4,6 +4,36 @@ import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+
+// Add styles for input-edit class
+const inputEditStyles = `
+  .input-edit {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: #f9fafb;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-edit:focus {
+    outline: none;
+    border-color: #E38B52;
+    box-shadow: 0 0 0 3px rgba(227, 139, 82, 0.1);
+    background-color: white;
+  }
+  .input-edit:read-only {
+    background-color: #f3f4f6;
+    color: #6b7280;
+  }
+`;
+
+// Add styles to document head
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = inputEditStyles;
+  document.head.appendChild(styleElement);
+}
 const DynamicScrollButtons = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [isScrollingUp, setIsScrollingUp] = useState(false);
@@ -96,6 +126,56 @@ const StudentPage = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  const [selectedTherapyType, setSelectedTherapyType] = useState("");
+  const [generatingReport, setGeneratingReport] = useState(false);
+  // AI summary related state
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiSummarizing, setAiSummarizing] = useState(false);
+  const [aiSummaryError, setAiSummaryError] = useState(null);
+  const [aiModel, setAiModel] = useState("facebook/bart-large-cnn");
+
+  const handleAISummarize = async () => {
+    setAiSummaryError(null);
+    setAiSummary("");
+    // Build server payload based on current filters
+    const payload = {
+      student_id: student?.studentId || id,
+      from_date: fromDate || null,
+      to_date: toDate || null,
+      therapy_type: selectedTherapyType || null,
+      model: aiModel,
+      max_length: 280,
+      min_length: 60,
+    };
+    if (!payload.student_id) {
+      setAiSummaryError("Missing student id");
+      return;
+    }
+    setAiSummarizing(true);
+    try {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${baseUrl}/api/v1/therapy-reports/summary/ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`${res.status} ${text}`);
+      }
+      const data = await res.json();
+      setAiSummary(data.summary || '(No summary returned)');
+    } catch (e) {
+      console.error('AI summarize failed', e);
+      setAiSummaryError(e.message);
+    } finally {
+      setAiSummarizing(false);
+    }
+  };
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -898,6 +978,154 @@ const handleDownloadCaseRecord = async () => {
   doc.save(`case-record_${safeName}.pdf`);
 };
 
+// Generate and download therapy summary report
+const handleGenerateSummaryReport = () => {
+  if (!student) {
+    alert("Student information not available. Please try again.");
+    return;
+  }
+
+  if (generatingReport) {
+    return; // Prevent multiple concurrent generations
+  }
+
+  // Validate date range
+  if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
+    alert("Start date cannot be later than end date. Please check your date selection.");
+    return;
+  }
+
+  setGeneratingReport(true);
+
+  // Filter reports based on current filters
+  const filtered = reports.filter((r) => {
+    if (fromDate) {
+      if (!r.report_date || new Date(r.report_date) < new Date(fromDate)) return false;
+    }
+    if (toDate) {
+      if (!r.report_date || new Date(r.report_date) > new Date(toDate)) return false;
+    }
+    if (selectedTherapyType) {
+      if (!r.therapy_type || r.therapy_type !== selectedTherapyType) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    const filterDescription = [];
+    if (fromDate) filterDescription.push(`start date: ${fromDate}`);
+    if (toDate) filterDescription.push(`end date: ${toDate}`);
+    if (selectedTherapyType) filterDescription.push(`therapy type: ${selectedTherapyType}`);
+    
+    const filterText = filterDescription.length > 0 ? 
+      ` matching the selected criteria (${filterDescription.join(', ')})` : '';
+    
+    alert(`No therapy reports found${filterText}. Please adjust your filters or ensure therapy reports exist for this student.`);
+    setGeneratingReport(false);
+    return;
+  }
+
+  try {
+    const doc = new jsPDF();
+    let y = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const contentWidth = doc.internal.pageSize.getWidth() - leftMargin - rightMargin;
+    const lineHeight = 6;
+
+  const checkPageBreak = (neededHeight) => {
+    if (y + neededHeight > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+  };
+
+  const addText = (text, fontSize = 10, isBold = false) => {
+    checkPageBreak(lineHeight + 2);
+    doc.setFontSize(fontSize);
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    const lines = doc.splitTextToSize(text, contentWidth);
+    lines.forEach((line) => {
+      checkPageBreak(lineHeight);
+      doc.text(line, leftMargin, y);
+      y += lineHeight;
+    });
+    y += 2; // Extra spacing
+  };
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("THERAPY SUMMARY REPORT", doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
+  y += 15;
+
+  // Student Info
+  addText(`Student Name: ${student.name || 'N/A'}`, 12, true);
+  addText(`Student ID: ${student.studentId || 'N/A'}`, 10);
+  addText(`Report Generated: ${new Date().toLocaleDateString()}`, 10);
+  
+  // Filter criteria
+  y += 5;
+  addText("Filter Criteria:", 12, true);
+  if (fromDate) addText(`Start Date: ${fromDate}`, 10);
+  if (toDate) addText(`End Date: ${toDate}`, 10);
+  if (selectedTherapyType) addText(`Therapy Type: ${selectedTherapyType}`, 10);
+  addText(`Total Reports: ${filtered.length}`, 10);
+
+  y += 10;
+  addText("SUMMARY OF THERAPY REPORTS", 14, true);
+  y += 5;
+
+  // Group reports by therapy type for summary
+  const reportsByType = {};
+  filtered.forEach((r) => {
+    const type = r.therapy_type || 'Unspecified';
+    if (!reportsByType[type]) {
+      reportsByType[type] = [];
+    }
+    reportsByType[type].push(r);
+  });
+
+  // Summary by therapy type
+  Object.entries(reportsByType).forEach(([type, typeReports]) => {
+    addText(`${type} (${typeReports.length} sessions)`, 12, true);
+    y += 3;
+    
+    typeReports.forEach((report, index) => {
+      addText(`Session ${index + 1} - ${new Date(report.report_date).toLocaleDateString()}`, 11, true);
+      if (report.progress_level) {
+        addText(`Progress Level: ${report.progress_level}`, 10);
+      }
+      if (report.progress_notes) {
+        addText(`Progress Notes: ${report.progress_notes}`, 10);
+      }
+      if (report.goals_achieved) {
+        addText(`Goals Achieved: ${report.goals_achieved}`, 10);
+      }
+      y += 5;
+    });
+    y += 5;
+  });
+
+  // Generate filename
+  const dateRange = fromDate && toDate ? `_${fromDate}_to_${toDate}` : 
+                   fromDate ? `_from_${fromDate}` : 
+                   toDate ? `_to_${toDate}` : '';
+  const therapyTypeStr = selectedTherapyType ? `_${selectedTherapyType.replace(/\s+/g, '_')}` : '';
+  const safeName = (student.name || "student").replace(/[^a-z0-9_-]/gi, "_");
+  
+  doc.save(`therapy_summary_${safeName}${dateRange}${therapyTypeStr}.pdf`);
+  setShowSummary(false);
+  setGeneratingReport(false);
+  
+  } catch (error) {
+    console.error("Error generating therapy summary report:", error);
+    alert("An error occurred while generating the report. Please try again.");
+    setGeneratingReport(false);
+  }
+};
+
   if (loading) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f7f7f7]">
@@ -1013,15 +1241,163 @@ const handleDownloadCaseRecord = async () => {
                 Therapy Reports
               </h2>
               <div className="p-6 bg-white/50 rounded-2xl">
-                {/* Date range filters */}
-                <div className="flex items-center gap-3 mb-4">
-                  <label className="text-sm text-[#6F6C90]">From:</label>
-                  <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
-                  <label className="text-sm text-[#6F6C90]">To:</label>
-                  <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
-                  <button onClick={() => setShowSummary(true)} className="ml-auto px-3 py-2 bg-[#E38B52] text-white rounded-md">Summarize</button>
-                  <button onClick={() => { setFromDate(''); setToDate(''); setVisibleCount(5); }} className="ml-2 px-3 py-2 bg-[#E38B52] text-white rounded-md">Reset</button>
+                {/* Filters Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Date Range & Therapy Type Filters */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-[#170F49]">Filter Reports</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm text-[#6F6C90] mb-1 block">Start Date:</label>
+                        <input 
+                          type="date" 
+                          value={fromDate} 
+                          onChange={(e) => { setFromDate(e.target.value); setVisibleCount(5); }} 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E38B52] focus:border-transparent" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-[#6F6C90] mb-1 block">End Date:</label>
+                        <input 
+                          type="date" 
+                          value={toDate} 
+                          onChange={(e) => { setToDate(e.target.value); setVisibleCount(5); }} 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E38B52] focus:border-transparent" 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-[#6F6C90] mb-1 block">Therapy Type:</label>
+                      <select 
+                        value={selectedTherapyType} 
+                        onChange={(e) => { setSelectedTherapyType(e.target.value); setVisibleCount(5); }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E38B52] focus:border-transparent"
+                        title="Filter reports by specific therapy type"
+                      >
+                        <option value="">All Therapy Types</option>
+                        <option value="Speech Therapy">Speech Therapy</option>
+                        <option value="Occupational Therapy">Occupational Therapy</option>
+                        <option value="Physical Therapy">Physical Therapy</option>
+                        <option value="Behavioral Therapy">Behavioral Therapy</option>
+                        <option value="Cognitive Therapy">Cognitive Therapy</option>
+                        <option value="Social Skills Training">Social Skills Training</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Select a therapy type to filter reports, or leave as "All" to show reports from all therapies.</p>
+                    </div>
+                  </div>
+
+                  {/* Summary Generation Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-[#170F49]">Generate Summary Report</h3>
+                    <div className="bg-white/70 rounded-xl p-4 space-y-3">
+                      <p className="text-sm text-[#6F6C90]">
+                        Generate a comprehensive summary report based on selected date range and therapy type.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button 
+                          onClick={handleGenerateSummaryReport} 
+                          disabled={generatingReport}
+                          className={`flex-1 px-4 py-2 text-white rounded-md transition-colors duration-200 flex items-center justify-center gap-2 ${
+                            generatingReport 
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-[#E38B52] hover:bg-[#D67A3F]'
+                          }`}
+                        >
+                          {generatingReport ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Generating Report...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Generate Summary Report
+                            </>
+                          )}
+                        </button>
+                        <button 
+                          onClick={() => { 
+                            setFromDate(''); 
+                            setToDate(''); 
+                            setSelectedTherapyType(''); 
+                            setVisibleCount(5); 
+                          }} 
+                          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors duration-200"
+                        >
+                          Reset Filters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+                {/* AI Summarization Panel */}
+                <div className="mb-6 p-4 border border-[#E38B52]/20 rounded-xl bg-white/70">
+                  <h3 className="text-lg font-semibold text-[#170F49] mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-[#E38B52]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    AI Summary (Server)
+                  </h3>
+                  <div className="flex flex-col md:flex-row gap-3 mb-2">
+                    <select
+                      className="input-edit md:w-1/3"
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      title="Choose summarization model"
+                    >
+                      <option value="facebook/bart-large-cnn">BART Large CNN</option>
+                      <option value="google/pegasus-xsum">Pegasus XSum</option>
+                      <option value="philschmid/bart-large-cnn-samsum">BART SAMSum</option>
+                    </select>
+                    <button
+                      onClick={handleAISummarize}
+                      disabled={aiSummarizing}
+                      className={`px-4 py-2 rounded-md text-white font-medium transition ${aiSummarizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E38B52] hover:bg-[#c8742f]'}`}
+                    >
+                      {aiSummarizing ? 'Summarizing...' : 'AI Summarize'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">Generates a condensed summary of the filtered reports using the backend Hugging Face integration.</p>
+                  {aiSummaryError && (
+                    <div className="p-2 mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">{aiSummaryError}</div>
+                  )}
+                  {aiSummarizing && (
+                    <div className="text-sm text-gray-600 animate-pulse">Generating AI summary...</div>
+                  )}
+                  {aiSummary && !aiSummarizing && (
+                    <div className="mt-2 p-3 border rounded bg-gray-50 whitespace-pre-wrap text-sm leading-relaxed max-h-72 overflow-auto">{aiSummary}</div>
+                  )}
+                </div>
+
+                {/* Active Filters Display */}
+                {(fromDate || toDate || selectedTherapyType) && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Active Filters:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {fromDate && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          Start: {fromDate}
+                        </span>
+                      )}
+                      {toDate && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          End: {toDate}
+                        </span>
+                      )}
+                      {selectedTherapyType && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          Type: {selectedTherapyType}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {reportsLoading ? (
                   <p className="text-sm text-[#6F6C90]">Loading reports...</p>
@@ -1036,6 +1412,9 @@ const handleDownloadCaseRecord = async () => {
                       if (toDate) {
                         if (!r.report_date || new Date(r.report_date) > new Date(toDate)) return false;
                       }
+                      if (selectedTherapyType) {
+                        if (!r.therapy_type || r.therapy_type !== selectedTherapyType) return false;
+                      }
                       return true;
                     });
 
@@ -1043,6 +1422,21 @@ const handleDownloadCaseRecord = async () => {
 
                     return (
                       <div className="space-y-4">
+                        {/* Results Counter */}
+                        <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                          <span className="text-sm text-[#6F6C90]">
+                            Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} reports
+                            {filtered.length !== reports.length && ` (filtered from ${reports.length} total)`}
+                          </span>
+                          {filtered.length > 0 && (
+                            <span className="text-xs text-[#6F6C90]">
+                              Date Range: {filtered.length > 0 ? 
+                                `${new Date(Math.min(...filtered.map(r => new Date(r.report_date)))).toLocaleDateString()} - ${new Date(Math.max(...filtered.map(r => new Date(r.report_date)))).toLocaleDateString()}` 
+                                : 'No reports'}
+                            </span>
+                          )}
+                        </div>
+
                         {visible.map((r) => (
                           <details key={r.id} className="bg-white rounded-lg border p-4 shadow-sm">
                             <summary className="flex justify-between items-center cursor-pointer">
@@ -1082,7 +1476,30 @@ const handleDownloadCaseRecord = async () => {
                           </div>
                         )}
                         {filtered.length === 0 && (
-                          <p className="text-sm text-[#6F6C90]">No reports match the selected date range.</p>
+                          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-lg font-medium text-gray-900 mb-2">No reports found</p>
+                            <p className="text-sm text-gray-500">
+                              {fromDate || toDate || selectedTherapyType ? 
+                                'Try adjusting your filters or clearing them to see all reports.' :
+                                'No therapy reports are available for this student.'}
+                            </p>
+                            {(fromDate || toDate || selectedTherapyType) && (
+                              <button 
+                                onClick={() => { 
+                                  setFromDate(''); 
+                                  setToDate(''); 
+                                  setSelectedTherapyType(''); 
+                                  setVisibleCount(5); 
+                                }} 
+                                className="mt-4 px-4 py-2 bg-[#E38B52] text-white rounded-md hover:bg-[#D67A3F] transition-colors duration-200"
+                              >
+                                Clear Filters
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     );

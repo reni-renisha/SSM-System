@@ -455,8 +455,11 @@ const TeacherDashboard = () => {
                     progress_level: progressLevel,
                   };
 
-                  // POST to backend
-                  await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload);
+                  // POST to backend with authentication
+                  const token = localStorage.getItem("token");
+                  await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
                   // Close dialog and optionally show success
                   setShowReportDialog(false);
                   alert("Report saved");
