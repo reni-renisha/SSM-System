@@ -95,6 +95,7 @@ const StudentPage = () => {
   const [visibleCount, setVisibleCount] = useState(5); // show latest 5 by default
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [showSummary, setShowSummary] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -1018,7 +1019,8 @@ const handleDownloadCaseRecord = async () => {
                   <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
                   <label className="text-sm text-[#6F6C90]">To:</label>
                   <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setVisibleCount(5); }} className="px-3 py-2 border rounded-md" />
-                  <button onClick={() => { setFromDate(''); setToDate(''); setVisibleCount(5); }} className="ml-auto px-3 py-2 bg-[#E38B52] text-white rounded-md">Reset</button>
+                  <button onClick={() => setShowSummary(true)} className="ml-auto px-3 py-2 bg-[#E38B52] text-white rounded-md">Summarize</button>
+                  <button onClick={() => { setFromDate(''); setToDate(''); setVisibleCount(5); }} className="ml-2 px-3 py-2 bg-[#E38B52] text-white rounded-md">Reset</button>
                 </div>
 
                 {reportsLoading ? (
@@ -2644,6 +2646,20 @@ const handleDownloadCaseRecord = async () => {
         }
       `}</style>
       
+      {/* Summary Modal */}
+      {showSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <h2 className="text-2xl font-bold text-[#170F49] mb-2">{student?.name || 'Student'}</h2>
+            <p className="text-sm text-[#6F6C90] mb-6">{fromDate || 'Any time'} — {toDate || 'Any time'}</p>
+            <div className="mb-4 text-sm text-[#333]">Showing {Math.min(reports.length, visibleCount)} of {reports.length} reports</div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowSummary(false)} className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49]">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Move the button component INSIDE the main div */}
       <DynamicScrollButtons /> 
 
