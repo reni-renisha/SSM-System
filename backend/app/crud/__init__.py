@@ -12,3 +12,4 @@ Note: The following files are deprecated and maintained only for backward compat
 from app.crud.student import student
 from app.crud.teacher import teacher
 from app.crud.user import user 
+from app.crud import therapy_report

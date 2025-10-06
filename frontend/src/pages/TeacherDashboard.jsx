@@ -443,10 +443,27 @@ const TeacherDashboard = () => {
               Therapy Report for {selectedStudent.name}
             </h2>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                // TODO: handle save (send to backend or log)
-                setShowReportDialog(false);
+                try {
+                  const payload = {
+                    student_id: selectedStudent.id,
+                    report_date: reportDate,
+                    therapy_type: therapyType,
+                    progress_notes: progressNotes,
+                    goals_achieved: goalsAchieved,
+                    progress_level: progressLevel,
+                  };
+
+                  // POST to backend
+                  await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload);
+                  // Close dialog and optionally show success
+                  setShowReportDialog(false);
+                  alert("Report saved");
+                } catch (err) {
+                  console.error("Failed to save report:", err);
+                  alert(err.response?.data?.detail || "Failed to save report");
+                }
               }}
             >
               <div className="mb-4">
