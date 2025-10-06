@@ -11,6 +11,10 @@ from app.utils.date_utils import get_today, generate_id_with_year_prefix
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     def get_by_admission_number(self, db: Session, *, admission_number: str) -> Optional[Student]:
         return db.query(Student).filter(Student.admission_number == admission_number).first()
+    
+    def get_by_student_id(self, db: Session, *, student_id: str) -> Optional[Student]:
+        """Get student by their string student_id (e.g., 'STU2025001')"""
+        return db.query(Student).filter(Student.student_id == student_id).first()
         
     def get_filtered(
         self, 

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Authentication Test</h1>
+    
+    <div>
+        <h2>1. Login Test</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button onclick="testLogin()">Login</button>
+        <div id="loginResult"></div>
+    </div>
+    
+    <div>
+        <h2>2. Create Therapy Report Test</h2>
+        <button onclick="testCreateReport()">Create Test Report</button>
+        <div id="reportResult"></div>
+    </div>
+    
+    <div>
+        <h2>3. Token Status</h2>
+        <button onclick="checkToken()">Check Token</button>
+        <div id="tokenResult"></div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await axios.post('http://localhost:8000/api/v1/auth/login', formData);
+                
+                if (response.data.access_token) {
+                    token = response.data.access_token;
+                    localStorage.setItem('token', token);
+                    resultDiv.innerHTML = `<p style="color: green;">✅ Login successful! Role: ${response.data.role}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ No token received</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ Login failed: ${error.response?.data?.detail || error.message}</p>`;
+            }
+        }
+        
+        async function testCreateReport() {
+            const resultDiv = document.getElementById('reportResult');
+            
+            if (!token) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ No token available. Please login first.</p>`;
+                return;
+            }
+            
+            try {
+                const payload = {
+                    student_id: 1,
+                    therapy_type: "Speech Therapy",
+                    progress_notes: "Test progress note from web test",
+                    goals_achieved: "Test goal achieved",
+                    progress_level: "Good",
+                    report_date: "2025-10-07"
+                };
+                
+                const response = await axios.post(
+                    'http://localhost:8000/api/v1/therapy-reports/', 
+                    payload,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                
+                resultDiv.innerHTML = `<p style="color: green;">✅ Report created successfully! ID: ${response.data.id}</p>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ Report creation failed: ${error.response?.data?.detail || error.message}</p>`;
+                console.error('Full error:', error);
+            }
+        }
+        
+        function checkToken() {
+            const resultDiv = document.getElementById('tokenResult');
+            const storedToken = localStorage.getItem('token');
+            
+            if (storedToken) {
+                resultDiv.innerHTML = `<p style="color: green;">✅ Token found: ${storedToken.substring(0, 30)}...</p>`;
+            } else {
+                resultDiv.innerHTML = `<p style="color: red;">❌ No token in localStorage</p>`;
+            }
+        }
+        
+        // Check token on page load
+        window.onload = function() {
+            checkToken();
+        };
+    </script>
+</body>
+</html>

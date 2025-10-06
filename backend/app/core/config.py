@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # API settings
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Special School Management System"
+    
+    # Hugging Face settings
+    HUGGINGFACE_API_TOKEN: Optional[str] = None
 
     class Config:
         env_file = ".env"
