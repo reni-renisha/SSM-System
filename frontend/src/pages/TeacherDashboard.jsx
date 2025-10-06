@@ -15,6 +15,7 @@ const TeacherDashboard = () => {
   const [progressNotes, setProgressNotes] = useState("");
   const [goalsAchieved, setGoalsAchieved] = useState("");
   const [progressLevel, setProgressLevel] = useState("Excellent");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   //1.
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
@@ -445,43 +446,109 @@ const TeacherDashboard = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                
+                // Validate required fields
+                if (!reportDate) {
+                  alert("Please select a report date.");
+                  return;
+                }
+                
+                if (!progressNotes.trim()) {
+                  alert("Please enter progress notes.");
+                  return;
+                }
+                
                 try {
+                  setIsSubmitting(true);
+                  
+                  // Get authentication token
+                  const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+                  const token = localStorage.getItem('token');
+                  
+                  if (!token) {
+                    alert("You must be logged in to save reports.");
+                    setIsSubmitting(false);
+                    return;
+                  }
+
                   const payload = {
                     student_id: selectedStudent.id,
                     report_date: reportDate,
                     therapy_type: therapyType,
-                    progress_notes: progressNotes,
-                    goals_achieved: goalsAchieved,
+                    progress_notes: progressNotes.trim(),
+                    goals_achieved: goalsAchieved.trim() || null,
                     progress_level: progressLevel,
                   };
 
-                  // POST to backend
-                  await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload);
-                  // Close dialog and optionally show success
+                  const config = {
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  };
+
+                  console.log("Saving therapy report:", payload);
+                  console.log("API URL:", `${baseUrl}/api/v1/therapy-reports/`);
+                  console.log("Config:", config);
+
+                  // POST to backend with authentication
+                  const response = await axios.post(`${baseUrl}/api/v1/therapy-reports/`, payload, config);
+                  
+                  console.log("Report saved successfully:", response.data);
+                  
+                  // Reset form fields
+                  setReportDate(new Date().toISOString().slice(0, 10));
+                  setTherapyType("Occupational");
+                  setProgressNotes("");
+                  setGoalsAchieved("");
+                  setProgressLevel("Excellent");
+                  
+                  // Close dialog and show success
                   setShowReportDialog(false);
-                  alert("Report saved");
+                  alert(`Therapy report saved successfully for ${selectedStudent.name}!`);
+                  
                 } catch (err) {
-                  console.error("Failed to save report:", err);
-                  alert(err.response?.data?.detail || "Failed to save report");
+                  console.error("Failed to save therapy report:", err);
+                  
+                  if (err.response?.status === 401) {
+                    alert("Your session has expired. Please log in again.");
+                    // Optionally redirect to login
+                    localStorage.removeItem('token');
+                  } else if (err.response?.status === 422) {
+                    alert("Invalid data format. Please check your inputs and try again.");
+                  } else if (err.response?.status === 404) {
+                    alert("Student not found. Please refresh the page and try again.");
+                  } else if (err.response?.data?.detail) {
+                    alert(`Error: ${err.response.data.detail}`);
+                  } else if (err.message) {
+                    alert(`Error: ${err.message}`);
+                  } else {
+                    alert("Failed to save report. Please check your connection and try again.");
+                  }
+                } finally {
+                  setIsSubmitting(false);
                 }
               }}
             >
               <div className="mb-4">
                 <label className="block text-[#170F49] font-medium mb-1">
-                  Date
+                  Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
+                  required
                   className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
                   value={reportDate}
                   onChange={(e) => setReportDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
                 />
               </div>
               <div className="mb-4">
                 <label className="block text-[#170F49] font-medium mb-1">
-                  Therapy Type
+                  Therapy Type <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
                   value={therapyType}
                   onChange={(e) => setTherapyType(e.target.value)}
@@ -496,9 +563,11 @@ const TeacherDashboard = () => {
               </div>
               <div className="mb-4">
                 <label className="block text-[#170F49] font-medium mb-1">
-                  Progress Notes
+                  Progress Notes <span className="text-red-500">*</span>
                 </label>
                 <textarea
+                  required
+                  placeholder="Describe the student's progress, activities performed, and observations..."
                   className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
                   rows={3}
                   value={progressNotes}
@@ -510,6 +579,7 @@ const TeacherDashboard = () => {
                   Goals Achieved
                 </label>
                 <textarea
+                  placeholder="List specific goals or milestones achieved during this session (optional)..."
                   className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
                   rows={2}
                   value={goalsAchieved}
@@ -518,9 +588,10 @@ const TeacherDashboard = () => {
               </div>
               <div className="mb-6">
                 <label className="block text-[#170F49] font-medium mb-1">
-                  Progress Level
+                  Progress Level <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
                   value={progressLevel}
                   onChange={(e) => setProgressLevel(e.target.value)}
@@ -541,9 +612,24 @@ const TeacherDashboard = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#E38B52] text-white font-semibold shadow hover:bg-[#E38B52]/90"
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 rounded-lg font-semibold shadow transition-all duration-200 ${
+                    isSubmitting 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-[#E38B52] hover:bg-[#E38B52]/90 text-white'
+                  }`}
                 >
-                  Save
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeOpacity="0.3"/>
+                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Saving...
+                    </div>
+                  ) : (
+                    'Save Report'
+                  )}
                 </button>
               </div>
             </form>

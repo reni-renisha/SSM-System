@@ -96,6 +96,16 @@ const StudentPage = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  // Summarize modal specific state
+  const [summaryStartDate, setSummaryStartDate] = useState("");
+  const [summaryEndDate, setSummaryEndDate] = useState("");
+  const [summaryTherapyType, setSummaryTherapyType] = useState("All");
+  const [showSummaryReport, setShowSummaryReport] = useState(false);
+  // AI Summary states
+  const [aiSummary, setAiSummary] = useState(null);
+  const [showAiSummary, setShowAiSummary] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiSummaryError, setAiSummaryError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -520,6 +530,67 @@ const fetchReports = async (studentId) => {
     setReports([]);
   } finally {
     setReportsLoading(false);
+  }
+};
+
+// Generate AI Summary for therapy reports
+const generateAISummary = async () => {
+  try {
+    setIsGeneratingAi(true);
+    setAiSummaryError(null);
+    setAiSummary(null);
+    setShowAiSummary(false);
+    
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token
+      ? { headers: { Authorization: `Bearer ${token}` } }
+      : {};
+    
+    // Prepare filters
+    const params = new URLSearchParams();
+    if (summaryStartDate) params.append('start_date', summaryStartDate);
+    if (summaryEndDate) params.append('end_date', summaryEndDate);
+    if (summaryTherapyType) params.append('therapy_type', summaryTherapyType);
+    
+    const queryString = params.toString();
+    console.log('URL parameter id:', id, typeof id);
+    
+    const studentId = parseInt(id);
+    console.log('Parsed student ID:', studentId, 'isNaN:', isNaN(studentId));
+    
+    if (isNaN(studentId) || studentId <= 0) {
+      throw new Error(`Invalid student ID: ${id} (parsed: ${studentId})`);
+    }
+    
+    const url = `${baseUrl}/api/v1/therapy-reports/ai-summary/${studentId}${queryString ? `?${queryString}` : ''}`;
+    
+    console.log('Requesting AI summary from:', url);
+    
+    const { data } = await axios.get(url, config);
+    setAiSummary(data.summary);
+    setShowAiSummary(true);
+    
+  } catch (err) {
+    console.error('Failed to generate AI summary:', err);
+    let errorMessage = 'Failed to generate AI summary';
+    
+    if (err.response?.data?.detail) {
+      // Handle both string and array/object error details
+      if (typeof err.response.data.detail === 'string') {
+        errorMessage = err.response.data.detail;
+      } else if (Array.isArray(err.response.data.detail)) {
+        errorMessage = err.response.data.detail.map(e => e.msg || e.message || 'Validation error').join(', ');
+      } else {
+        errorMessage = 'Invalid request data';
+      }
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    setAiSummaryError(errorMessage);
+  } finally {
+    setIsGeneratingAi(false);
   }
 };
 
@@ -2649,12 +2720,266 @@ const handleDownloadCaseRecord = async () => {
       {/* Summary Modal */}
       {showSummary && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-[#170F49] mb-2">{student?.name || 'Student'}</h2>
-            <p className="text-sm text-[#6F6C90] mb-6">{fromDate || 'Any time'} — {toDate || 'Any time'}</p>
-            <div className="mb-4 text-sm text-[#333]">Showing {Math.min(reports.length, visibleCount)} of {reports.length} reports</div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-[#170F49] mb-4 text-center">
+              Therapy Report Summary for {student?.name || 'Student'}
+            </h2>
+            
+            {!showSummaryReport ? (
+              // Filter Selection Form
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setShowSummaryReport(true);
+                }}
+              >
+                <div className="mb-4">
+                  <label className="block text-[#170F49] font-medium mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                    value={summaryStartDate}
+                    onChange={(e) => setSummaryStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-[#170F49] font-medium mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                    value={summaryEndDate}
+                    onChange={(e) => setSummaryEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-[#170F49] font-medium mb-1">
+                    Therapy Type
+                  </label>
+                  <select
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#E38B52]"
+                    value={summaryTherapyType}
+                    onChange={(e) => setSummaryTherapyType(e.target.value)}
+                  >
+                    <option>All</option>
+                    <option>Occupational</option>
+                    <option>Physio</option>
+                    <option>Speech</option>
+                    <option>Behavioral</option>
+                    <option>Developmental</option>
+                    <option>Clinical</option>
+                  </select>
+                </div>
+                
+                {/* AI Summary Error Display */}
+                {aiSummaryError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="font-medium">AI Summary Error:</span>
+                    </div>
+                    <p className="text-red-600 mt-1">{typeof aiSummaryError === 'string' ? aiSummaryError : 'An error occurred'}</p>
+                  </div>
+                )}
+                
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300"
+                    onClick={() => {
+                      setShowSummary(false);
+                      setSummaryStartDate("");
+                      setSummaryEndDate("");
+                      setSummaryTherapyType("All");
+                      setShowSummaryReport(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg bg-[#E38B52] text-white font-semibold shadow hover:bg-[#E38B52]/90"
+                  >
+                    Show Statistics
+                  </button>
+                  <button
+                    type="button"
+                    onClick={generateAISummary}
+                    disabled={isGeneratingAi}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingAi ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </div>
+                    ) : (
+                      'AI Summary'
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              // Summary Report Display
+              <div>
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="text-lg font-semibold text-[#170F49] mb-2">Report Criteria</h3>
+                  <div className="text-sm text-[#6F6C90] space-y-1">
+                    <p><span className="font-medium">Date Range:</span> {summaryStartDate || 'Any time'} — {summaryEndDate || 'Any time'}</p>
+                    <p><span className="font-medium">Therapy Type:</span> {summaryTherapyType}</p>
+                  </div>
+                </div>
+                
+                {(() => {
+                  const filteredReports = reports.filter((r) => {
+                    // Date range filter
+                    if (summaryStartDate && (!r.report_date || new Date(r.report_date) < new Date(summaryStartDate))) {
+                      return false;
+                    }
+                    if (summaryEndDate && (!r.report_date || new Date(r.report_date) > new Date(summaryEndDate))) {
+                      return false;
+                    }
+                    // Therapy type filter
+                    if (summaryTherapyType !== "All" && r.therapy_type !== summaryTherapyType) {
+                      return false;
+                    }
+                    return true;
+                  });
+                  
+                  const reportCount = filteredReports.length;
+                  const therapyTypeStats = filteredReports.reduce((acc, report) => {
+                    const type = report.therapy_type || 'Unknown';
+                    acc[type] = (acc[type] || 0) + 1;
+                    return acc;
+                  }, {});
+                  
+                  const progressStats = filteredReports.reduce((acc, report) => {
+                    const level = report.progress_level || 'Not specified';
+                    acc[level] = (acc[level] || 0) + 1;
+                    return acc;
+                  }, {});
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-semibold text-[#170F49] mb-2">Summary Statistics</h4>
+                        <p className="text-sm text-[#6F6C90]">Total Reports: <span className="font-medium text-[#170F49]">{reportCount}</span></p>
+                      </div>
+                      
+                      {Object.keys(therapyTypeStats).length > 0 && (
+                        <div className="p-4 bg-green-50 rounded-lg">
+                          <h4 className="font-semibold text-[#170F49] mb-2">Therapy Type Distribution</h4>
+                          <div className="space-y-1">
+                            {Object.entries(therapyTypeStats).map(([type, count]) => (
+                              <p key={type} className="text-sm text-[#6F6C90]">
+                                {type}: <span className="font-medium text-[#170F49]">{count} report{count > 1 ? 's' : ''}</span>
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {Object.keys(progressStats).length > 0 && (
+                        <div className="p-4 bg-orange-50 rounded-lg">
+                          <h4 className="font-semibold text-[#170F49] mb-2">Progress Level Distribution</h4>
+                          <div className="space-y-1">
+                            {Object.entries(progressStats).map(([level, count]) => (
+                              <p key={level} className="text-sm text-[#6F6C90]">
+                                {level}: <span className="font-medium text-[#170F49]">{count} report{count > 1 ? 's' : ''}</span>
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {reportCount === 0 && (
+                        <div className="p-4 bg-gray-50 rounded-lg text-center">
+                          <p className="text-[#6F6C90]">No reports found matching the selected criteria.</p>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end gap-3 pt-4">
+                        <button
+                          onClick={() => setShowSummaryReport(false)}
+                          className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300"
+                        >
+                          Back to Filters
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowSummary(false);
+                            setSummaryStartDate("");
+                            setSummaryEndDate("");
+                            setSummaryTherapyType("All");
+                            setShowSummaryReport(false);
+                          }}
+                          className="px-4 py-2 rounded-lg bg-[#E38B52] text-white hover:bg-[#E38B52]/90"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary Display Modal */}
+      {showAiSummary && aiSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-[#170F49] mb-4">
+              AI-Generated Therapy Summary for {student?.name}
+            </h2>
+            
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-[#6F6C90] space-y-1">
+                <p><span className="font-medium">Period:</span> {aiSummary.date_range}</p>
+                <p><span className="font-medium">Therapy Type:</span> {aiSummary.therapy_type}</p>
+                <p><span className="font-medium">Reports Analyzed:</span> {aiSummary.report_count}</p>
+              </div>
+            </div>
+            
+            <div className="p-6 bg-blue-50 rounded-lg mb-6">
+              <h3 className="font-semibold text-[#170F49] mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Professional AI Analysis
+              </h3>
+              <div className="text-[#170F49] leading-relaxed whitespace-pre-wrap">
+                {aiSummary.ai_summary}
+              </div>
+            </div>
+            
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowSummary(false)} className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49]">Close</button>
+              <button
+                onClick={() => setShowAiSummary(false)}
+                className="px-6 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => {
+                  setShowSummary(false);
+                  setShowAiSummary(false);
+                  setSummaryStartDate("");
+                  setSummaryEndDate("");
+                  setSummaryTherapyType("All");
+                  setShowSummaryReport(false);
+                }}
+                className="px-6 py-2 rounded-lg bg-[#E38B52] text-white hover:bg-[#E38B52]/90"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -2663,8 +2988,8 @@ const handleDownloadCaseRecord = async () => {
       {/* Move the button component INSIDE the main div */}
       <DynamicScrollButtons /> 
 
-    </div>
-  );
+    </div>
+  );
 };
 
 export default StudentPage;
