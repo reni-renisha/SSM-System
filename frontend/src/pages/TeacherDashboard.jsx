@@ -11,10 +11,15 @@ const TeacherDashboard = () => {
   const [reportDate, setReportDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
-  const [therapyType, setTherapyType] = useState("Occupational");
+  const [therapyType, setTherapyType] = useState("Occupational Therapy");
   const [progressNotes, setProgressNotes] = useState("");
   const [goalsAchieved, setGoalsAchieved] = useState("");
   const [progressLevel, setProgressLevel] = useState("Excellent");
+  
+  // Enhanced UX states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   //1.
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
@@ -370,7 +375,7 @@ const TeacherDashboard = () => {
                         setSelectedStudent(student);
                         setShowReportDialog(true);
                         setReportDate(new Date().toISOString().slice(0, 10));
-                        setTherapyType("Occupational");
+                        setTherapyType("Occupational Therapy");
                         setProgressNotes("");
                         setGoalsAchieved("");
                         setProgressLevel("Excellent");
@@ -445,7 +450,16 @@ const TeacherDashboard = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                setIsSubmitting(true);
+                setSubmitError(null);
+                
                 try {
+                  // Validate required fields
+                  if (!progressNotes.trim() || !goalsAchieved.trim()) {
+                    setSubmitError("Please fill in all required fields");
+                    return;
+                  }
+
                   const payload = {
                     student_id: selectedStudent.id,
                     report_date: reportDate,
@@ -460,12 +474,23 @@ const TeacherDashboard = () => {
                   await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload, {
                     headers: { Authorization: `Bearer ${token}` },
                   });
-                  // Close dialog and optionally show success
+                  
+                  // Reset form and show success
+                  setReportDate(new Date().toISOString().slice(0, 10));
+                  setTherapyType("Occupational Therapy");
+                  setProgressNotes("");
+                  setGoalsAchieved("");
+                  setProgressLevel("Excellent");
                   setShowReportDialog(false);
-                  alert("Report saved");
+                  setShowSuccessModal(true);
+                  
+                  // Auto-hide success modal after 3 seconds
+                  setTimeout(() => setShowSuccessModal(false), 3000);
                 } catch (err) {
                   console.error("Failed to save report:", err);
-                  alert(err.response?.data?.detail || "Failed to save report");
+                  setSubmitError(err.response?.data?.detail || "Failed to save report. Please try again.");
+                } finally {
+                  setIsSubmitting(false);
                 }
               }}
             >
@@ -489,12 +514,11 @@ const TeacherDashboard = () => {
                   value={therapyType}
                   onChange={(e) => setTherapyType(e.target.value)}
                 >
-                  <option>Occupational</option>
-                  <option>Physio</option>
-                  <option>Speech</option>
-                  <option>Behavioral</option>
-                  <option>Developmental</option>
-                  <option>Clinical</option>
+                  <option value="Behavioral Therapy">Behavioral Therapy</option>
+                  <option value="Cognitive Therapy">Cognitive Therapy</option>
+                  <option value="Occupational Therapy">Occupational Therapy</option>
+                  <option value="Physical Therapy">Physical Therapy</option>
+                  <option value="Speech Therapy">Speech Therapy</option>
                 </select>
               </div>
               <div className="mb-4">
@@ -534,22 +558,73 @@ const TeacherDashboard = () => {
                   <option>Needs Improvement</option>
                 </select>
               </div>
+              
+              {/* Error Display */}
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-red-700 text-sm">{submitError}</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300"
-                  onClick={() => setShowReportDialog(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-[#170F49] hover:bg-gray-300 disabled:opacity-50"
+                  onClick={() => {
+                    setShowReportDialog(false);
+                    setSubmitError(null);
+                  }}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#E38B52] text-white font-semibold shadow hover:bg-[#E38B52]/90"
+                  className="px-4 py-2 rounded-lg bg-[#E38B52] text-white font-semibold shadow hover:bg-[#E38B52]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  disabled={isSubmitting}
                 >
-                  Save
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Report"
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 transform animate-pulse">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-[#170F49] mb-2">Report Saved Successfully!</h3>
+              <p className="text-gray-600 mb-4">The therapy report has been submitted and saved to the system.</p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="px-6 py-2 bg-[#E38B52] text-white rounded-lg hover:bg-[#E38B52]/90 font-medium"
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       )}
