@@ -181,6 +181,158 @@ const StudentPage = () => {
       setAiSummarizing(false);
     }
   };
+
+  // PDF generation for AI Analysis Report
+  const generateAIAnalysisPDF = () => {
+    if (!aiAnalysis || !student) {
+      alert('No AI analysis data available to export');
+      return;
+    }
+
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.width;
+    const marginLeft = 20;
+    const marginRight = 20;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    let yPosition = 20;
+
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text, x, y, maxWidth, lineHeight = 5) => {
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      pdf.text(lines, x, y);
+      return y + (lines.length * lineHeight);
+    };
+
+    // Header
+    pdf.setFontSize(18);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('AI Therapy Analysis Report', marginLeft, yPosition);
+    yPosition += 10;
+
+    // Student Information
+    pdf.setFontSize(12);
+    pdf.setFont(undefined, 'normal');
+    pdf.text(`Student: ${student.name || 'N/A'}`, marginLeft, yPosition);
+    yPosition += 7;
+    pdf.text(`Student ID: ${student.student_id || 'N/A'}`, marginLeft, yPosition);
+    yPosition += 7;
+    if (student.class_name) {
+      pdf.text(`Class: ${student.class_name}`, marginLeft, yPosition);
+      yPosition += 7;
+    }
+    pdf.text(`Reports Analyzed: ${aiAnalysis.used_reports || 0}`, marginLeft, yPosition);
+    yPosition += 7;
+    if (aiAnalysis.date_range) {
+      pdf.text(`Analysis Period: ${aiAnalysis.date_range.start_date || 'N/A'} to ${aiAnalysis.date_range.end_date || 'N/A'}`, marginLeft, yPosition);
+      yPosition += 10;
+    }
+
+    // Brief Overview
+    if (aiAnalysis.brief_overview) {
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Brief Overview', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      yPosition = addWrappedText(aiAnalysis.brief_overview, marginLeft, yPosition, contentWidth);
+      yPosition += 8;
+    }
+
+    // Initial Assessment
+    if (aiAnalysis.start_date_analysis) {
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Initial Assessment', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      yPosition = addWrappedText(aiAnalysis.start_date_analysis, marginLeft, yPosition, contentWidth);
+      yPosition += 8;
+    }
+
+    // Current Status
+    if (aiAnalysis.end_date_analysis) {
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Current Status', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      yPosition = addWrappedText(aiAnalysis.end_date_analysis, marginLeft, yPosition, contentWidth);
+      yPosition += 8;
+    }
+
+    // Progress Metrics
+    if (aiAnalysis.improvement_metrics) {
+      if (yPosition > 220) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Progress Metrics', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      
+      for (const [key, value] of Object.entries(aiAnalysis.improvement_metrics)) {
+        const metricText = `${key.replace(/_/g, ' ')}: ${typeof value === 'object' ? JSON.stringify(value) : value}`;
+        yPosition = addWrappedText(metricText, marginLeft, yPosition, contentWidth);
+        yPosition += 3;
+      }
+      yPosition += 5;
+    }
+
+    // Recommendations
+    if (aiAnalysis.recommendations) {
+      if (yPosition > 220) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('AI Recommendations', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      yPosition = addWrappedText(aiAnalysis.recommendations, marginLeft, yPosition, contentWidth);
+      yPosition += 8;
+    }
+
+    // Detailed Summary
+    if (aiAnalysis.summary) {
+      if (yPosition > 200) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Detailed Analysis Summary', marginLeft, yPosition);
+      yPosition += 7;
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      yPosition = addWrappedText(aiAnalysis.summary, marginLeft, yPosition, contentWidth);
+    }
+
+    // Footer
+    const totalPages = pdf.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(8);
+      pdf.text(`Generated on: ${new Date().toLocaleString()}`, marginLeft, 285);
+      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, 285);
+    }
+
+    // Save the PDF
+    const fileName = `AI_Analysis_Report_${student.student_id || 'Unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(fileName);
+  };
+
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -1280,15 +1432,34 @@ const handleGenerateSummaryReport = () => {
                         title="Filter reports by specific therapy type"
                       >
                         <option value="">All Therapy Types</option>
-                        <option value="Speech Therapy">Speech Therapy</option>
-                        <option value="Occupational Therapy">Occupational Therapy</option>
-                        <option value="Physical Therapy">Physical Therapy</option>
                         <option value="Behavioral Therapy">Behavioral Therapy</option>
                         <option value="Cognitive Therapy">Cognitive Therapy</option>
-                        <option value="Social Skills Training">Social Skills Training</option>
+                        <option value="Occupational Therapy">Occupational Therapy</option>
+                        <option value="Physical Therapy">Physical Therapy</option>
+                        <option value="Speech Therapy">Speech Therapy</option>
                       </select>
                       <p className="text-xs text-gray-500 mt-1">Select a therapy type to filter reports, or leave as "All" to show reports from all therapies.</p>
                     </div>
+                    
+                    {/* Clear Filters Button */}
+                    {(fromDate || toDate || selectedTherapyType) && (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => {
+                            setFromDate('');
+                            setToDate('');
+                            setSelectedTherapyType('');
+                            setVisibleCount(5);
+                          }}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors duration-200 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Clear All Filters
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Summary Generation Section */}
@@ -1342,12 +1513,26 @@ const handleGenerateSummaryReport = () => {
                 </div>
                 {/* AI Comprehensive Analysis Panel */}
                 <div className="mb-6 p-4 border border-[#E38B52]/20 rounded-xl bg-white/70">
-                  <h3 className="text-lg font-semibold text-[#170F49] mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-[#E38B52]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    AI Comprehensive Analysis
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-[#170F49] flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#E38B52]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      AI Comprehensive Analysis
+                    </h3>
+                    {aiAnalysis && !aiSummarizing && (
+                      <button
+                        onClick={generateAIAnalysisPDF}
+                        className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center gap-1.5"
+                        title="Download AI Analysis Report as PDF"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-col md:flex-row gap-3 mb-2">
                     <select
                       className="input-edit md:w-1/3"
@@ -1508,15 +1693,27 @@ const handleGenerateSummaryReport = () => {
                 ) : (
                   (() => {
                     const filtered = reports.filter((r) => {
+                      // Date filtering with proper date comparison
                       if (fromDate) {
-                        if (!r.report_date || new Date(r.report_date) < new Date(fromDate)) return false;
+                        if (!r.report_date) return false;
+                        const reportDate = new Date(r.report_date);
+                        const filterFromDate = new Date(fromDate);
+                        if (reportDate < filterFromDate) return false;
                       }
                       if (toDate) {
-                        if (!r.report_date || new Date(r.report_date) > new Date(toDate)) return false;
+                        if (!r.report_date) return false;
+                        const reportDate = new Date(r.report_date);
+                        const filterToDate = new Date(toDate);
+                        if (reportDate > filterToDate) return false;
                       }
+                      
+                      // Therapy type filtering with exact match
+                      // Note: Database migration ensures all therapy types use standardized format
+                      // (e.g., "Occupational Therapy", "Speech Therapy", etc.)
                       if (selectedTherapyType) {
-                        if (!r.therapy_type || r.therapy_type !== selectedTherapyType) return false;
+                        if (!r.therapy_type || r.therapy_type.trim() !== selectedTherapyType.trim()) return false;
                       }
+                      
                       return true;
                     });
 
