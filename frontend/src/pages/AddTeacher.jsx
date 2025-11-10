@@ -98,10 +98,46 @@ const AddTeacher = () => {
     }
   };
 
-  const selectClassName = `w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all appearance-none text-[#6F6C90] bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23170F49%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[center_right_1rem] bg-no-repeat pr-10`;
+  const selectClassName = `w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all appearance-none text-[#6F6C90] bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23170F49%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[center_right_1rem] bg-no-repeat pr-10`;
+
+  const inputEditStyles = `
+    .input-edit {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background-color: #f9fafb;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-edit:focus {
+      outline: none;
+      border-color: #E38B52;
+      box-shadow: 0 0 0 3px rgba(227, 139, 82, 0.1);
+      background-color: white;
+    }
+    textarea.input-edit {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    /* Ensure checkbox checkmark/accent color matches Add Student (use accent-color) */
+    .add-teacher-root input[type="checkbox"] {
+      accent-color: #E38B52;
+      -webkit-accent-color: #E38B52;
+    }
+  `;
+
+  // inject styles to document head if not already injected
+  if (typeof document !== 'undefined' && !document.getElementById('ssm-input-edit-styles')) {
+    const styleElement = document.createElement('style');
+    styleElement.id = 'ssm-input-edit-styles';
+    styleElement.textContent = inputEditStyles;
+    document.head.appendChild(styleElement);
+  }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f7f7f7] relative overflow-hidden py-20">
+    <div className="add-teacher-root min-h-screen w-full flex flex-col items-center justify-center bg-[#f7f7f7] relative overflow-hidden py-20">
       {/* Back button */}
       <button
         onClick={() => window.history.back()}
@@ -146,7 +182,7 @@ const AddTeacher = () => {
                 value={teacherData.name}
                 onChange={handleInputChange}
                 placeholder="Enter Name"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                 required
               />
             </div>
@@ -160,7 +196,7 @@ const AddTeacher = () => {
                 value={teacherData.address}
                 onChange={handleInputChange}
                 placeholder="Enter Address"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90] min-h-[100px]"
+                className="input-edit"
                 required
               />
             </div>
@@ -175,7 +211,7 @@ const AddTeacher = () => {
                   name="date_of_birth"
                   value={teacherData.date_of_birth}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                   required
                 />
               </div>
@@ -231,7 +267,7 @@ const AddTeacher = () => {
                   value={teacherData.mobile_number}
                   onChange={handleInputChange}
                   placeholder="Enter Mobile Number"
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
               </div>
@@ -246,7 +282,7 @@ const AddTeacher = () => {
                 value={teacherData.email}
                 onChange={handleInputChange}
                 placeholder="Enter Email"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                 required
                 pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                 onInvalid={e => e.target.setCustomValidity('Please enter a valid email address (username@domain.extension) with no spaces.')}
@@ -264,7 +300,7 @@ const AddTeacher = () => {
                 value={teacherData.aadhar_number}
                 onChange={handleInputChange}
                 placeholder="Enter Aadhar Number"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                 required
               />
             </div>
@@ -274,15 +310,21 @@ const AddTeacher = () => {
                 <label className="block text-sm font-medium text-[#170F49] ml-4">
                   Religion
                 </label>
-                <input
-                  type="text"
+                <select
                   name="religion"
                   value={teacherData.religion}
                   onChange={handleInputChange}
-                  placeholder="Enter Religion"
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                  className={selectClassName}
                   required
-                />
+                >
+                  <option value="">Select Religion</option>
+                  <option value="Hindu">Hindu</option>
+                  <option value="Christian">Christian</option>
+                  <option value="Muslim">Muslim</option>
+                  <option value="Sikh">Sikh</option>
+                  <option value="Jew">Jew</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
               <div className="flex-1 space-y-2">
                 <label className="block text-sm font-medium text-[#170F49] ml-4">
@@ -294,7 +336,7 @@ const AddTeacher = () => {
                   value={teacherData.caste}
                   onChange={handleInputChange}
                   placeholder="Enter Caste"
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
               </div>
@@ -311,7 +353,7 @@ const AddTeacher = () => {
                   value={teacherData.rci_number}
                   onChange={handleInputChange}
                   placeholder="Enter RCI Number"
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
               </div>
@@ -324,7 +366,7 @@ const AddTeacher = () => {
                   name="rci_renewal_date"
                   value={teacherData.rci_renewal_date}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                  className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                   required
                 />
               </div>
@@ -339,7 +381,7 @@ const AddTeacher = () => {
                 value={teacherData.qualifications_details}
                 onChange={handleInputChange}
                 placeholder="Enter Qualifications Details"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90] min-h-[100px]"
+                className="input-edit"
                 required
               />
             </div>
@@ -431,7 +473,7 @@ const AddTeacher = () => {
                          value={assignment.subject}
                          onChange={(e) => handleClassAssignmentChange(index, 'subject', e.target.value)}
                          placeholder="Enter Subject"
-                         className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+                         className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                        />
                      </div>
 
@@ -448,7 +490,7 @@ const AddTeacher = () => {
                                    type="checkbox"
                                    checked={assignment.days.includes(day)}
                                    onChange={() => handleDayToggle(index, day)}
-                                   className="w-4 h-4 text-[#6366f1] bg-white border-gray-300 rounded focus:ring-[#6366f1] focus:ring-2"
+                                   className="w-4 h-4 text-[#E38B52] bg-white border-gray-300 rounded focus:ring-[#E38B52] focus:ring-2"
                                  />
                                  <span className="text-sm text-[#6F6C90]">{day}</span>
                                </label>
@@ -466,7 +508,7 @@ const AddTeacher = () => {
                              type="time"
                              value={assignment.startTime}
                              onChange={(e) => handleClassAssignmentChange(index, 'startTime', e.target.value)}
-                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                            />
                          </div>
 
@@ -478,7 +520,7 @@ const AddTeacher = () => {
                              type="time"
                              value={assignment.endTime}
                              onChange={(e) => handleClassAssignmentChange(index, 'endTime', e.target.value)}
-                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                            />
                          </div>
                        </div>

@@ -10,6 +10,13 @@ const TeacherPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [photoError, setPhotoError] = useState(null);
+  
   useEffect(() => {
     const fetchTeacher = async () => {
       try {
@@ -48,6 +55,8 @@ const TeacherPage = () => {
             day: 'numeric' 
           }),
           qualifications: response.data.qualifications_details,
+          // prefer stored photo_url, otherwise ui-avatars fallback
+          photoUrl: response.data.photo_url || `https://eu.ui-avatars.com/api/?name=${(response.data.name||'').replace(' ', '+')}&size=250`,
           classes: formattedClasses
         });
         setLoading(false);
@@ -60,6 +69,92 @@ const TeacherPage = () => {
     fetchTeacher();
   }, [id]);
 
+  // File selection handler
+  const handlePhotoSelect = (e) => {
+    setPhotoError(null);
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowed.includes(file.type)) {
+      setPhotoError('Only PNG and JPG images are allowed.');
+      return;
+    }
+    // optional size limit (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File too large. Max 5MB allowed.');
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  // Upload handler - adjust endpoint if backend expects different path/field
+  const uploadPhoto = async () => {
+    if (!photoFile) {
+      setPhotoError('No file selected.');
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    setPhotoError(null);
+    try {
+      const formData = new FormData();
+      // Use 'photo' as the form field (change if backend expects a different name)
+      formData.append('photo', photoFile);
+
+      // Do NOT set Content-Type explicitly. Let the browser set the multipart boundary.
+      const headers = {};
+      // If your backend requires auth, set the Authorization header (example uses localStorage)
+      const token = localStorage.getItem('access_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const resp = await axios.post(
+        `http://localhost:8000/api/v1/teachers/${id}/photo`,
+        formData,
+        {
+          headers,
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(pct);
+            }
+          },
+          validateStatus: status => status < 500 // let 4xx pass so we can handle them
+        }
+      );
+
+      if (resp.status >= 400) {
+        // show server-provided message if any
+        const serverMsg = resp.data && (resp.data.detail || resp.data.message || JSON.stringify(resp.data));
+        throw new Error(serverMsg || `Upload failed with status ${resp.status}`);
+      }
+
+      // backend should return updated photo URL
+      const newUrl = resp.data.photo_url || resp.data.url || resp.data.photoUrl;
+      setTeacher(prev => ({ ...prev, photoUrl: newUrl || prev.photoUrl }));
+      setPhotoFile(null);
+      if (photoPreview) { URL.revokeObjectURL(photoPreview); }
+      setPhotoPreview(null);
+      setUploadProgress(0);
+      alert('Photo uploaded successfully.');
+    } catch (err) {
+      console.error('Photo upload failed', err, err.response?.data || '');
+      setPhotoError(err.message || 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const cancelPhotoSelection = () => {
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoError(null);
+    setUploadProgress(0);
+  };
+  
   // Function to handle edit mode toggle
   const handleEditToggle = () => {
     if (!isEditing) {
@@ -246,11 +341,11 @@ const TeacherPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f7f7f7]">
-        <div className="text-2xl text-[#6366f1]">Loading teacher information...</div>
+        <div className="text-2xl text-[#E38B52]">Loading teacher information...</div>
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-hidden py-20">
       {/* Back button */}
@@ -271,13 +366,14 @@ const TeacherPage = () => {
         >
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
+        Back
       </button>
 
       {/* Animated background blobs */}
-      <div className="absolute top-0 -left-40 w-[600px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
-      <div className="absolute -bottom-32 right-40 w-[600px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
-      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
-      <div className="absolute top-0 -left-40 w-[500px] h-[600px] bg-[#3730a3] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
+      <div className="absolute top-0 -left-40 w-[600px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
+      <div className="absolute -bottom-32 right-40 w-[600px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
+      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
+      <div className="absolute top-0 -left-40 w-[500px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float animation-delay-7000 z-0" />
       
       <div className="w-[90%] max-w-[1200px] mx-4 flex-1 flex flex-col">
         <h1 className="text-3xl font-bold text-[#170F49] mb-8 text-center font-baskervville">
@@ -295,28 +391,50 @@ const TeacherPage = () => {
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white/50 shadow-xl">
                     <img 
-                      src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
+                      src={teacher.photoUrl || `https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
                       alt="Teacher"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <button className="text-sm text-[#6366f1] hover:text-[#4f46e5] transition-colors duration-200 flex items-center gap-1">
-                    <svg 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Update Photo
-                  </button>
+
+                  {/* Photo upload controls */}
+                  <div className="flex flex-col items-center gap-2">
+                    <input
+                      id="teacher-photo-input"
+                      type="file"
+                      accept=".png,.jpg,.jpeg"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="teacher-photo-input" className="cursor-pointer text-sm text-[#E38B52] hover:underline">
+                        Choose Photo
+                      </label>
+                      {photoPreview ? (
+                        <button type="button" onClick={cancelPhotoSelection} className="text-sm text-gray-500 hover:text-gray-700">
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {photoPreview && (
+                      <div className="mt-2 w-28 h-28 rounded-md overflow-hidden border border-gray-200">
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={uploadPhoto}
+                        disabled={!photoFile || uploading}
+                        className={`px-3 py-2 rounded-md text-white ${photoFile && !uploading ? 'bg-[#E38B52] hover:bg-[#C8742F]' : 'bg-gray-300 cursor-not-allowed'}`}
+                      >
+                        {uploading ? `Uploading ${uploadProgress}%` : 'Upload'}
+                      </button>
+                      {photoError && <p className="text-sm text-red-500">{photoError}</p>}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Teacher Details */}
@@ -328,7 +446,7 @@ const TeacherPage = () => {
                         type="text"
                         value={editFormData.name || ''}
                         onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                       />
                     ) : (
                       <p className="text-[#170F49] font-medium">{teacher.name}</p>
@@ -345,7 +463,7 @@ const TeacherPage = () => {
                         type="date"
                         value={editFormData.date_of_birth || ''}
                         onChange={(e) => setEditFormData({...editFormData, date_of_birth: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                       />
                     ) : (
                       <p className="text-[#170F49] font-medium">{teacher.dob}</p>
@@ -357,7 +475,7 @@ const TeacherPage = () => {
                       <select
                         value={editFormData.gender || ''}
                         onChange={(e) => setEditFormData({...editFormData, gender: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                       >
                         <option value="">Select Gender</option>
                         <option value="Male">Male</option>
@@ -375,7 +493,7 @@ const TeacherPage = () => {
                         type="text"
                         value={editFormData.religion || ''}
                         onChange={(e) => setEditFormData({...editFormData, religion: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                       />
                     ) : (
                       <p className="text-[#170F49] font-medium">{teacher.religion}</p>
@@ -388,7 +506,7 @@ const TeacherPage = () => {
                         type="text"
                         value={editFormData.caste || ''}
                         onChange={(e) => setEditFormData({...editFormData, caste: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                       />
                     ) : (
                       <p className="text-[#170F49] font-medium">{teacher.caste}</p>
@@ -409,7 +527,7 @@ const TeacherPage = () => {
                       type="tel"
                       value={editFormData.mobile_number || ''}
                       onChange={(e) => setEditFormData({...editFormData, mobile_number: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.mobile}</p>
@@ -422,7 +540,7 @@ const TeacherPage = () => {
                       type="email"
                       value={editFormData.email || ''}
                       onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.email}</p>
@@ -435,7 +553,7 @@ const TeacherPage = () => {
                       value={editFormData.address || ''}
                       onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
                       rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80 resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80 resize-none"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.address}</p>
@@ -474,7 +592,7 @@ const TeacherPage = () => {
                       type="text"
                       value={editFormData.rci_number || ''}
                       onChange={(e) => setEditFormData({...editFormData, rci_number: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.rciNumber}</p>
@@ -487,7 +605,7 @@ const TeacherPage = () => {
                       type="date"
                       value={editFormData.rci_renewal_date || ''}
                       onChange={(e) => setEditFormData({...editFormData, rci_renewal_date: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.rciRenewalDate}</p>
@@ -500,7 +618,7 @@ const TeacherPage = () => {
                       value={editFormData.qualifications_details || ''}
                       onChange={(e) => setEditFormData({...editFormData, qualifications_details: e.target.value})}
                       rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] focus:border-transparent bg-white/80 resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80 resize-none"
                     />
                   ) : (
                     <p className="text-[#170F49] font-medium">{teacher.qualifications}</p>
@@ -515,7 +633,7 @@ const TeacherPage = () => {
               <div className="p-6 bg-white/50 rounded-2xl">
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse rounded-xl overflow-hidden">
-                    <thead className="bg-[#6366f1]/10">
+                    <thead className="bg-[#E38B52]/10">
                       <tr>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Class</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Subject</th>
@@ -525,7 +643,7 @@ const TeacherPage = () => {
                     </thead>
                     <tbody className="bg-white/70">
                       {teacher.classes.map((classItem, index) => (
-                        <tr key={index} className={index < teacher.classes.length - 1 ? "border-b border-[#6366f1]/10" : ""}>
+                        <tr key={index} className={index < teacher.classes.length - 1 ? "border-b border-[#E38B52]/10" : ""}>
                           <td className="px-4 py-3 text-sm text-[#170F49]">{classItem.class}</td>
                           <td className="px-4 py-3 text-sm text-[#170F49]">{classItem.subject}</td>
                           <td className="px-4 py-3 text-sm text-[#170F49]">{classItem.days}</td>
@@ -557,7 +675,7 @@ const TeacherPage = () => {
                         height="24" 
                         viewBox="0 0 24 24" 
                         fill="none" 
-                        stroke="#6366f1" 
+                        stroke="#E38B52" 
                         strokeWidth="2" 
                         strokeLinecap="round" 
                         strokeLinejoin="round"
@@ -615,7 +733,7 @@ const TeacherPage = () => {
                         height="24" 
                         viewBox="0 0 24 24" 
                         fill="none" 
-                        stroke="#6366f1" 
+                        stroke="#E38B52" 
                         strokeWidth="2" 
                         strokeLinecap="round" 
                         strokeLinejoin="round"
@@ -694,7 +812,7 @@ const TeacherPage = () => {
               <>
                 <button 
                   onClick={handleEditToggle}
-                  className="flex-1 bg-[#6366f1] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -784,4 +902,4 @@ const TeacherPage = () => {
   );
 };
 
-export default TeacherPage; 
+export default TeacherPage;
