@@ -267,11 +267,6 @@ const AddTeacher = () => {
                   value={teacherData.mobile_number}
                   onChange={handleInputChange}
                   placeholder="Enter Mobile Number"
-                  inputMode="numeric"
-                  maxLength="10"
-                  pattern="\d{10}"
-                  onInvalid={e => e.target.setCustomValidity('Please enter a 10-digit phone number (numbers only).')}
-                  onInput={e => e.target.setCustomValidity('')}
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
@@ -305,11 +300,6 @@ const AddTeacher = () => {
                 value={teacherData.aadhar_number}
                 onChange={handleInputChange}
                 placeholder="Enter Aadhar Number"
-                inputMode="numeric"
-                maxLength="12"
-                pattern="\d{12}"
-                onInvalid={e => e.target.setCustomValidity('Please enter a 12-digit Aadhar number (numbers only).')}
-                onInput={e => e.target.setCustomValidity('')}
                 className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                 required
               />

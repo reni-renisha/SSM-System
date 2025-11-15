@@ -527,11 +527,6 @@ const TeacherPage = () => {
                       type="tel"
                       value={editFormData.mobile_number || ''}
                       onChange={(e) => setEditFormData({...editFormData, mobile_number: e.target.value})}
-                      inputMode="numeric"
-                      maxLength="10"
-                      pattern="\d{10}"
-                      onInvalid={e => e.target.setCustomValidity('Please enter a 10-digit phone number (numbers only).')}
-                      onInput={e => e.target.setCustomValidity('')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
                     />
                   ) : (
@@ -573,21 +568,7 @@ const TeacherPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/50 rounded-2xl">
                 <div>
                   <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editFormData.aadhar_number || ''}
-                      onChange={(e) => setEditFormData({...editFormData, aadhar_number: e.target.value})}
-                      inputMode="numeric"
-                      maxLength="12"
-                      pattern="\d{12}"
-                      onInvalid={e => e.target.setCustomValidity('Please enter a 12-digit Aadhar number (numbers only).')}
-                      onInput={e => e.target.setCustomValidity('')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
-                    />
-                  ) : (
-                    <p className="text-[#170F49] font-medium">{teacher.aadhar}</p>
-                  )}
+                  <p className="text-[#170F49] font-medium">{teacher.aadhar}</p>
                 </div>
                 <div>
                   <p className="text-sm text-[#6F6C90]">Blood Group</p>

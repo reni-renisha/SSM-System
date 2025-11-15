@@ -843,7 +843,6 @@ const developmentHistoryMap = {
                         type="tel"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter phone number"
-                        maxLength="10"
                         value={studentForm.phone_number}
                         onChange={handleFieldChange('phone_number')}
                       />
@@ -1262,8 +1261,8 @@ const developmentHistoryMap = {
                   </div>
                 </div>
 
-                {/* Category Section */}
-                <div className="mt-6">
+{/* Category Section */}
+<div className="mt-6">
   <label className="block text-sm font-medium text-[#170F49] mb-2">Category</label>
   <div className="grid grid-cols-4 gap-4">
     {['SC', 'ST', 'OBC', 'OEC'].map((category) => (
