@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import { useParams } from "react-router-dom";
@@ -861,55 +859,56 @@ const handleDownloadProfile = async () => {
   drawSectionHeader('Personal Information');
   drawField('NAME OF THE STUDENT', student.name);
   drawField('AGE', student.age);
+  drawField('STUDENT ID', student.student_id);
   drawField('DATE OF BIRTH', student.dob);
   drawField('GENDER', student.gender);
   drawField('RELIGION', student.religion);
   drawField('CASTE', student.caste);
-  drawField('AADHAR NUMBER', student.aadharNumber); // <-- ADDED
+  drawField('AADHAR NUMBER', student.aadhar_number); // <-- ADDED
 
   drawSectionHeader('Address Information');
-  drawField('BIRTH PLACE', student.birthPlace);
-  drawField('HOUSE NAME', student.houseName);
-  drawField('STREET NAME', student.streetName);
-  drawField('POST OFFICE', student.postOffice);
-  drawField('PIN CODE', student.pinCode);
-  drawField('REVENUE DISTRICT', student.revenueDistrict);
-  drawField('BLOCK PANCHAYAT', student.blockPanchayat);
-  drawField('LOCAL BODY', student.localBody);
+  drawField('BIRTH PLACE', student.birth_place);
+  drawField('HOUSE NAME', student.house_name);
+  drawField('STREET NAME', student.street_name);
+  drawField('POST OFFICE', student.post_office);
+  drawField('PIN CODE', student.pin_code);
+  drawField('REVENUE DISTRICT', student.revenue_district);
+  drawField('BLOCK PANCHAYAT', student.block_panchayat);
+  drawField('LOCAL BODY', student.local_body);
   drawField('TALUK', student.taluk);
 
   drawSectionHeader('Contact Information');
-  drawField('PHONE NUMBER', student.phoneNumber);
+  drawField('PHONE NUMBER', student.phone_number);
   drawField('EMAIL', student.email);
   drawField('ADDRESS', student.address);
 
   drawSectionHeader('Family Information');
-  drawField('FATHER NAME', student.fatherName);
+  drawField('FATHER NAME', student.father_name);
   // We will only include the names as per your previous change
-  drawField('MOTHER NAME', student.motherName);
+  drawField('MOTHER NAME', student.mother_name);
 
   // --- vvv NEWLY ADDED SECTIONS vvv ---
   drawSectionHeader('Disability Details');
-  drawField('TYPE OF DISABILITY', student.disabilityType);
-  drawField('PERCENTAGE', student.disabilityPercentage ? `${student.disabilityPercentage}%` : '');
+  drawField('TYPE OF DISABILITY', student.disability_type);
+  drawField('PERCENTAGE', student.disability_percentage ? `${student.disability_percentage}%` : '');
 
   drawSectionHeader('Identification Marks');
-  drawField('MARKS', student.identificationMarks);
+  drawField('MARKS', student.identification_marks);
   // --- ^^^ END OF NEW SECTIONS ^^^ ---
 
   drawSectionHeader('Academic Information');
-  drawField('CLASS', student.class);
-  drawField('ROLL NUMBER', student.rollNo);
-  drawField('ACADEMIC YEAR', student.academicYear);
-  drawField('ADMISSION NUMBER', student.admissionNumber);
-  drawField('DATE OF ADMISSION', student.admissionDate);
-  drawField('CLASS TEACHER', student.classTeacher);
+  drawField('CLASS', student.class_name);
+  drawField('ROLL NUMBER', student.roll_no);
+  drawField('ACADEMIC YEAR', student.academic_year);
+  drawField('ADMISSION NUMBER', student.admission_number);
+  drawField('DATE OF ADMISSION', student.admission_date);
+  drawField('CLASS TEACHER', student.class_teacher);
 
   drawSectionHeader('Bank Details');
-  drawField('BANK NAME', student.bankName);
-  drawField('ACCOUNT NUMBER', student.accountNumber);
+  drawField('BANK NAME', student.bank_name);
+  drawField('ACCOUNT NUMBER', student.account_number);
   drawField('BRANCH', student.branch);
-  drawField('IFSC CODE', student.ifscCode);
+  drawField('IFSC CODE', student.ifsc_code);
 
   doc.save(`Student_Profile_${student.name || "profile"}.pdf`);
 };
@@ -944,7 +943,7 @@ const handleDownloadCaseRecord = async () => {
   };
 
   const drawSectionHeader = (title) => {
-    checkPageBreak(20); // Check if header fits
+    checkPageBreak(15); // Check if header fits
     y += sectionGap;
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
@@ -1516,7 +1515,7 @@ const handleGenerateSummaryReport = () => {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-[#170F49] flex items-center gap-2">
                       <svg className="w-5 h-5 text-[#E38B52]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2v-8a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                       AI Comprehensive Analysis
                     </h3>
@@ -1777,7 +1776,7 @@ const handleGenerateSummaryReport = () => {
                         {filtered.length === 0 && (
                           <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6" />
                             </svg>
                             <p className="text-lg font-medium text-gray-900 mb-2">No reports found</p>
                             <p className="text-sm text-gray-500">
@@ -2031,6 +2030,25 @@ const handleGenerateSummaryReport = () => {
                     )}
                   </div>
                   <div>
+                    <p className="text-sm text-[#6F6C90] mb-1 block">Phone</p>
+                    {isEditing ? (
+                    <input
+                      type="tel"
+                      value={editFormData.phone || ''}
+                      onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                      inputMode="numeric"
+                      maxLength="10"
+                      pattern="\d{10}"
+                      onInvalid={e => e.target.setCustomValidity('Please enter a 10-digit phone number (numbers only).')}
+                      onInput={e => e.target.setCustomValidity('')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{student.phone}</p>
+                  )}
+                  </div>
+
+                  <div>
                     <p className="text-sm text-[#6F6C90]">Email</p>
                     {editMode ? (
                       <input type="email" name="email" value={editData?.email || ''} onChange={handleEditChange} className="input-edit" />
@@ -2039,13 +2057,23 @@ const handleGenerateSummaryReport = () => {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-[#6F6C90]">Address</p>
-                    {editMode ? (
-                      <input type="text" name="address" value={editData?.address || ''} onChange={handleEditChange} className="input-edit" />
-                    ) : (
-                      <p className="text-[#170F49] font-medium">{student?.address}</p>
-                    )}
-                  </div>
+                  <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editFormData.aadhar || ''}
+                      onChange={(e) => setEditFormData({...editFormData, aadhar: e.target.value})}
+                      inputMode="numeric"
+                      maxLength="12"
+                      pattern="\d{12}"
+                      onInvalid={e => e.target.setCustomValidity('Please enter a 12-digit Aadhar number (numbers only).')}
+                      onInput={e => e.target.setCustomValidity('')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] focus:border-transparent bg-white/80"
+                    />
+                  ) : (
+                    <p className="text-[#170F49] font-medium">{student.aadhar}</p>
+                  )}
+                </div>
                 </div>
               </div>
 
@@ -2357,7 +2385,6 @@ const handleGenerateSummaryReport = () => {
                 <div className="p-6 bg-white/50 rounded-2xl">
                   {/* Certificates List */}
                   <div className="space-y-4">
-                    {/* Example certificates - replace with actual data */}
                     <div className="flex items-center justify-between p-4 bg-white/70 rounded-xl">
                       <div className="flex items-center gap-3">
                         <svg 
@@ -2497,7 +2524,7 @@ const handleGenerateSummaryReport = () => {
     <div className="col-span-full">
       <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 00-2-2 2 2 0 002-2zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
         </svg>
         Identification Data
       </h2>
@@ -2505,7 +2532,13 @@ const handleGenerateSummaryReport = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Name</p>
-            <p className="text-[#170F49] font-medium">{student?.name || 'N/A'}</p>
+            {editMode ? (
+              <>
+              <input type="text" name="name" value={editData?.name || ''} onChange={handleEditChange} className="input-edit" />
+              </>
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.name}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Admission No</p>
@@ -2670,39 +2703,6 @@ const handleGenerateSummaryReport = () => {
               <div className="col-span-full">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  Family History
-                </h2>
-                <div className="space-y-6">
-                  {/* Household Composition */}
-                  <div className="p-6 bg-white/50 rounded-2xl">
-                    <h3 className="text-lg font-semibold text-[#170F49] mb-4">Household Composition</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse rounded-xl overflow-hidden">
-                        <thead className="bg-[#E38B52]/10">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">S.No</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Name</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Age</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Education</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Occupation</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Health</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-[#170F49]">Income</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white/70">
-                          <tr className="border-b border-[#E38B52]/10">
-                            <td className="px-4 py-3 text-sm text-[#170F49]">1</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherName}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">42</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherEducation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherOccupation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Good</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">₹30,000</td>
-                          </tr>
-                          <tr className="border-b border-[#E38B52]/10">
-                            <td className="px-4 py-3 text-sm text-[#170F49]">2</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherName}</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">38</td>
                             <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherEducation}</td>
