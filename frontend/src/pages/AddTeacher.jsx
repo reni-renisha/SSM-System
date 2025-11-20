@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { validateTeacher, formatAadhaar, cleanAadhaar } from '../utils/validation';
 
 const AddTeacher = () => {
   const navigate = useNavigate();
@@ -20,6 +21,9 @@ const AddTeacher = () => {
     category: "",
     email: "",
   });
+  const [aadharError, setAadharError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [assignmentErrors, setAssignmentErrors] = useState([]);
 
   const [classAssignments, setClassAssignments] = useState([
     {
@@ -33,6 +37,25 @@ const AddTeacher = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // Special handling for Aadhaar: allow typing with spaces, keep only digits, format in groups of 4
+    if (name === 'aadhar_number') {
+      const raw = String(value || '');
+      const digits = raw.replace(/\D/g, '').slice(0, 12);
+      const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      setTeacherData({ ...teacherData, [name]: formatted });
+
+      if (digits.length === 0) {
+        setAadharError('');
+      } else if (digits.length !== 12) {
+        setAadharError('Aadhaar must be exactly 12 digits.');
+      } else if (!/^[2-9]\d{11}$/.test(digits)) {
+        setAadharError('Aadhaar must start with a digit between 2 and 9.');
+      } else {
+        setAadharError('');
+      }
+      return;
+    }
+
     setTeacherData({ ...teacherData, [name]: value });
   };
 
@@ -80,16 +103,44 @@ const AddTeacher = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Filter out empty class assignments
-      const validClassAssignments = classAssignments.filter(
-        assignment => assignment.class && assignment.subject && assignment.days.length > 0 && assignment.startTime && assignment.endTime
-      );
-      
+      setErrors({});
+      setAssignmentErrors([]);
+
+      // Run form + assignments validation
+      const { valid, errors: vErrors, assignmentErrors: aErrors } = validateTeacher(teacherData, classAssignments);
+      if (!valid) {
+        setErrors(vErrors);
+        setAssignmentErrors(aErrors || []);
+        // focus first field with error
+        const firstKey = Object.keys(vErrors)[0];
+        if (firstKey) {
+          const el = document.getElementById(firstKey);
+          if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+          alert(vErrors[firstKey]);
+          return;
+        }
+        // if no top-level error, check assignment errors
+        for (let i = 0; i < (aErrors||[]).length; i++) {
+          const aErr = aErrors[i];
+          if (aErr && Object.keys(aErr).length > 0) {
+            // try to focus the class field of this assignment
+            const el = document.getElementById(`assignment_${i}_class`);
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+            alert(Object.values(aErr)[0]);
+            return;
+          }
+        }
+      }
+
+      // Clean Aadhaar before sending (remove spaces)
+      const cleanedAadhaar = teacherData.aadhar_number ? String(cleanAadhaar(teacherData.aadhar_number)) : '';
+
       const teacherDataWithAssignments = {
         ...teacherData,
-        class_assignments: validClassAssignments
+        aadhar_number: cleanedAadhaar || null,
+        class_assignments: classAssignments
       };
-      
+
       await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
       navigate('/headmaster');
     } catch (error) {
@@ -179,12 +230,14 @@ const AddTeacher = () => {
               <input
                 type="text"
                 name="name"
+                id="name"
                 value={teacherData.name}
                 onChange={handleInputChange}
                 placeholder="Enter Name"
                 className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                 required
               />
+              {errors.name && (<p className="text-red-500 text-xs mt-1">{errors.name}</p>)}
             </div>
 
             <div className="space-y-2 w-full">
@@ -193,12 +246,14 @@ const AddTeacher = () => {
               </label>
               <textarea
                 name="address"
+                id="address"
                 value={teacherData.address}
                 onChange={handleInputChange}
                 placeholder="Enter Address"
                 className="input-edit"
                 required
               />
+              {errors.address && (<p className="text-red-500 text-xs mt-1">{errors.address}</p>)}
             </div>
 
             <div className="flex gap-4">
@@ -209,11 +264,13 @@ const AddTeacher = () => {
                 <input
                   type="date"
                   name="date_of_birth"
+                  id="date_of_birth"
                   value={teacherData.date_of_birth}
                   onChange={handleInputChange}
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                   required
                 />
+                {errors.date_of_birth && (<p className="text-red-500 text-xs mt-1">{errors.date_of_birth}</p>)}
               </div>
               <div className="flex-1 space-y-2">
                 <label className="block text-sm font-medium text-[#170F49] ml-4">
@@ -221,6 +278,7 @@ const AddTeacher = () => {
                 </label>
                 <select
                   name="gender"
+                  id="gender"
                   value={teacherData.gender}
                   onChange={handleInputChange}
                   className={selectClassName}
@@ -231,6 +289,7 @@ const AddTeacher = () => {
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
+                {errors.gender && (<p className="text-red-500 text-xs mt-1">{errors.gender}</p>)}
               </div>
             </div>
 
@@ -241,6 +300,7 @@ const AddTeacher = () => {
                 </label>
                 <select
                   name="blood_group"
+                  id="blood_group"
                   value={teacherData.blood_group}
                   onChange={handleInputChange}
                   className={selectClassName}
@@ -256,6 +316,7 @@ const AddTeacher = () => {
                   <option value="O+">O+</option>
                   <option value="O-">O-</option>
                 </select>
+                {errors.blood_group && (<p className="text-red-500 text-xs mt-1">{errors.blood_group}</p>)}
               </div>
               <div className="flex-1 space-y-2">
                 <label className="block text-sm font-medium text-[#170F49] ml-4">
@@ -264,12 +325,14 @@ const AddTeacher = () => {
                 <input
                   type="tel"
                   name="mobile_number"
+                  id="mobile_number"
                   value={teacherData.mobile_number}
                   onChange={handleInputChange}
                   placeholder="Enter Mobile Number"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
+                {errors.mobile_number && (<p className="text-red-500 text-xs mt-1">{errors.mobile_number}</p>)}
               </div>
             </div>
             <div className="space-y-2 w-full">
@@ -279,6 +342,7 @@ const AddTeacher = () => {
               <input
                 type="email"
                 name="email"
+                id="email"
                 value={teacherData.email}
                 onChange={handleInputChange}
                 placeholder="Enter Email"
@@ -288,6 +352,7 @@ const AddTeacher = () => {
                 onInvalid={e => e.target.setCustomValidity('Please enter a valid email address (username@domain.extension) with no spaces.')}
                 onInput={e => e.target.setCustomValidity('')}
               />
+              {errors.email && (<p className="text-red-500 text-xs mt-1">{errors.email}</p>)}
             </div>
 
             <div className="space-y-2 w-full">
@@ -297,12 +362,18 @@ const AddTeacher = () => {
               <input
                 type="text"
                 name="aadhar_number"
+                id="aadhar_number"
                 value={teacherData.aadhar_number}
                 onChange={handleInputChange}
-                placeholder="Enter Aadhar Number"
-                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
+                inputMode="numeric"
+                pattern="\d{4}\s?\d{4}\s?\d{4}"
+                maxLength={14}
+                placeholder="1234 5678 9012"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
                 required
               />
+              {aadharError && <p className="text-red-500 text-xs mt-1">{aadharError}</p>}
+              {errors.aadhar_number && !aadharError && (<p className="text-red-500 text-xs mt-1">{errors.aadhar_number}</p>)}
             </div>
 
             <div className="flex gap-4">
@@ -350,12 +421,14 @@ const AddTeacher = () => {
                 <input
                   type="text"
                   name="rci_number"
+                  id="rci_number"
                   value={teacherData.rci_number}
                   onChange={handleInputChange}
                   placeholder="Enter RCI Number"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                   required
                 />
+                {errors.rci_number && (<p className="text-red-500 text-xs mt-1">{errors.rci_number}</p>)}
               </div>
               <div className="flex-1 space-y-2">
                 <label className="block text-sm font-medium text-[#170F49] ml-4">
@@ -364,11 +437,13 @@ const AddTeacher = () => {
                 <input
                   type="date"
                   name="rci_renewal_date"
+                  id="rci_renewal_date"
                   value={teacherData.rci_renewal_date}
                   onChange={handleInputChange}
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                   required
                 />
+                {errors.rci_renewal_date && (<p className="text-red-500 text-xs mt-1">{errors.rci_renewal_date}</p>)}
               </div>
             </div>
 
@@ -378,12 +453,14 @@ const AddTeacher = () => {
               </label>
               <textarea
                 name="qualifications_details"
+                id="qualifications_details"
                 value={teacherData.qualifications_details}
                 onChange={handleInputChange}
                 placeholder="Enter Qualifications Details"
                 className="input-edit"
                 required
               />
+              {errors.qualifications_details && (<p className="text-red-500 text-xs mt-1">{errors.qualifications_details}</p>)}
             </div>
 
             <div className="space-y-2 w-full">
@@ -392,6 +469,7 @@ const AddTeacher = () => {
               </label>
               <select
                 name="category"
+                id="category"
                 value={teacherData.category}
                 onChange={handleInputChange}
                 className={selectClassName}
@@ -404,6 +482,7 @@ const AddTeacher = () => {
                 <option value="ST">ST</option>
                 <option value="Other">Other</option>
               </select>
+              {errors.category && (<p className="text-red-500 text-xs mt-1">{errors.category}</p>)}
             </div>
 
             {/* Class Assignment Section */}
@@ -447,6 +526,7 @@ const AddTeacher = () => {
                         Class
                       </label>
                       <select
+                        id={`assignment_${index}_class`}
                         value={assignment.class}
                         onChange={(e) => handleClassAssignmentChange(index, 'class', e.target.value)}
                         className={selectClassName}
@@ -461,20 +541,23 @@ const AddTeacher = () => {
                         <option value="Care group below 18 years">Care group below 18 years</option>
                         <option value="Care group Above 18 years">Care group Above 18 years</option>
                         <option value="Vocational 18-35 years">Vocational 18-35 years</option>
-                      </select>
-                    </div>
+                        </select>
+                       {assignmentErrors[index] && assignmentErrors[index].class && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].class}</p>)}
+                      </div>
 
                                          <div className="space-y-2">
                        <label className="block text-sm font-medium text-[#170F49] ml-2">
                          Subject
                        </label>
                        <input
+                         id={`assignment_${index}_subject`}
                          type="text"
                          value={assignment.subject}
                          onChange={(e) => handleClassAssignmentChange(index, 'subject', e.target.value)}
                          placeholder="Enter Subject"
                          className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
                        />
+                      {assignmentErrors[index] && assignmentErrors[index].subject && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].subject}</p>)}
                      </div>
 
                                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -495,6 +578,7 @@ const AddTeacher = () => {
                                  <span className="text-sm text-[#6F6C90]">{day}</span>
                                </label>
                              ))}
+                             {assignmentErrors[index] && assignmentErrors[index].days && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].days}</p>)}
                            </div>
                          </div>
                        </div>
@@ -505,23 +589,28 @@ const AddTeacher = () => {
                              Start Time
                            </label>
                            <input
+                             id={`assignment_${index}_startTime`}
                              type="time"
                              value={assignment.startTime}
                              onChange={(e) => handleClassAssignmentChange(index, 'startTime', e.target.value)}
                              className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
                            />
+                          {assignmentErrors[index] && assignmentErrors[index].startTime && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].startTime}</p>)}
                          </div>
 
                          <div className="space-y-2">
                            <label className="block text-sm font-medium text-[#170F49] ml-2">
                              End Time
                            </label>
-                           <input
-                             type="time"
-                             value={assignment.endTime}
-                             onChange={(e) => handleClassAssignmentChange(index, 'endTime', e.target.value)}
-                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
-                           />
+                          <input
+                            id={`assignment_${index}_endTime`}
+                            type="time"
+                            value={assignment.endTime}
+                            onChange={(e) => handleClassAssignmentChange(index, 'endTime', e.target.value)}
+                            className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
+                          />
+                          {assignmentErrors[index] && assignmentErrors[index].endTime && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].endTime}</p>)}
+                          {assignmentErrors[index] && assignmentErrors[index].timeRange && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].timeRange}</p>)}
                          </div>
                        </div>
                      </div>

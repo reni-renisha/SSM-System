@@ -8,13 +8,33 @@ const AddUser = () => {
     username: "",
     email: "",
     password: "",
-    role: "teacher"
+    role: "teacher",
+    aadhar_number: ""
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [aadharError, setAadharError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'aadhar_number') {
+      const raw = String(value || '');
+      const digits = raw.replace(/\D/g, '').slice(0, 12);
+      const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+      setFormData({ ...formData, [name]: formatted });
+
+      if (digits.length === 0) {
+        setAadharError('');
+      } else if (digits.length !== 12) {
+        setAadharError('Aadhaar must be exactly 12 digits.');
+      } else if (!/^[2-9]\d{11}$/.test(digits)) {
+        setAadharError('Aadhaar must start with a digit between 2 and 9.');
+      } else {
+        setAadharError('');
+      }
+      return;
+    }
+
     setFormData({
       ...formData,
       [name]: value
@@ -34,9 +54,17 @@ const AddUser = () => {
         return;
       }
 
+      const payload = { ...formData };
+      // Clean Aadhaar before sending (remove spaces). If empty, remove the key.
+      payload.aadhar_number = payload.aadhar_number ? String(payload.aadhar_number).replace(/\s+/g, '') : undefined;
+      if (payload.aadhar_number && !/^[2-9]\d{11}$/.test(payload.aadhar_number)) {
+        setError('Invalid Aadhaar number. Please correct it.');
+        return;
+      }
+
       const response = await axios.post(
         "http://localhost:8000/api/v1/users/teachers",
-        formData,
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -162,6 +190,27 @@ const AddUser = () => {
             </div>
             
             <input type="hidden" name="role" value={formData.role} />
+            <div className="space-y-2 w-full">
+              <label 
+                htmlFor="aadhar" 
+                className="block text-sm font-medium text-[#170F49] ml-4"
+              >
+                Aadhaar Number (optional)
+              </label>
+              <input
+                id="aadhar"
+                name="aadhar_number"
+                type="text"
+                inputMode="numeric"
+                pattern="\d{4}\s?\d{4}\s?\d{4}"
+                maxLength={14}
+                value={formData.aadhar_number}
+                onChange={handleChange}
+                placeholder="1234 5678 9012"
+                className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
+              />
+              {aadharError && <p className="text-red-500 text-xs mt-1">{aadharError}</p>}
+            </div>
 
             {/* Submit button */}
             <button

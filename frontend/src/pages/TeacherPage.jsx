@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatAadhaar } from '../utils/validation';
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
@@ -34,26 +35,30 @@ const TeacherPage = () => {
         setTeacher({
           name: response.data.name,
           teacherId: response.data.id,
-          dob: new Date(response.data.date_of_birth).toLocaleDateString('en-US', { 
+          // keep both raw ISO values (for editing) and formatted strings (for display)
+          date_of_birth_raw: response.data.date_of_birth,
+          dob: response.data.date_of_birth ? new Date(response.data.date_of_birth).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
-          }),
+          }) : '',
           gender: response.data.gender,
           religion: response.data.religion,
           caste: response.data.caste,
           mobile: response.data.mobile_number,
           email: response.data.email || 'Not provided',
           address: response.data.address,
-          aadhar: response.data.aadhar_number,
+          aadhar_raw: response.data.aadhar_number,
+          aadhar: formatAadhaar(response.data.aadhar_number),
           bloodGroup: response.data.blood_group,
           category: response.data.category,
           rciNumber: response.data.rci_number,
-          rciRenewalDate: new Date(response.data.rci_renewal_date).toLocaleDateString('en-US', { 
+          rci_renewal_date_raw: response.data.rci_renewal_date,
+          rciRenewalDate: response.data.rci_renewal_date ? new Date(response.data.rci_renewal_date).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
-          }),
+          }) : '',
           qualifications: response.data.qualifications_details,
           // prefer stored photo_url, otherwise ui-avatars fallback
           photoUrl: response.data.photo_url || `https://eu.ui-avatars.com/api/?name=${(response.data.name||'').replace(' ', '+')}&size=250`,
@@ -166,14 +171,16 @@ const TeacherPage = () => {
         address: teacher.address,
         qualifications_details: teacher.qualifications,
         rci_number: teacher.rciNumber,
-        rci_renewal_date: teacher.rciRenewalDate,
+        // populate edit fields with RAW ISO values so date inputs work correctly
+        rci_renewal_date: teacher.rci_renewal_date_raw || teacher.rciRenewalDate,
         blood_group: teacher.bloodGroup,
         category: teacher.category,
-        aadhar_number: teacher.aadhar,
+        // populate Aadhaar with formatted string for editing, but we'll clean before sending
+        aadhar_number: teacher.aadhar_raw ? formatAadhaar(teacher.aadhar_raw) : teacher.aadhar,
         religion: teacher.religion,
         caste: teacher.caste,
         gender: teacher.gender,
-        date_of_birth: teacher.dob
+        date_of_birth: teacher.date_of_birth_raw || teacher.dob
       });
     }
     setIsEditing(!isEditing);
@@ -182,27 +189,39 @@ const TeacherPage = () => {
   // Function to save edited data
   const handleSaveEdit = async () => {
     try {
-      const response = await axios.put(`http://localhost:8000/api/v1/teachers/${id}`, editFormData);
+      // Clean Aadhaar (remove spaces) and ensure payload dates are ISO
+      const payload = {
+        ...editFormData,
+        aadhar_number: editFormData.aadhar_number ? String(editFormData.aadhar_number).replace(/\s+/g, '') : undefined,
+        date_of_birth: editFormData.date_of_birth,
+        rci_renewal_date: editFormData.rci_renewal_date,
+      };
+
+      const response = await axios.put(`http://localhost:8000/api/v1/teachers/${id}`, payload);
       
       if (response.status === 200) {
         // Update the local teacher state with new data
-        setTeacher({
-          ...teacher,
+        // Update local teacher state for display, keep formatted strings
+        setTeacher(prev => ({
+          ...prev,
           name: editFormData.name,
           mobile: editFormData.mobile_number,
           email: editFormData.email,
           address: editFormData.address,
           qualifications: editFormData.qualifications_details,
           rciNumber: editFormData.rci_number,
-          rciRenewalDate: editFormData.rci_renewal_date,
+          rci_renewal_date_raw: editFormData.rci_renewal_date,
+          rciRenewalDate: editFormData.rci_renewal_date ? new Date(editFormData.rci_renewal_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '',
           bloodGroup: editFormData.blood_group,
           category: editFormData.category,
-          aadhar: editFormData.aadhar_number,
+          aadhar_raw: editFormData.aadhar_number ? String(editFormData.aadhar_number).replace(/\s+/g, '') : undefined,
+          aadhar: editFormData.aadhar_number ? formatAadhaar(editFormData.aadhar_number) : prev.aadhar,
           religion: editFormData.religion,
           caste: editFormData.caste,
           gender: editFormData.gender,
-          dob: editFormData.date_of_birth
-        });
+          date_of_birth_raw: editFormData.date_of_birth,
+          dob: editFormData.date_of_birth ? new Date(editFormData.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : prev.dob,
+        }));
         
         setIsEditing(false);
         alert('Teacher details updated successfully!');
@@ -794,7 +813,7 @@ const TeacherPage = () => {
               <>
                 <button 
                   onClick={handleSaveEdit}
-                  className="flex-1 bg-green-600 text-white py-4 rounded-2xl hover:bg-green-700 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -812,7 +831,7 @@ const TeacherPage = () => {
               <>
                 <button 
                   onClick={handleEditToggle}
-                  className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#4f46e5] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
