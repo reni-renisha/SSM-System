@@ -341,6 +341,7 @@ const StudentPage = () => {
   const [aadharEditError, setAadharEditError] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const fileInputRef = useRef(null);
   const caseRecordCompletion = React.useMemo(() => {
     if (!student) return 0;
@@ -620,41 +621,74 @@ const handleEditSave = async () => {
 };
 
 const handlePhotoUpload = async () => {
-  if (!photoFile) return;
+  if (!photoFile) {
+    alert("Please select a photo first.");
+    return;
+  }
 
+  setPhotoUploading(true);
   const formData = new FormData();
   formData.append("file", photoFile);
 
   try {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-      // Use the returned student object from the upload endpoint to immediately update UI
-      const res = await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData);
-      const returned = res.data;
-      console.debug('Photo upload response:', returned);
-      const returnedPhotoStandalone = returned?.photo_url || returned?.photoUrl || null;
-      if (returnedPhotoStandalone) {
-        setStudent(prev => ({ ...(prev || {}), photoUrl: returnedPhotoStandalone, photo_url: returnedPhotoStandalone }));
-      } else {
-        console.warn('Photo uploaded but server did not return photo_url/photoUrl:', returned);
+    const token = localStorage.getItem('token');
+    
+    // Configure headers with authentication
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
+    };
+    
+    // Upload photo to backend
+    const res = await axios.post(`${baseUrl}/api/v1/students/${id}/photo`, formData, config);
+    const returned = res.data;
+    console.log('Photo upload response:', returned);
+    
+    // Extract photo URL from response
+    const returnedPhotoUrl = returned?.photo_url || returned?.photoUrl || null;
+    
+    if (returnedPhotoUrl) {
+      // Update student state with new photo URL
+      setStudent(prev => ({ 
+        ...(prev || {}), 
+        photoUrl: returnedPhotoUrl, 
+        photo_url: returnedPhotoUrl 
+      }));
+      
+      alert("Photo uploaded and saved successfully!");
+    } else {
+      console.warn('Photo uploaded but server did not return photo_url/photoUrl:', returned);
+      alert("Photo uploaded but URL not returned. Please refresh the page.");
+    }
 
-      // Clear the file input element so the same file can be selected again later
-      try { if (fileInputRef && fileInputRef.current) fileInputRef.current.value = null; } catch (err) { /* ignore */ }
+    // Clear the file input element
+    if (fileInputRef?.current) {
+      fileInputRef.current.value = null;
+    }
 
-      alert("Photo uploaded successfully!");
-
-      // Clean up preview and file state
-      if (photoPreview) {
-        try { URL.revokeObjectURL(photoPreview); } catch (err) { /* ignore */ }
+    // Clean up preview and file state
+    if (photoPreview) {
+      try { 
+        URL.revokeObjectURL(photoPreview); 
+      } catch (err) { 
+        console.warn('Error revoking preview URL:', err);
       }
-      setPhotoFile(null);
-      setPhotoPreview(null);
+    }
+    setPhotoFile(null);
+    setPhotoPreview(null);
 
-      // Try to refresh the full student record in the background; if it fails, we already have the photo
-      try { await fetchStudent(); } catch (err) { console.warn('Could not refresh student after photo upload', err); }
+    // Refresh student data to ensure everything is in sync
+    await fetchStudent();
+    
   } catch (error) {
     console.error("Error uploading photo:", error);
-    alert("Failed to upload photo.");
+    const errorMessage = error.response?.data?.detail || error.message || "Failed to upload photo.";
+    alert(`Failed to upload photo: ${errorMessage}`);
+  } finally {
+    setPhotoUploading(false);
   }
 };
 
@@ -1950,26 +1984,88 @@ const handleGenerateSummaryReport = () => {
     style={{ display: 'none' }}
   />
 
-  {/* This button now opens the file selection dialog */}
-  <button 
-    onClick={() => fileInputRef.current.click()} 
-    className="text-sm text-[#E38B52] hover:text-[#E38B52]/90 transition-colors duration-200 flex items-center gap-1"
-  >
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  {/* Icon buttons for upload and delete */}
+  <div className="flex items-center gap-2">
+    {/* Upload/Edit button */}
+    <button 
+      onClick={() => fileInputRef.current.click()} 
+      className="p-2.5 bg-white rounded-lg border border-gray-200 hover:bg-[#E38B52] hover:border-[#E38B52] transition-all duration-200 shadow-sm group"
+      title="Upload Photo"
+    >
+      <svg 
+        width="20" 
+        height="20" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        className="text-gray-600 group-hover:text-white transition-colors duration-200"
+      >
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/>
         <line x1="12" y1="3" x2="12" y2="15"/>
-    </svg>
-    Update Photo
-  </button>
+      </svg>
+    </button>
+
+    {/* Delete button - only show if there's a photo */}
+    {(student?.photoUrl || photoPreview) && (
+      <button 
+        onClick={() => {
+          if (photoPreview) {
+            URL.revokeObjectURL(photoPreview);
+            setPhotoPreview(null);
+            setPhotoFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = null;
+          }
+        }} 
+        className="p-2.5 bg-white rounded-lg border border-gray-200 hover:bg-red-500 hover:border-red-500 transition-all duration-200 shadow-sm group"
+        title="Delete Photo"
+      >
+        <svg 
+          width="20" 
+          height="20" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          className="text-gray-600 group-hover:text-white transition-colors duration-200"
+        >
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </button>
+    )}
+  </div>
 
   {/* This button only appears when a new file is ready to be saved */}
   {photoFile && (
     <button
       onClick={handlePhotoUpload}
-      className="mt-2 px-4 py-2 bg-green-500 text-white text-sm rounded-xl hover:bg-green-600 transition-all duration-200 shadow-md"
+      disabled={photoUploading}
+      className={`mt-2 px-4 py-2 text-white text-sm rounded-xl transition-all duration-200 shadow-md flex items-center justify-center gap-2 ${
+        photoUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
+      }`}
     >
-      Save Photo
+      {photoUploading ? (
+        <>
+          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Uploading...
+        </>
+      ) : (
+        <>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Save Photo
+        </>
+      )}
     </button>
   )}
 </div>

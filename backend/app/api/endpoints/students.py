@@ -14,13 +14,13 @@ router = APIRouter()
 # --------------------------------------------------------------------
 # ▼▼▼ THIS IS THE FULLY MODIFIED FUNCTION ▼▼▼
 # --------------------------------------------------------------------
-@router.get("/", response_model=Page[Student])
+@router.get("/")
 def read_students(
     db: Session = Depends(get_db),
     pagination: PageParams = Depends(),
     search: Optional[str] = None,
     class_name: Optional[str] = None
-) -> Any: # Changed return type for flexibility
+) -> Dict[str, Any]:
     """
     Retrieve students with optional search, filtering, and pagination.
     """
@@ -66,12 +66,13 @@ def read_students(
 
     total = query.count()
 
-    # Return the new list that contains the photo URLs
-    return Page.create(
-        items=students_with_photos,
-        total=total,
-        params=pagination
-    )
+    # Return as dict to avoid Pydantic validation
+    return {
+        "items": students_with_photos,
+        "total": total,
+        "page": pagination.page,
+        "page_size": pagination.page_size
+    }
 # --------------------------------------------------------------------
 # ▲▲▲ END OF MODIFIED FUNCTION ▲▲▲
 # --------------------------------------------------------------------
@@ -110,11 +111,11 @@ def upsert_case_record(
     updated = crud_student.update_case_record(db=db, db_obj=db_student, case_record=case_record)
     return updated
 
-@router.get("/{student_id}", response_model=Student)
+@router.get("/{student_id}")
 def read_student(
     student_id: int,
     db: Session = Depends(get_db)
-) -> Any:
+) -> Dict[str, Any]:
     """
     Get a specific student by ID, including a photo URL if available.
     """
@@ -136,13 +137,13 @@ def read_student(
 
     return student_data
 
-@router.post("/{student_id}/photo", response_model=Student)
+@router.post("/{student_id}/photo")
 def upload_student_photo(
     *,
     student_id: int,
     db: Session = Depends(get_db),
     file: UploadFile = File(...)
-) -> Any:
+) -> Dict[str, Any]:
     """
     Upload and update a student's photo.
     """
@@ -167,12 +168,12 @@ def upload_student_photo(
     student_data.pop('photo', None)
     return student_data
 
-@router.put("/{student_id}", response_model=Student)
+@router.put("/{student_id}")
 def update_student(
     student_id: int,
     student_update: StudentUpdate,
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Update a student's information.
     """

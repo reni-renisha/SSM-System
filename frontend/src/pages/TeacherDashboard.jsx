@@ -82,7 +82,14 @@ const TeacherDashboard = () => {
 
         const { data } = await axios.get("http://localhost:8000/api/v1/students/", { params });
         const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-        const sortedStudents = [...items].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        
+        // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
+        const normalized = items.map(s => ({
+          ...s,
+          photo_url: s.photo_url || s.photoUrl || null,
+        }));
+        
+        const sortedStudents = [...normalized].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         // Filter students where class_teacher matches the logged-in username (case-insensitive)
         const filteredByTeacher = sortedStudents.filter((s) => {
@@ -343,12 +350,12 @@ const TeacherDashboard = () => {
                   <div className="flex items-center space-x-4 text-[#170F49]">
                     <div className="w-16 h-16 rounded-lg overflow-hidden">
                       <img
-                        src={`https://eu.ui-avatars.com/api/?name=${student.name}&size=250`}
+                        src={student.photo_url || `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'S')}&size=250&background=EFEFEF&color=170F49`}
                         alt="Student"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.src =
-                            "https://via.placeholder.com/64?text=Student";
+                            "https://placehold.co/64x64/EFEFEF/AAAAAA?text=Photo";
                         }}
                       />
                     </div>
