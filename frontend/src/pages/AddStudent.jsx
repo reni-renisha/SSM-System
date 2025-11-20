@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+// ...existing code...
 
 import { useNavigate, useLocation, useParams } from 'react-router-dom'; // Make sure useParams is imported
 // === REPLACE your old DynamicScrollButtons component with this new, refined version ===
@@ -91,10 +92,13 @@ const DynamicScrollButtons = () => {
 
 
 const AddStudent = () => {
+    const mainContentRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState("student-details");
+  const [activeCaseSection, setActiveCaseSection] = useState("identification");
+  const [activeEducationSubsection, setActiveEducationSubsection] = useState("self-help");
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedStudent, setSavedStudent] = useState(null); // store created/selected student
@@ -414,6 +418,7 @@ const saveStudent = async () => {
   school_history: studentForm.school_history,
   occupational_history: studentForm.occupational_history,
   behaviour_problems: studentForm.behaviour_problems,
+  special_education_assessment: studentForm.special_education_assessment,
   psychological_assessment: studentForm.psychological_assessment,
   medical_examination: studentForm.medical_examination,
   diagnosis: studentForm.diagnosis,
@@ -423,6 +428,14 @@ const saveStudent = async () => {
   drug_allergy: studentForm.drug_allergy,
   food_allergy: studentForm.food_allergy,
   drug_history: drugRows.map(r => ({ name: r.name, dose: r.dose })),
+  household: householdRows.map(r => ({ 
+    name: r.name, 
+    age: r.age, 
+    education: r.education, 
+    occupation: r.occupation, 
+    health: r.health, 
+    income: r.income 
+  })),
     };
     
     if (!payload.dob) delete payload.dob;
@@ -492,6 +505,22 @@ const [householdRows, setHouseholdRows] = useState([
     }
   }, [studentForm.drug_history]);
 
+  // Initialize household rows from loaded student data when editing
+  useEffect(() => {
+    if (studentForm.household && Array.isArray(studentForm.household)) {
+      const rows = studentForm.household.map((h, idx) => ({ 
+        id: idx + 1, 
+        name: h.name || '', 
+        age: h.age || '', 
+        education: h.education || '', 
+        occupation: h.occupation || '', 
+        health: h.health || '', 
+        income: h.income || '' 
+      }));
+      setHouseholdRows(rows.length ? rows : [{ id: 1, name: '', age: '', education: '', occupation: '', health: '', income: '' }]);
+    }
+  }, [studentForm.household]);
+
   const addDrugRow = () => {
     const newRow = {
       id: drugRows.length + 1,
@@ -538,7 +567,7 @@ const developmentHistoryMap = {
 
   
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-x-hidden py-20">
+    <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative py-20">
       {showPopup && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
         <div className="bg-white px-8 py-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-fade-in min-w-[350px]">
@@ -1136,15 +1165,83 @@ const developmentHistoryMap = {
               </div>
             </div>
           ) : (
-            <div className="space-y-8">
-              {/* Identification Data */}
-              <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                  </svg>
-                  Identification Data
-                </h2>
+            <div className="flex gap-6 items-start justify-center relative max-w-[1600px] mx-auto" ref={mainContentRef}>
+              {/* Left Sidebar Navigation */}
+              <aside className="w-64 flex-shrink-0 sticky top-5 self-start">
+                <div
+                  className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-6 border border-white/20 w-64 z-30 max-h-[calc(100vh-40px)] overflow-y-auto"
+                >
+                  <h3 className="text-lg font-bold text-[#170F49] mb-6 pb-3 border-b border-[#E38B52]/20">
+                    Case Record Sections
+                  </h3>
+                  <nav className="space-y-2">
+                    {[
+                      { id: 'identification', label: 'Identification Data', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                        </svg>
+                      ) },
+                      { id: 'demographic', label: 'Demographic Data', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      ) },
+                      { id: 'contact', label: 'Contact Information', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      ) },
+                      { id: 'family', label: 'Family History', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      ) },
+                      { id: 'additional', label: 'Additional Information', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) },
+                      { id: 'education', label: 'Special Education', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      ) },
+                      { id: 'medical', label: 'Medical Information', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      ) }
+                    ].map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveCaseSection(section.id)}
+                        className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${
+                          activeCaseSection === section.id
+                            ? 'bg-[#E38B52] text-white shadow-lg'
+                            : 'bg-white/50 text-[#170F49] hover:bg-white/80'
+                        }`}
+                      >
+                        <span className={`transition-all duration-300 ${
+                          activeCaseSection === section.id ? 'text-white' : 'text-[#E38B52]'
+                        }`}>{section.icon}</span>
+                        <span className="text-sm font-medium">{section.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </aside>
+
+              {/* Right Content Area */}
+              <div className="flex-1 max-w-[1100px]" ref={mainContentRef}>
+                {/* Identification Data */}
+                {activeCaseSection === 'identification' && (
+                  <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
+                    <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                      </svg>
+                      Identification Data
+                    </h2>
 
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1261,37 +1358,39 @@ const developmentHistoryMap = {
                   </div>
                 </div>
 
-{/* Category Section */}
-<div className="mt-6">
-  <label className="block text-sm font-medium text-[#170F49] mb-2">Category</label>
-  <div className="grid grid-cols-4 gap-4">
-    {['SC', 'ST', 'OBC', 'OEC'].map((category) => (
-      <label key={category} className="relative">
-        <input
-          type="radio"
-          name="category"
-          value={category}
-          className="peer absolute opacity-0"
-          checked={studentForm.category === category} // <-- ADD THIS LINE
-          onChange={handleFieldChange('category')}     // <-- ADD THIS LINE
-        />
-        <div className="flex items-center justify-center p-4 rounded-xl bg-white border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white/90 peer-checked:bg-white peer-checked:border-[#E38B52] peer-checked:shadow-lg">
-          <span className="text-sm font-medium text-[#170F49]">{category}</span>
-        </div>
-      </label>
-    ))}
-  </div>
-</div>
+                {/* Category Section */}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-[#170F49] mb-2">Category</label>
+                  <div className="grid grid-cols-4 gap-4">
+                    {['SC', 'ST', 'OBC', 'OEC'].map((category) => (
+                      <label key={category} className="relative">
+                        <input
+                          type="radio"
+                          name="category"
+                          value={category}
+                          className="peer absolute opacity-0"
+                          checked={studentForm.category === category}
+                          onChange={handleFieldChange('category')}
+                        />
+                        <div className="flex items-center justify-center p-4 rounded-xl bg-white border-2 border-transparent cursor-pointer transition-all duration-300 hover:bg-white/90 peer-checked:bg-white peer-checked:border-[#E38B52] peer-checked:shadow-lg">
+                          <span className="text-sm font-medium text-[#170F49]">{category}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
+            )}
 
-{/* Demographic Data */}
-          <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
-            <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              Demographic Data
-            </h2>
+              {/* Demographic Data */}
+              {activeCaseSection === 'demographic' && (
+                <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
+                  <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    Demographic Data
+                  </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
               {/* Father's Information */}
               <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8">
@@ -1420,13 +1519,13 @@ const developmentHistoryMap = {
                     onChange={handleFieldChange('total_family_income')}
                   />
                 </div>
+                  </div>
+                </div>
+
+                {/* Present Complaints & Previous Treatments (moved to Contact Information) */}
               </div>
-            </div>
-
-      {/* Present Complaints & Previous Treatments (moved to Contact Information) */}
-          </div>
-
-          {/* Contact Information */}
+            )}          {/* Contact Information */}
+              {activeCaseSection === 'contact' && (
           <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
             <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1495,8 +1594,10 @@ const developmentHistoryMap = {
               </div>
             </div>
           </div>
+        )}
 
               {/* Family History Container */}
+              {activeCaseSection === 'family' && (
               <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1736,10 +1837,20 @@ const developmentHistoryMap = {
   ))}
 </div>
                 </div>
+              </div>
+            )}
 
-                {/* Additional Information Fields */}
+              {/* Additional Information */}
+              {activeCaseSection === 'additional' && (
+              <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Additional Information
+                </h2>
+
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
-                  <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Additional Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">School History</label>
@@ -1775,6 +1886,17 @@ const developmentHistoryMap = {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Special Education Assessment</label>
+                      <textarea
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none"
+                        rows="3"
+                        placeholder="Enter special education assessment"
+                        value={studentForm.special_education_assessment}
+                        onChange={handleFieldChange('special_education_assessment')}
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Psychological Assessment</label>
                       <textarea className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none" rows="3" placeholder="Enter psychological assessment" value={studentForm.psychological_assessment} onChange={handleFieldChange('psychological_assessment')}></textarea>
                     </div>
@@ -1796,17 +1918,48 @@ const developmentHistoryMap = {
                   </div>
                 </div>
               </div>
+            )}
 
               {/* Special Education Assessment */}
+              {activeCaseSection === 'education' && (
               <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
-                <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
+                <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h2" />
                   </svg>
                   Special Education Assessment
                 </h2>
 
+                {/* Horizontal Navigation for Subsections */}
+                <div className="mb-8 overflow-x-auto">
+                  <div className="flex gap-2 min-w-max pb-2">
+                    {[
+                      { id: 'self-help', label: 'Self Help' },
+                      { id: 'motor', label: 'Motor' },
+                      { id: 'sensory', label: 'Sensory' },
+                      { id: 'socialization', label: 'Socialization' },
+                      { id: 'cognitive', label: 'Cognitive' },
+                      { id: 'academic', label: 'Academic' },
+                      { id: 'prevocational', label: 'Prevocational' },
+                      { id: 'other-info', label: 'Other Info' }
+                    ].map((subsection) => (
+                      <button
+                        key={subsection.id}
+                        onClick={() => setActiveEducationSubsection(subsection.id)}
+                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+                          activeEducationSubsection === subsection.id
+                            ? 'bg-[#E38B52] text-white shadow-lg'
+                            : 'bg-white/50 text-[#170F49] hover:bg-white/80'
+                        }`}
+                      >
+                        {subsection.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Self Help */}
+                {activeEducationSubsection === 'self-help' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Self Help</h3>
                   
@@ -1893,8 +2046,10 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Motor */}
+                {activeEducationSubsection === 'motor' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Motor</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-xl p-6 shadow-lg">
@@ -1908,16 +2063,20 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Sensory */}
+                {activeEducationSubsection === 'sensory' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Sensory</h3>
                   <div className="bg-white rounded-xl p-6 shadow-lg">
                     <input type="text" placeholder="Describe sensory responses and processing capabilities" className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300" value={studentForm.sensory} onChange={handleFieldChange('sensory')} />
                   </div>
                 </div>
+                )}
 
                 {/* Socialization */}
+                {activeEducationSubsection === 'socialization' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Socialization</h3>
                   <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
@@ -1935,8 +2094,10 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Cognitive */}
+                {activeEducationSubsection === 'cognitive' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Cognitive</h3>
                   <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
@@ -1997,8 +2158,10 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Academic */}
+                {activeEducationSubsection === 'academic' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Academic (give brief history: class attended/attending indicate class/grade/level wherever appropriate)</h3>
                   <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
@@ -2016,8 +2179,10 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Prevocational/Domestic */}
+                {activeEducationSubsection === 'prevocational' && (
                 <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
                   <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Prevocational/Domestic (Specify ability and interest)</h3>
                   <div className="bg-white rounded-xl p-6 shadow-lg">
@@ -2034,9 +2199,12 @@ const developmentHistoryMap = {
                     </div>
                   </div>
                 </div>
+                )}
 
-                {/* Additional Fields */}
-                <div className="space-y-6">
+                {/* Other Info */}
+                {activeEducationSubsection === 'other-info' && (
+                <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-6 mb-8">
+                  <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Additional Information</h3>
                   <div>
                     <label className="block text-sm font-medium text-[#170F49] mb-2">Any peculiar behaviour/behaviour problems observed</label>
                     <textarea className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300" rows="4" placeholder="Describe any unusual behaviors or behavioral concerns observed" value={studentForm.any_peculiar_behaviour} onChange={handleFieldChange('any_peculiar_behaviour')}></textarea>
@@ -2050,9 +2218,12 @@ const developmentHistoryMap = {
                     <textarea className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300" rows="4" placeholder="Provide detailed recommendations for support and intervention" value={studentForm.recommendation} onChange={handleFieldChange('recommendation')}></textarea>
                   </div>
                 </div>
+                )}
               </div>
+              )}
 
               {/* Medical Information Container */}
+              {activeCaseSection === 'medical' && (
               <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-10 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2194,10 +2365,11 @@ const developmentHistoryMap = {
                   </div>
                 </div>
               </div>
-            </div>
+            )}
+          </div>
+          </div>
           )}
 
-          {/* Action Buttons */}
           {/* Action Buttons */}
           <div className="flex justify-between w-full mt-8">
             <button

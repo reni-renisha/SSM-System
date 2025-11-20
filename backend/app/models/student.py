@@ -188,3 +188,5 @@ class Student(Base):
     allergies = Column(String, nullable=True)
     # Drug history as a JSONB array of {name, dose}
     drug_history = Column(JSONB, nullable=True)
+    # Household composition as a JSONB array of {name, age, education, occupation, health, income}
+    household = Column(JSONB, nullable=True)
