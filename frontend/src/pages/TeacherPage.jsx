@@ -11,6 +11,13 @@ const TeacherPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [photoError, setPhotoError] = useState(null);
+  
   useEffect(() => {
     const fetchTeacher = async () => {
       try {
@@ -53,6 +60,8 @@ const TeacherPage = () => {
             day: 'numeric' 
           }) : '',
           qualifications: response.data.qualifications_details,
+          // prefer stored photo_url, otherwise ui-avatars fallback
+          photoUrl: response.data.photo_url || `https://eu.ui-avatars.com/api/?name=${(response.data.name||'').replace(' ', '+')}&size=250`,
           classes: formattedClasses
         });
         setLoading(false);
@@ -65,6 +74,92 @@ const TeacherPage = () => {
     fetchTeacher();
   }, [id]);
 
+  // File selection handler
+  const handlePhotoSelect = (e) => {
+    setPhotoError(null);
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowed.includes(file.type)) {
+      setPhotoError('Only PNG and JPG images are allowed.');
+      return;
+    }
+    // optional size limit (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('File too large. Max 5MB allowed.');
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  // Upload handler - adjust endpoint if backend expects different path/field
+  const uploadPhoto = async () => {
+    if (!photoFile) {
+      setPhotoError('No file selected.');
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    setPhotoError(null);
+    try {
+      const formData = new FormData();
+      // Use 'photo' as the form field (change if backend expects a different name)
+      formData.append('photo', photoFile);
+
+      // Do NOT set Content-Type explicitly. Let the browser set the multipart boundary.
+      const headers = {};
+      // If your backend requires auth, set the Authorization header (example uses localStorage)
+      const token = localStorage.getItem('access_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const resp = await axios.post(
+        `http://localhost:8000/api/v1/teachers/${id}/photo`,
+        formData,
+        {
+          headers,
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(pct);
+            }
+          },
+          validateStatus: status => status < 500 // let 4xx pass so we can handle them
+        }
+      );
+
+      if (resp.status >= 400) {
+        // show server-provided message if any
+        const serverMsg = resp.data && (resp.data.detail || resp.data.message || JSON.stringify(resp.data));
+        throw new Error(serverMsg || `Upload failed with status ${resp.status}`);
+      }
+
+      // backend should return updated photo URL
+      const newUrl = resp.data.photo_url || resp.data.url || resp.data.photoUrl;
+      setTeacher(prev => ({ ...prev, photoUrl: newUrl || prev.photoUrl }));
+      setPhotoFile(null);
+      if (photoPreview) { URL.revokeObjectURL(photoPreview); }
+      setPhotoPreview(null);
+      setUploadProgress(0);
+      alert('Photo uploaded successfully.');
+    } catch (err) {
+      console.error('Photo upload failed', err, err.response?.data || '');
+      setPhotoError(err.message || 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const cancelPhotoSelection = () => {
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoError(null);
+    setUploadProgress(0);
+  };
+  
   // Function to handle edit mode toggle
   const handleEditToggle = () => {
     if (!isEditing) {
@@ -269,7 +364,7 @@ const TeacherPage = () => {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-hidden py-20">
       {/* Back button */}
@@ -290,6 +385,7 @@ const TeacherPage = () => {
         >
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
+        Back
       </button>
 
       {/* Animated background blobs */}
@@ -314,28 +410,50 @@ const TeacherPage = () => {
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white/50 shadow-xl">
                     <img 
-                      src={`https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
+                      src={teacher.photoUrl || `https://eu.ui-avatars.com/api/?name=${teacher.name.replace(' ', '+')}&size=250`}
                       alt="Teacher"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <button className="text-sm text-[#E38B52] hover:text-[#C8742F] transition-colors duration-200 flex items-center gap-1">
-                    <svg 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Update Photo
-                  </button>
+
+                  {/* Photo upload controls */}
+                  <div className="flex flex-col items-center gap-2">
+                    <input
+                      id="teacher-photo-input"
+                      type="file"
+                      accept=".png,.jpg,.jpeg"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="teacher-photo-input" className="cursor-pointer text-sm text-[#E38B52] hover:underline">
+                        Choose Photo
+                      </label>
+                      {photoPreview ? (
+                        <button type="button" onClick={cancelPhotoSelection} className="text-sm text-gray-500 hover:text-gray-700">
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {photoPreview && (
+                      <div className="mt-2 w-28 h-28 rounded-md overflow-hidden border border-gray-200">
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={uploadPhoto}
+                        disabled={!photoFile || uploading}
+                        className={`px-3 py-2 rounded-md text-white ${photoFile && !uploading ? 'bg-[#E38B52] hover:bg-[#C8742F]' : 'bg-gray-300 cursor-not-allowed'}`}
+                      >
+                        {uploading ? `Uploading ${uploadProgress}%` : 'Upload'}
+                      </button>
+                      {photoError && <p className="text-sm text-red-500">{photoError}</p>}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Teacher Details */}
@@ -803,4 +921,4 @@ const TeacherPage = () => {
   );
 };
 
-export default TeacherPage; 
+export default TeacherPage;

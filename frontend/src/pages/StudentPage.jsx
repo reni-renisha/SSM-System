@@ -118,6 +118,8 @@ const DynamicScrollButtons = () => {
 
 const StudentPage = () => {
   const [activeTab, setActiveTab] = useState("student-details");
+  const [activeCaseSection, setActiveCaseSection] = useState("identification");
+  const [activeEducationSubsection, setActiveEducationSubsection] = useState("self-help");
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -463,6 +465,8 @@ const handleEditSave = async () => {
       guardian_name: editData.guardianName,
       guardian_relationship: editData.guardianRelationship,
       guardian_contact: editData.guardianContact,
+      guardian_occupation: editData.guardianOccupation,
+      total_family_income: editData.totalFamilyIncome,
       academic_year: editData.academicYear,
       admission_number: editData.admissionNumber,
       admission_date: editData.admissionDate,
@@ -474,10 +478,87 @@ const handleEditSave = async () => {
       aadhar_number: editData.aadharNumber ? String(editData.aadharNumber).replace(/\s+/g, '') : null,
       blood_group: editData.bloodGroup,
       category: editData.category,
-      // Case record fields
+      // Case record specific fields
+      informant_name: editData.informantName,
+      informant_relationship: editData.informantRelationship,
+      duration_of_contact: editData.durationOfContact,
       present_complaints: editData.presentComplaints,
       previous_treatments: editData.previousTreatments,
-
+      // Family History
+      family_history_mental_illness: editData.familyHistory?.mental_illness,
+      family_history_mental_retardation: editData.familyHistory?.mental_retardation,
+      family_history_epilepsy: editData.familyHistory?.epilepsy,
+      // Birth History
+      prenatal_history: editData.birthHistory?.prenatal,
+      natal_history: editData.birthHistory?.natal,
+      postnatal_history: editData.birthHistory?.postnatal,
+      // Development History
+      smiles_at_other: editData.developmentHistory?.smiles_at_other,
+      head_control: editData.developmentHistory?.head_control,
+      sitting: editData.developmentHistory?.sitting,
+      responds_to_name: editData.developmentHistory?.responds_to_name,
+      babbling: editData.developmentHistory?.babbling,
+      first_words: editData.developmentHistory?.first_words,
+      standing: editData.developmentHistory?.standing,
+      walking: editData.developmentHistory?.walking,
+      two_word_phrases: editData.developmentHistory?.two_word_phrases,
+      toilet_control: editData.developmentHistory?.toilet_control,
+      sentences: editData.developmentHistory?.sentences,
+      physical_deformity: editData.developmentHistory?.physical_deformity,
+      // Additional Info
+      school_history: editData.additionalInfo?.school_history,
+      occupational_history: editData.additionalInfo?.occupational_history,
+      behaviour_problems: editData.assessment?.behaviour_problems || editData.additionalInfo?.behaviour_problems,
+      // Assessment - Self Help
+      eating_habits: editData.assessment?.self_help?.food_habits?.eating,
+      drinking_habits: editData.assessment?.self_help?.food_habits?.drinking,
+      toilet_habits: editData.assessment?.self_help?.toilet_habits,
+      brushing: editData.assessment?.self_help?.brushing,
+      bathing: editData.assessment?.self_help?.bathing,
+      dressing_removing_wearing: editData.assessment?.self_help?.dressing?.removing_and_wearing,
+      dressing_buttoning: editData.assessment?.self_help?.dressing?.buttoning,
+      dressing_footwear: editData.assessment?.self_help?.dressing?.footwear,
+      dressing_grooming: editData.assessment?.self_help?.dressing?.grooming,
+      // Assessment - Motor
+      gross_motor: editData.assessment?.motor?.gross_motor,
+      fine_motor: editData.assessment?.motor?.fine_motor,
+      // Assessment - Sensory
+      sensory: editData.assessment?.sensory,
+      // Assessment - Socialization
+      language_communication: editData.assessment?.socialization?.language_communication,
+      social_behaviour: editData.assessment?.socialization?.social_behaviour,
+      mobility_in_neighborhood: editData.assessment?.socialization?.mobility,
+      // Assessment - Cognitive
+      attention: editData.assessment?.cognitive?.attention,
+      identification_of_objects: editData.assessment?.cognitive?.identification_of_objects,
+      use_of_objects: editData.assessment?.cognitive?.use_of_objects,
+      following_instruction: editData.assessment?.cognitive?.following_instruction,
+      awareness_of_danger: editData.assessment?.cognitive?.awareness_of_danger,
+      concept_color: editData.assessment?.cognitive?.concept_formation?.color,
+      concept_size: editData.assessment?.cognitive?.concept_formation?.size,
+      concept_sex: editData.assessment?.cognitive?.concept_formation?.sex,
+      concept_shape: editData.assessment?.cognitive?.concept_formation?.shape,
+      concept_number: editData.assessment?.cognitive?.concept_formation?.number,
+      concept_time: editData.assessment?.cognitive?.concept_formation?.time,
+      concept_money: editData.assessment?.cognitive?.concept_formation?.money,
+      // Assessment - Academic
+      academic_reading: editData.assessment?.academic?.reading,
+      academic_writing: editData.assessment?.academic?.writing,
+      academic_arithmetic: editData.assessment?.academic?.arithmetic,
+      // Assessment - Prevocational
+      prevocational_ability: editData.assessment?.prevocational?.ability_and_interest,
+      prevocational_interest: editData.assessment?.prevocational?.items_of_interest,
+      prevocational_dislike: editData.assessment?.prevocational?.items_of_dislike,
+      // Assessment - Other
+      any_other: editData.assessment?.any_other,
+      recommendation: editData.assessment?.recommendation,
+      // Medical Information
+      specific_diagnostic: editData.specific_diagnostic,
+      medical_conditions: editData.medical_conditions,
+      is_on_regular_drugs: editData.is_on_regular_drugs,
+      drug_allergy: editData.drug_allergy,
+      food_allergy: editData.food_allergy,
+      allergies: editData.allergies
     };
     // If photoFile is set, upload photo first, then update details
     if (photoFile) {
@@ -655,6 +736,8 @@ const fetchStudent = async () => {
             food_allergy: data.food_allergy,
             // Raw drug history array from the API (array of {name, dose})
             drug_history: data.drug_history || [],
+            // Household composition array from the API
+            household: data.household || [],
             
             // == Case Record Fields ==
             informantName: data.informant_name,
@@ -2529,9 +2612,137 @@ const handleGenerateSummaryReport = () => {
               </div>
             </div>
           ) : (
-  <div className="grid grid-cols-1 gap-8">
-    {/* Case Record Completion Progress Bar */}
-    <div className="col-span-full bg-white/50 rounded-2xl p-6 shadow-lg border border-white/30">
+            <div className="flex gap-6 items-start justify-center relative max-w-[1600px] mx-auto">
+              {/* Left Sidebar Navigation */}
+              <aside className="w-64 flex-shrink-0 sticky top-5 self-start">
+                <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-6 border border-white/20 w-64 z-30 max-h-[calc(100vh-40px)] overflow-y-auto">
+                  <div className="mb-6 pb-3 border-b border-[#E38B52]/20">
+                    <h3 className="text-lg font-bold text-[#170F49] mb-3">
+                      Case Record Sections
+                    </h3>
+                    <div className="flex gap-2">
+                      <div className="relative group flex-1">
+                        <button
+                          onClick={handleEditStart}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-white text-[#E38B52] rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 transform border border-[#E38B52]/20"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-white text-[#E38B52] text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-lg z-50 border border-[#E38B52]/20">
+                          Edit
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                            <div className="border-4 border-transparent border-t-white"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="relative group flex-1">
+                        <button
+                          onClick={handleDownloadCaseRecord}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-[#E38B52] to-[#F5A572] text-white rounded-xl hover:from-[#C8742F] hover:to-[#E38B52] transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 transform"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                            />
+                          </svg>
+                        </button>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1.5 bg-white text-[#E38B52] text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-lg z-50 border border-[#E38B52]/20">
+                          Download
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                            <div className="border-4 border-transparent border-t-white"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <nav className="space-y-2">
+                    {[
+                      { id: 'identification', label: 'Identification Data', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                        </svg>
+                      ) },
+                      { id: 'demographic', label: 'Demographic Data', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      ) },
+                      { id: 'contact', label: 'Contact & Medical', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      ) },
+                      { id: 'family', label: 'Family History', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      ) },
+                      { id: 'development', label: 'Development History', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      ) },
+                      { id: 'education', label: 'Special Education', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      ) },
+                      { id: 'medical', label: 'Medical Information', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      ) },
+                      { id: 'documents', label: 'Documents', icon: (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      ) }
+                    ].map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => setActiveCaseSection(section.id)}
+                        className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-300 flex items-center gap-3 ${
+                          activeCaseSection === section.id
+                            ? 'bg-[#E38B52] text-white shadow-lg'
+                            : 'bg-white/50 text-[#170F49] hover:bg-white/80'
+                        }`}
+                      >
+                        <span className={`transition-all duration-300 ${
+                          activeCaseSection === section.id ? 'text-white' : 'text-[#E38B52]'
+                        }`}>{section.icon}</span>
+                        <span className="text-sm font-medium">{section.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </aside>
+
+              {/* Right Content Area */}
+              <div className="flex-1 max-w-[1100px]">
+  {/* Case Record Completion Progress Bar - always visible */}
+  <div className="mb-8 bg-white/50 rounded-2xl p-6 shadow-lg border border-white/30">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold text-[#170F49]">Case Record Completion</h3>
         <span className="text-xl font-bold text-[#E38B52]">{caseRecordCompletion}%</span>
@@ -2545,61 +2756,109 @@ const handleGenerateSummaryReport = () => {
     </div>
 
     {/* Identification Data Section */}
-    <div className="col-span-full">
+    {activeCaseSection === 'identification' && (
+    <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
       <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
         </svg>
         Identification Data
       </h2>
-      <div className="p-6 bg-white/50 rounded-2xl mb-8">
+      <div className="p-6 bg-white/50 rounded-2xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Name</p>
-            <p className="text-[#170F49] font-medium">{student?.name || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="name" value={editData?.name || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.name || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Admission No</p>
-            <p className="text-[#170F49] font-medium">{student?.admissionNumber || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="admissionNumber" value={editData?.admissionNumber || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.admissionNumber || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Date of Birth</p>
-            <p className="text-[#170F49] font-medium">{student?.dob || 'N/A'}</p>
+            {editMode ? (
+              <input type="date" name="dob" value={editData?.dob || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.dob || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Age</p>
-            <p className="text-[#170F49] font-medium">{student?.age || 'N/A'}</p>
+            {editMode ? (
+              <input type="number" name="age" value={editData?.age || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.age || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Sex</p>
-            <p className="text-[#170F49] font-medium">{student?.gender || 'N/A'}</p>
+            {editMode ? (
+              <select name="gender" value={editData?.gender || ''} onChange={handleEditChange} className="input-edit">
+                <option value="">Select</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.gender || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Education</p>
-            <p className="text-[#170F49] font-medium">{student?.class || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="class" value={editData?.class || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.class || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Blood Group</p>
-            <p className="text-[#170F49] font-medium">{student?.bloodGroup || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="bloodGroup" value={editData?.bloodGroup || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.bloodGroup || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Religion</p>
-            <p className="text-[#170F49] font-medium">{student?.religion || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="religion" value={editData?.religion || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.religion || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-2">
             <p className="text-sm text-[#6F6C90]">Category (SC/ST/OBC/OEC)</p>
-            <p className="text-[#170F49] font-medium">{student?.category || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="category" value={editData?.category || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.category || 'N/A'}</p>
+            )}
           </div>
           <div className="md:col-span-4">
             <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
-            <p className="text-[#170F49] font-medium">{student?.aadharNumber || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="aadharNumber" value={editData?.aadharNumber || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.aadharNumber || 'N/A'}</p>
+            )}
           </div>
         </div>
       </div>
     </div>
+    )}
 
 {/* Demographic Data Section */}
-<div className="col-span-full">
+{activeCaseSection === 'demographic' && (
+<div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
   <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -2615,15 +2874,27 @@ const handleGenerateSummaryReport = () => {
         <div className="space-y-3">
           <div>
             <p className="text-sm text-[#6F6C90]">Name</p>
-            <p className="text-[#170F49] font-medium">{student?.fatherName || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="fatherName" value={editData?.fatherName || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.fatherName || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Education</p>
-            <p className="text-[#170F49] font-medium">{student?.fatherEducation || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="fatherEducation" value={editData?.fatherEducation || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.fatherEducation || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Occupation</p>
-            <p className="text-[#170F49] font-medium">{student?.fatherOccupation || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="fatherOccupation" value={editData?.fatherOccupation || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.fatherOccupation || 'N/A'}</p>
+            )}
           </div>
         </div>
       </div>
@@ -2634,15 +2905,27 @@ const handleGenerateSummaryReport = () => {
         <div className="space-y-3">
           <div>
             <p className="text-sm text-[#6F6C90]">Name</p>
-            <p className="text-[#170F49] font-medium">{student?.motherName || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="motherName" value={editData?.motherName || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.motherName || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Education</p>
-            <p className="text-[#170F49] font-medium">{student?.motherEducation || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="motherEducation" value={editData?.motherEducation || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.motherEducation || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Occupation</p>
-            <p className="text-[#170F49] font-medium">{student?.motherOccupation || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="motherOccupation" value={editData?.motherOccupation || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.motherOccupation || 'N/A'}</p>
+            )}
           </div>
         </div>
       </div>
@@ -2653,15 +2936,27 @@ const handleGenerateSummaryReport = () => {
         <div className="space-y-3">
           <div>
             <p className="text-sm text-[#6F6C90]">Name</p>
-            <p className="text-[#170F49] font-medium">{student?.guardianName || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="guardianName" value={editData?.guardianName || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.guardianName || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Relationship</p>
-            <p className="text-[#170F49] font-medium">{student?.guardianRelationship || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="guardianRelationship" value={editData?.guardianRelationship || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.guardianRelationship || 'N/A'}</p>
+            )}
           </div>
           <div>
             <p className="text-sm text-[#6F6C90]">Occupation</p>
-            <p className="text-[#170F49] font-medium">{student?.guardianOccupation || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="guardianOccupation" value={editData?.guardianOccupation || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-[#170F49] font-medium">{student?.guardianOccupation || 'N/A'}</p>
+            )}
           </div>
         </div>
       </div>
@@ -2672,7 +2967,11 @@ const handleGenerateSummaryReport = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <p className="text-sm text-[#6F6C90]">Total Family Income per Month</p>
-          <p className="text-[#170F49] font-medium">{student?.totalFamilyIncome || 'N/A'}</p>
+          {editMode ? (
+            <input type="text" name="totalFamilyIncome" value={editData?.totalFamilyIncome || ''} onChange={handleEditChange} className="input-edit" />
+          ) : (
+            <p className="text-[#170F49] font-medium">{student?.totalFamilyIncome || 'N/A'}</p>
+          )}
         </div>
         <div>
           <p className="text-sm text-[#6F6C90]">Address & Phone Number</p>
@@ -2682,9 +2981,11 @@ const handleGenerateSummaryReport = () => {
     </div>
   </div>
 </div>
+)}
 
 {/* Contact & Medical Information */}
-<div className="col-span-full">
+{activeCaseSection === 'contact' && (
+<div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
     <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2z" />
@@ -2695,16 +2996,28 @@ const handleGenerateSummaryReport = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-white/60">
             <div>
                 <p className="text-sm text-[#6F6C90]">Informant's Name</p>
-                <p className="text-lg text-[#170F49] font-medium">{student?.informantName || 'N/A'}</p>
+                {editMode ? (
+                  <input type="text" name="informantName" value={editData?.informantName || ''} onChange={handleEditChange} className="input-edit" />
+                ) : (
+                  <p className="text-lg text-[#170F49] font-medium">{student?.informantName || 'N/A'}</p>
+                )}
             </div>
             <div>
                 <p className="text-sm text-[#6F6C90]">Relationship</p>
-                <p className="text-lg text-[#170F49] font-medium">{student?.informantRelationship || 'N/A'}</p>
+                {editMode ? (
+                  <input type="text" name="informantRelationship" value={editData?.informantRelationship || ''} onChange={handleEditChange} className="input-edit" />
+                ) : (
+                  <p className="text-lg text-[#170F49] font-medium">{student?.informantRelationship || 'N/A'}</p>
+                )}
             </div>
         </div>
         <div className="pb-6 border-b border-white/60">
             <p className="text-sm text-[#6F6C90]">Duration of Contact</p>
-            <p className="text-lg text-[#170F49] font-medium">{student?.durationOfContact || 'N/A'}</p>
+            {editMode ? (
+              <input type="text" name="durationOfContact" value={editData?.durationOfContact || ''} onChange={handleEditChange} className="input-edit" />
+            ) : (
+              <p className="text-lg text-[#170F49] font-medium">{student?.durationOfContact || 'N/A'}</p>
+            )}
         </div>
         <div className="pb-6 border-b border-white/60">
             <p className="text-sm text-[#6F6C90]">Present Complaints</p>
@@ -2736,9 +3049,11 @@ const handleGenerateSummaryReport = () => {
         </div>
     </div>
 </div>
+)}
 
               {/* Family History */}
-              <div className="col-span-full">
+{activeCaseSection === 'family' && (
+              <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -2763,33 +3078,25 @@ const handleGenerateSummaryReport = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white/70">
-                          <tr className="border-b border-[#E38B52]/10">
-                            <td className="px-4 py-3 text-sm text-[#170F49]">1</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherName}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">42</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherEducation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.fatherOccupation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Good</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">₹30,000</td>
-                          </tr>
-                          <tr className="border-b border-[#E38B52]/10">
-                            <td className="px-4 py-3 text-sm text-[#170F49]">2</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherName}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">38</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherEducation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.motherOccupation}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Good</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">₹15,000</td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">3</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">{student?.guardianName}</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">14</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">8th Grade</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Student</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">Special Needs</td>
-                            <td className="px-4 py-3 text-sm text-[#170F49]">-</td>
-                          </tr>
+                          {student?.household && student.household.length > 0 ? (
+                            student.household.map((member, index) => (
+                              <tr key={index} className="border-b border-[#E38B52]/10 last:border-b-0">
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{index + 1}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.name || 'N/A'}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.age || 'N/A'}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.education || 'N/A'}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.occupation || 'N/A'}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.health || 'N/A'}</td>
+                                <td className="px-4 py-3 text-sm text-[#170F49]">{member.income || 'N/A'}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="7" className="px-4 py-8 text-sm text-[#6F6C90] text-center">
+                                No household composition data available
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -2801,15 +3108,27 @@ const handleGenerateSummaryReport = () => {
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div>
       <p className="text-sm text-[#6F6C90]">Family History of Mental Illness</p>
-      <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_illness || 'N/A'}</p>
+      {editMode ? (
+        <input type="text" name="familyHistory.mental_illness" value={editData?.familyHistory?.mental_illness || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_illness || 'N/A'}</p>
+      )}
     </div>
     <div>
       <p className="text-sm text-[#6F6C90]">Family History of Mental Retardation</p>
-      <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_retardation || 'N/A'}</p>
+      {editMode ? (
+        <input type="text" name="familyHistory.mental_retardation" value={editData?.familyHistory?.mental_retardation || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.familyHistory?.mental_retardation || 'N/A'}</p>
+      )}
     </div>
     <div>
       <p className="text-sm text-[#6F6C90]">Family History of Epilepsy and Others</p>
-      <p className="text-[#170F49] font-medium">{student?.familyHistory?.epilepsy || 'N/A'}</p>
+      {editMode ? (
+        <input type="text" name="familyHistory.epilepsy" value={editData?.familyHistory?.epilepsy || ''} onChange={handleEditChange} className="input-edit" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.familyHistory?.epilepsy || 'N/A'}</p>
+      )}
     </div>
   </div>
 </div>
@@ -2820,21 +3139,43 @@ const handleGenerateSummaryReport = () => {
   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
     <div>
       <p className="text-sm text-[#6F6C90]">Prenatal History</p>
-      <p className="text-[#170F49] font-medium">{student?.birthHistory?.prenatal || 'N/A'}</p>
+      {editMode ? (
+        <textarea name="birthHistory.prenatal" value={editData?.birthHistory?.prenatal || ''} onChange={handleEditChange} className="input-edit" rows="3" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.birthHistory?.prenatal || 'N/A'}</p>
+      )}
     </div>
     <div>
       <p className="text-sm text-[#6F6C90]">Natal and Neonatal</p>
-      <p className="text-[#170F49] font-medium">{student?.birthHistory?.natal || 'N/A'}</p>
+      {editMode ? (
+        <textarea name="birthHistory.natal" value={editData?.birthHistory?.natal || ''} onChange={handleEditChange} className="input-edit" rows="3" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.birthHistory?.natal || 'N/A'}</p>
+      )}
     </div>
     <div>
       <p className="text-sm text-[#6F6C90]">Postnatal History</p>
-      <p className="text-[#170F49] font-medium">{student?.birthHistory?.postnatal || 'N/A'}</p>
+      {editMode ? (
+        <textarea name="birthHistory.postnatal" value={editData?.birthHistory?.postnatal || ''} onChange={handleEditChange} className="input-edit" rows="3" />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.birthHistory?.postnatal || 'N/A'}</p>
+      )}
     </div>
   </div>
 </div>
                 </div>
               </div>
+)}
+
 {/* Developmental History */}
+{activeCaseSection === 'development' && (
+<div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
+  <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+    Development History
+  </h2>
 <div className="p-6 bg-white/50 rounded-2xl mt-6">
     <h3 className="text-lg font-semibold text-[#170F49] mb-4">Developmental History</h3>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 p-4 bg-white/70 rounded-xl">
@@ -2860,7 +3201,7 @@ const handleGenerateSummaryReport = () => {
     </div>
 </div>
 {/* Additional Information Section */}
-<div className="col-span-full mt-6">
+<div className="mt-6">
   <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2888,8 +3229,12 @@ const handleGenerateSummaryReport = () => {
     )}
   </div>
 </div>
+</div>
+)}
+
 {/* Special Education Assessment Section */}
-<div className="col-span-full mt-6">
+{activeCaseSection === 'education' && (
+<div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
   <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h2" />
@@ -2897,232 +3242,667 @@ const handleGenerateSummaryReport = () => {
     Special Education Assessment
   </h2>
 
-  {/* Self Help Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Self Help</h3>
-    <div className="space-y-4">
+  {/* Horizontal Navigation for Subsections */}
+  <div className="mb-8 overflow-x-auto">
+    <div className="flex gap-2 min-w-max pb-2">
+      {[
+        { id: 'self-help', label: 'Self Help' },
+        { id: 'motor', label: 'Motor' },
+        { id: 'sensory', label: 'Sensory' },
+        { id: 'socialization', label: 'Socialization' },
+        { id: 'cognitive', label: 'Cognitive' },
+        { id: 'academic', label: 'Academic' },
+        { id: 'prevocational', label: 'Prevocational' },
+        { id: 'other-info', label: 'Other Info' }
+      ].map((subsection) => (
+        <button
+          key={subsection.id}
+          onClick={() => setActiveEducationSubsection(subsection.id)}
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+            activeEducationSubsection === subsection.id
+              ? 'bg-[#E38B52] text-white shadow-lg'
+              : 'bg-white/50 text-[#170F49] hover:bg-white/80'
+          }`}
+        >
+          {subsection.label}
+        </button>
+      ))}
+    </div>
+  </div>
 
-      {/* Food Habits */}
-      <div className="bg-white/70 rounded-xl p-4">
-        <h4 className="text-md font-medium text-[#170F49] mb-3">Food Habits</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-[#6F6C90]">Eating</p>
+  {/* Self Help */}
+  {activeEducationSubsection === 'self-help' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Self Help</h3>
+    
+    {/* Food Habits */}
+    <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
+      <h4 className="text-md font-medium text-[#170F49]">Food Habits</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Eating</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.food_habits.eating"
+              value={editData?.assessment?.self_help?.food_habits?.eating || ''}
+              onChange={handleEditChange}
+              placeholder="Describe eating habits and capabilities"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.food_habits?.eating || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Drinking</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Drinking</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.food_habits.drinking"
+              value={editData?.assessment?.self_help?.food_habits?.drinking || ''}
+              onChange={handleEditChange}
+              placeholder="Describe drinking habits and capabilities"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.food_habits?.drinking || 'N/A'}</p>
-          </div>
+          )}
         </div>
       </div>
+    </div>
 
-      {/* Other Habits */}
-      <div className="bg-white/70 rounded-xl p-4 space-y-3">
-        <div>
-          <p className="text-sm text-[#6F6C90]">Toilet Habits</p>
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Toilet Habits (Include mention hygenic where applicable)</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.self_help.toilet_habits"
+            value={editData?.assessment?.self_help?.toilet_habits || ''}
+            onChange={handleEditChange}
+            placeholder="Describe toilet habits and hygiene practices"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.toilet_habits || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[#6F6C90]">Brushing</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Brushing</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.self_help.brushing"
+            value={editData?.assessment?.self_help?.brushing || ''}
+            onChange={handleEditChange}
+            placeholder="Describe brushing capabilities and routine"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.brushing || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[#6F6C90]">Bathing</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Bathing</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.self_help.bathing"
+            value={editData?.assessment?.self_help?.bathing || ''}
+            onChange={handleEditChange}
+            placeholder="Describe bathing capabilities and habits"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.bathing || 'N/A'}</p>
-        </div>
+        )}
       </div>
+    </div>
 
-      {/* Dressing */}
-      <div className="bg-white/70 rounded-xl p-4">
-        <h4 className="text-md font-medium text-[#170F49] mb-3">Dressing</h4>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-[#6F6C90]">Removing and wearing clothes</p>
+    {/* Dressing */}
+    <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-6">
+      <h4 className="text-md font-medium text-[#170F49]">Dressing</h4>
+      <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Removing and wearing clothes</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.dressing.removing_and_wearing"
+              value={editData?.assessment?.self_help?.dressing?.removing_and_wearing || ''}
+              onChange={handleEditChange}
+              placeholder="Describe ability to remove and wear clothes independently"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.removing_and_wearing || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Unbuttoning and Buttoning</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Unbuttoning and Buttoning</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.dressing.buttoning"
+              value={editData?.assessment?.self_help?.dressing?.buttoning || ''}
+              onChange={handleEditChange}
+              placeholder="Describe ability to handle buttons independently"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.buttoning || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Wearing shoes/Slippers</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">wearing shoes/Slippers</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.dressing.footwear"
+              value={editData?.assessment?.self_help?.dressing?.footwear || ''}
+              onChange={handleEditChange}
+              placeholder="Describe ability to wear footwear independently"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.footwear || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Grooming</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Grooming (include shaving skills where applicable)</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.self_help.dressing.grooming"
+              value={editData?.assessment?.self_help?.dressing?.grooming || ''}
+              onChange={handleEditChange}
+              placeholder="Describe grooming abilities including shaving if applicable"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.self_help?.dressing?.grooming || 'N/A'}</p>
-          </div>
+          )}
         </div>
       </div>
     </div>
   </div>
-  {/* The other sections like Motor, Sensory, etc. will follow the same pattern here */}
-</div>
-{/* Motor Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Motor</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/70 rounded-xl p-4">
+  )}
+
+  {/* Motor */}
+  {activeEducationSubsection === 'motor' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Motor</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-xl p-6 shadow-lg">
       <div>
-        <p className="text-sm text-[#6F6C90]">Gross Motor</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.gross_motor || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Gross Motor</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.motor.gross_motor"
+            value={editData?.assessment?.motor?.gross_motor || ''}
+            onChange={handleEditChange}
+            placeholder="Describe capabilities in large movements, balance, and coordination"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.gross_motor || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Fine Motor</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.fine_motor || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Fine Motor</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.motor.fine_motor"
+            value={editData?.assessment?.motor?.fine_motor || ''}
+            onChange={handleEditChange}
+            placeholder="Describe capabilities in small, precise movements"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.motor?.fine_motor || 'N/A'}</p>
+        )}
       </div>
     </div>
   </div>
+  )}
 
-  {/* Sensory Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Sensory</h3>
-    <div className="bg-white/70 rounded-xl p-4">
-      <p className="text-[#170F49] font-medium">{student?.assessment?.sensory || 'N/A'}</p>
+  {/* Sensory */}
+  {activeEducationSubsection === 'sensory' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Sensory</h3>
+    <div className="bg-white rounded-xl p-6 shadow-lg">
+      {editMode ? (
+        <input
+          type="text"
+          name="assessment.sensory"
+          value={editData?.assessment?.sensory || ''}
+          onChange={handleEditChange}
+          placeholder="Describe sensory responses and processing capabilities"
+          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+        />
+      ) : (
+        <p className="text-[#170F49] font-medium">{student?.assessment?.sensory || 'N/A'}</p>
+      )}
     </div>
   </div>
+  )}
 
-  {/* Socialization Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Socialization</h3>
-    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+  {/* Socialization */}
+  {activeEducationSubsection === 'socialization' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Socialization</h3>
+    <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
       <div>
-        <p className="text-sm text-[#6F6C90]">Language/Communication</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.language_communication || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Language/Communication</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.socialization.language_communication"
+            value={editData?.assessment?.socialization?.language_communication || ''}
+            onChange={handleEditChange}
+            placeholder="Describe communication abilities and language skills"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.language_communication || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Social Behaviour</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.social_behaviour || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Social behaviour</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.socialization.social_behaviour"
+            value={editData?.assessment?.socialization?.social_behaviour || ''}
+            onChange={handleEditChange}
+            placeholder="Describe interactions with others and social adaptability"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.social_behaviour || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Mobility in the Neighborhood</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.mobility || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Mobility in the nieghborhood</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.socialization.mobility"
+            value={editData?.assessment?.socialization?.mobility || ''}
+            onChange={handleEditChange}
+            placeholder="Describe ability to navigate and move around in familiar areas"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.socialization?.mobility || 'N/A'}</p>
+        )}
       </div>
     </div>
   </div>
+  )}
 
-  {/* Cognitive Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Cognitive</h3>
-    <div className="space-y-4">
-      <div className="bg-white/70 rounded-xl p-4 space-y-4">
-        <div>
-          <p className="text-sm text-[#6F6C90]">Attention</p>
+  {/* Cognitive */}
+  {activeEducationSubsection === 'cognitive' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Cognitive</h3>
+    <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Attention</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.cognitive.attention"
+            value={editData?.assessment?.cognitive?.attention || ''}
+            onChange={handleEditChange}
+            placeholder="Describe attention span and focus capabilities"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.attention || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[#6F6C90]">Identification of familiar objects</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Identification of familiar objects</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.cognitive.identification_of_objects"
+            value={editData?.assessment?.cognitive?.identification_of_objects || ''}
+            onChange={handleEditChange}
+            placeholder="Describe ability to recognize and name common objects"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.identification_of_objects || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[#6F6C90]">Use of familiar objects</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Use of familiar objects</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.cognitive.use_of_objects"
+            value={editData?.assessment?.cognitive?.use_of_objects || ''}
+            onChange={handleEditChange}
+            placeholder="Describe ability to appropriately use common objects"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.use_of_objects || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[#6F6C90]">Following simple instruction</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Following simple instruction</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.cognitive.following_instruction"
+            value={editData?.assessment?.cognitive?.following_instruction || ''}
+            onChange={handleEditChange}
+            placeholder="Describe ability to understand and follow basic instructions"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
           <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.following_instruction || 'N/A'}</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Awareness of dangrer and hazards</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.cognitive.awareness_of_danger"
+            value={editData?.assessment?.cognitive?.awareness_of_danger || ''}
+            onChange={handleEditChange}
+            placeholder="Describe understanding of dangerous situations"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.awareness_of_danger || 'N/A'}</p>
+        )}
+      </div>
+    </div>
+    
+    {/* Concept Formation */}
+    <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-6">
+      <h4 className="text-md font-medium text-[#170F49]">Concept formation (Indicate ability to match, identify name wherever applicable)</h4>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Color</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.color"
+              value={editData?.assessment?.cognitive?.concept_formation?.color || ''}
+              onChange={handleEditChange}
+              placeholder="Describe ability to recognize and match colors"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
+            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.color || 'N/A'}</p>
+          )}
         </div>
         <div>
-          <p className="text-sm text-[#6F6C90]">Awareness of danger and hazards</p>
-          <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.awareness_of_danger || 'N/A'}</p>
-        </div>
-      </div>
-      
-      {/* Concept Formation */}
-      <div className="bg-white/70 rounded-xl p-4">
-        <h4 className="text-md font-medium text-[#170F49] mb-3">Concept Formation</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-[#6F6C90]">Color</p>
-            <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.color || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Size</p>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Size</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.size"
+              value={editData?.assessment?.cognitive?.concept_formation?.size || ''}
+              onChange={handleEditChange}
+              placeholder="Describe understanding of size concepts"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.size || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Sex</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Sex</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.sex"
+              value={editData?.assessment?.cognitive?.concept_formation?.sex || ''}
+              onChange={handleEditChange}
+              placeholder="Describe understanding of gender concepts"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.sex || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Shape</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Shape</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.shape"
+              value={editData?.assessment?.cognitive?.concept_formation?.shape || ''}
+              onChange={handleEditChange}
+              placeholder="Describe ability to recognize and name shapes"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.shape || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Number</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Number</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.number"
+              value={editData?.assessment?.cognitive?.concept_formation?.number || ''}
+              onChange={handleEditChange}
+              placeholder="Describe understanding of numbers and counting"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.number || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Time</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Time</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.time"
+              value={editData?.assessment?.cognitive?.concept_formation?.time || ''}
+              onChange={handleEditChange}
+              placeholder="Describe understanding of time concepts"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.time || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-[#6F6C90]">Money</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#170F49] mb-2">Money</label>
+          {editMode ? (
+            <input
+              type="text"
+              name="assessment.cognitive.concept_formation.money"
+              value={editData?.assessment?.cognitive?.concept_formation?.money || ''}
+              onChange={handleEditChange}
+              placeholder="Describe understanding of money concepts"
+              className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+            />
+          ) : (
             <p className="text-[#170F49] font-medium">{student?.assessment?.cognitive?.concept_formation?.money || 'N/A'}</p>
-          </div>
+          )}
         </div>
       </div>
     </div>
   </div>
+  )}
 
-  {/* Academic Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Academic</h3>
-    <div className="bg-white/70 rounded-xl p-4 space-y-4">
+  {/* Academic */}
+  {activeEducationSubsection === 'academic' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#6366f1]/10">Academic (give brief history: class attended/attending indicate class/grade/level wherever appropriate)</h3>
+    <div className="bg-white rounded-xl p-6 space-y-6 shadow-lg">
       <div>
-        <p className="text-sm text-[#6F6C90]">Reading</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.reading || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Reading</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.academic.reading"
+            value={editData?.assessment?.academic?.reading || ''}
+            onChange={handleEditChange}
+            placeholder="Describe reading level and comprehension"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.reading || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Writing</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.writing || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Writing</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.academic.writing"
+            value={editData?.assessment?.academic?.writing || ''}
+            onChange={handleEditChange}
+            placeholder="Describe writing abilities and skills"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.writing || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Arithmetic</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.arithmetic || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Arithmetic</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.academic.arithmetic"
+            value={editData?.assessment?.academic?.arithmetic || ''}
+            onChange={handleEditChange}
+            placeholder="Describe mathematical understanding and abilities"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.academic?.arithmetic || 'N/A'}</p>
+        )}
       </div>
     </div>
   </div>
+  )}
 
-  {/* Prevocational/Domestic Section Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm mb-6">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Prevocational/Domestic</h3>
-    <div className="bg-white/70 rounded-xl p-4 space-y-4">
-      <div>
-        <p className="text-sm text-[#6F6C90]">Ability and Interest</p>
+  {/* Prevocational/Domestic */}
+  {activeEducationSubsection === 'prevocational' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-8 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Prevocational/Domestic (Specify ability and interest)</h3>
+    <div className="bg-white rounded-xl p-6 shadow-lg">
+      {editMode ? (
+        <input
+          type="text"
+          name="assessment.prevocational.ability_and_interest"
+          value={editData?.assessment?.prevocational?.ability_and_interest || ''}
+          onChange={handleEditChange}
+          placeholder="Describe prevocational skills and domestic abilities"
+          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+        />
+      ) : (
         <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.ability_and_interest || 'N/A'}</p>
+      )}
+    </div>
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Items of interest</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.prevocational.items_of_interest"
+            value={editData?.assessment?.prevocational?.items_of_interest || ''}
+            onChange={handleEditChange}
+            placeholder="List activities and objects that interest the student"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_interest || 'N/A'}</p>
+        )}
       </div>
       <div>
-        <p className="text-sm text-[#6F6C90]">Items of Interest</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_interest || 'N/A'}</p>
-      </div>
-      <div>
-        <p className="text-sm text-[#6F6C90]">Items of Dislike</p>
-        <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_dislike || 'N/A'}</p>
+        <label className="block text-sm font-medium text-[#170F49] mb-2">Items of dislike</label>
+        {editMode ? (
+          <input
+            type="text"
+            name="assessment.prevocational.items_of_dislike"
+            value={editData?.assessment?.prevocational?.items_of_dislike || ''}
+            onChange={handleEditChange}
+            placeholder="List activities and objects that the student dislikes"
+            className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          />
+        ) : (
+          <p className="text-[#170F49] font-medium">{student?.assessment?.prevocational?.items_of_dislike || 'N/A'}</p>
+        )}
       </div>
     </div>
   </div>
+  )}
 
-  {/* Observations and Recommendations Card */}
-  <div className="bg-white/50 rounded-2xl p-6 shadow-sm">
-    <h3 className="text-xl font-semibold text-[#170F49] mb-4">Observations & Recommendations</h3>
-    <div className="bg-white/70 rounded-xl p-4 space-y-4">
-      <div>
-        <p className="text-sm text-[#6F6C90]">Any peculiar behaviour/behaviour problems observed</p>
+  {/* Other Info */}
+  {activeEducationSubsection === 'other-info' && (
+  <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-6 space-y-6 mb-8">
+    <h3 className="text-lg font-semibold text-[#170F49] pb-2 border-b border-[#E38B52]/10">Additional Information</h3>
+    <div>
+      <label className="block text-sm font-medium text-[#170F49] mb-2">Any peculiar behaviour/behaviour problems observed</label>
+      {editMode ? (
+        <textarea
+          name="assessment.behaviour_problems"
+          value={editData?.assessment?.behaviour_problems || ''}
+          onChange={handleEditChange}
+          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          rows="4"
+          placeholder="Describe any unusual behaviors or behavioral concerns observed"
+        ></textarea>
+      ) : (
         <p className="text-[#170F49] font-medium">{student?.assessment?.behaviour_problems || 'N/A'}</p>
-      </div>
-      <div>
-        <p className="text-sm text-[#6F6C90]">Any other</p>
+      )}
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-[#170F49] mb-2">Any other</label>
+      {editMode ? (
+        <textarea
+          name="assessment.any_other"
+          value={editData?.assessment?.any_other || ''}
+          onChange={handleEditChange}
+          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          rows="4"
+          placeholder="Add any additional observations or comments"
+        ></textarea>
+      ) : (
         <p className="text-[#170F49] font-medium">{student?.assessment?.any_other || 'N/A'}</p>
-      </div>
-      <div>
-        <p className="text-sm text-[#6F6C90]">Recommendation</p>
+      )}
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-[#170F49] mb-2">Recommendation</label>
+      {editMode ? (
+        <textarea
+          name="assessment.recommendation"
+          value={editData?.assessment?.recommendation || ''}
+          onChange={handleEditChange}
+          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+          rows="4"
+          placeholder="Provide detailed recommendations for support and intervention"
+        ></textarea>
+      ) : (
         <p className="text-[#170F49] font-medium">{student?.assessment?.recommendation || 'N/A'}</p>
-      </div>
+      )}
     </div>
   </div>
+  )}
+</div>
+)}
+
               {/* Medical Information */}
-              <div className="col-span-full">
+{activeCaseSection === 'medical' && (
+              <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
@@ -3136,19 +3916,31 @@ const handleGenerateSummaryReport = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Specific Diagnostic</p>
-                        <p className="text-[#170F49] font-medium">{student?.specific_diagnostic || 'N/A'}</p>
+                        {editMode ? (
+                          <input type="text" name="specific_diagnostic" value={editData?.specific_diagnostic || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.specific_diagnostic || 'N/A'}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Medical Conditions</p>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {(student?.medical_conditions || '').toString().split(',').filter(Boolean).map((c, idx) => (
-                            <span key={idx} className="px-3 py-1 bg-white/70 rounded-full text-sm text-[#170F49]">{c.trim()}</span>
-                          ))}
-                        </div>
+                        {editMode ? (
+                          <input type="text" name="medical_conditions" value={editData?.medical_conditions || ''} onChange={handleEditChange} className="input-edit" placeholder="Comma-separated" />
+                        ) : (
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {(student?.medical_conditions || '').toString().split(',').filter(Boolean).map((c, idx) => (
+                              <span key={idx} className="px-3 py-1 bg-white/70 rounded-full text-sm text-[#170F49]">{c.trim()}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">On Regular Drugs</p>
-                        <p className="text-[#170F49] font-medium">{student?.is_on_regular_drugs || 'N/A'}</p>
+                        {editMode ? (
+                          <input type="text" name="is_on_regular_drugs" value={editData?.is_on_regular_drugs || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.is_on_regular_drugs || 'N/A'}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -3185,23 +3977,37 @@ const handleGenerateSummaryReport = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <p className="text-sm text-[#6F6C90]">Drug Allergy</p>
-                        <p className="text-[#170F49] font-medium">{student?.drug_allergy || 'N/A'}</p>
+                        {editMode ? (
+                          <input type="text" name="drug_allergy" value={editData?.drug_allergy || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.drug_allergy || 'N/A'}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Food Allergy</p>
-                        <p className="text-[#170F49] font-medium">{student?.food_allergy || 'N/A'}</p>
+                        {editMode ? (
+                          <input type="text" name="food_allergy" value={editData?.food_allergy || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.food_allergy || 'N/A'}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-[#6F6C90]">Other Allergies</p>
-                        <p className="text-[#170F49] font-medium">{student?.allergies || 'N/A'}</p>
+                        {editMode ? (
+                          <input type="text" name="allergies" value={editData?.allergies || ''} onChange={handleEditChange} className="input-edit" />
+                        ) : (
+                          <p className="text-[#170F49] font-medium">{student?.allergies || 'N/A'}</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Documents Section */}
-              <div className="col-span-full">
+              {activeCaseSection === 'documents' && (
+              <div className="bg-white/30 backdrop-blur-xl rounded-3xl shadow-xl p-8 md:p-12 border border-white/20">
                 <h2 className="text-2xl font-bold text-[#170F49] mb-6 pb-4 border-b border-[#E38B52]/20 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#E38B52]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3328,7 +4134,9 @@ const handleGenerateSummaryReport = () => {
                   </div>
                 </div>
               </div>
+              )}
             </div>
+          </div>
           )}
 
           {/* Action Buttons with adjusted margin */}
@@ -3339,24 +4147,21 @@ const handleGenerateSummaryReport = () => {
                 <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl font-medium" onClick={handleEditSave}>Save Changes</button>
               </>
             ) : (
-              <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#E38B52]/90 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]" onClick={handleEditStart}>
-                Edit Details
-              </button>
-            )}
-            {activeTab === 'case-record' ? (
-              <button
-                className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
-                onClick={handleDownloadCaseRecord}
-              >
-                Download Case Record
-              </button>
-            ) : (
-              <button
-                className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
-                onClick={handleDownloadProfile}
-              >
-                Download Profile
-              </button>
+              <>
+                {activeTab === 'student-details' && (
+                  <>
+                    <button className="flex-1 bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#E38B52]/90 hover:-translate-y-1 transition-all duration-200 font-medium shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]" onClick={handleEditStart}>
+                      Edit Details
+                    </button>
+                    <button
+                      className="flex-1 bg-white/30 backdrop-blur-xl rounded-2xl shadow-xl p-3 border border-white/20 hover:-translate-y-1 transition-all font-medium duration-200"
+                      onClick={handleDownloadProfile}
+                    >
+                      Download Profile
+                    </button>
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>
