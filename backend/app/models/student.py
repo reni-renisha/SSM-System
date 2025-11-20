@@ -66,6 +66,8 @@ class Student(Base):
     
     # Additional Fields
     photo = Column(LargeBinary, nullable=True) # 👈 Add this line for the image
+    # Documents/Certificates stored as JSONB array: [{name, file_data (base64), upload_date, file_size}]
+    documents = Column(JSONB, nullable=True)
     created_at = Column(Date)
     updated_at = Column(Date)
 

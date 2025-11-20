@@ -110,10 +110,13 @@ const HeadMaster = () => {
   const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
   console.debug('fetchStudents: raw items', items);
         // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
-        const normalized = items.map(s => ({
-          ...s,
-          photo_url: s.photo_url || s.photoUrl || null,
-        }));
+        const normalized = items.map(s => {
+          console.log('Student:', s.name, 'photo_url:', s.photo_url);
+          return {
+            ...s,
+            photo_url: s.photo_url || s.photoUrl || null,
+          };
+        });
         const sortedStudents = [...normalized].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setStudents(sortedStudents);
       } catch (error) {

@@ -159,6 +159,10 @@ class StudentBase(BaseModel):
     
     photo: Optional[bytes] = None
 
+    class Config:
+        # Allow arbitrary types including bytes without validation
+        arbitrary_types_allowed = True
+
 # 2. Schema for CREATING
 class StudentCreate(StudentBase):
     name: str
@@ -174,14 +178,21 @@ class Student(StudentBase):
     created_at: date
     updated_at: date
     case_record: Optional[Dict[str, Any]] = None
+    # Don't include photo in response, only photo_url
 
     @computed_field
     @property
     def photo_url(self) -> Optional[str]:
         if self.photo:
-            b64_photo = base64.b64encode(self.photo).decode("utf-8")
-            return f"data:image/jpeg;base64,{b64_photo}"
+            try:
+                b64_photo = base64.b64encode(self.photo).decode("utf-8")
+                return f"data:image/jpeg;base64,{b64_photo}"
+            except Exception:
+                return None
         return None
 
     class Config:
         from_attributes = True
+        arbitrary_types_allowed = True
+        # Exclude photo bytes from JSON response
+        exclude = {'photo'}
