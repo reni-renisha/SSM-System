@@ -343,10 +343,27 @@ const StudentPage = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const fileInputRef = useRef(null);
+  
+  // Document upload states
+  const [documents, setDocuments] = useState([]);
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentUploading, setDocumentUploading] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const documentInputRef = useRef(null);
+  
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  
+  // Toast notification helper
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: '' });
+    }, 4000);
+  };
+  
   const caseRecordCompletion = React.useMemo(() => {
-    if (!student) return 0;
-
-    // Define the key fields that constitute a "complete" case record
+    if (!student) return 0;    // Define the key fields that constitute a "complete" case record
     const fieldsToCheck = [
       student.bloodGroup,
       student.category,
@@ -658,7 +675,7 @@ const handlePhotoUpload = async () => {
         photo_url: returnedPhotoUrl 
       }));
       
-      alert("Photo uploaded and saved successfully!");
+      showToast('Photo uploaded and saved successfully!', 'success');
     } else {
       console.warn('Photo uploaded but server did not return photo_url/photoUrl:', returned);
       alert("Photo uploaded but URL not returned. Please refresh the page.");
@@ -686,9 +703,178 @@ const handlePhotoUpload = async () => {
   } catch (error) {
     console.error("Error uploading photo:", error);
     const errorMessage = error.response?.data?.detail || error.message || "Failed to upload photo.";
-    alert(`Failed to upload photo: ${errorMessage}`);
+    showToast(`Failed to upload photo: ${errorMessage}`, 'error');
   } finally {
     setPhotoUploading(false);
+  }
+};
+
+// Document upload handlers
+const handleDocumentChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      showToast('Only PDF files are allowed', 'error');
+      if (documentInputRef.current) documentInputRef.current.value = null;
+      return;
+    }
+    
+    // Validate file size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showToast(`File size exceeds 5MB limit. File size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`, 'error');
+      if (documentInputRef.current) documentInputRef.current.value = null;
+      return;
+    }
+    
+    setDocumentFile(file);
+  }
+};
+
+const handleDocumentUpload = async () => {
+  if (!documentFile) {
+    alert("Please select a PDF document first.");
+    return;
+  }
+
+  setDocumentUploading(true);
+  const formData = new FormData();
+  formData.append("file", documentFile);
+
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    };
+    
+    const res = await axios.post(`${baseUrl}/api/v1/students/${id}/documents`, formData, config);
+    console.log('Document upload response:', res.data);
+    
+    showToast(`Document "${documentFile.name}" uploaded successfully!`, 'success');
+    
+    // Clear file input
+    if (documentInputRef?.current) {
+      documentInputRef.current.value = null;
+    }
+    setDocumentFile(null);
+    
+    // Refresh documents list
+    await fetchDocuments();
+    
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    const errorMessage = error.response?.data?.detail || error.message || "Failed to upload document.";
+    showToast(`Failed to upload document: ${errorMessage}`, 'error');
+  } finally {
+    setDocumentUploading(false);
+  }
+};
+
+const fetchDocuments = async () => {
+  setDocumentsLoading(true);
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    
+    const res = await axios.get(`${baseUrl}/api/v1/students/${id}/documents`, config);
+    setDocuments(res.data.documents || []);
+  } catch (error) {
+    console.error("Error fetching documents:", error);
+    setDocuments([]);
+  } finally {
+    setDocumentsLoading(false);
+  }
+};
+
+const handleDownloadDocument = async (documentId, documentName) => {
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    
+    const res = await axios.get(`${baseUrl}/api/v1/students/${id}/documents/${documentId}`, config);
+    const document = res.data;
+    
+    // Convert base64 to blob and download
+    const base64Data = document.file_data.split(',')[1] || document.file_data;
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = documentName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    showToast(`Document "${documentName}" downloaded successfully!`, 'success');
+  } catch (error) {
+    console.error("Error downloading document:", error);
+    showToast('Failed to download document.', 'error');
+  }
+};
+
+const handleViewDocument = async (documentId, documentName) => {
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    
+    const res = await axios.get(`${baseUrl}/api/v1/students/${id}/documents/${documentId}`, config);
+    const document = res.data;
+    
+    // Convert base64 to blob and open in new tab
+    const base64Data = document.file_data.split(',')[1] || document.file_data;
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    
+    // Clean up after a delay to allow the browser to open it
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    console.error("Error viewing document:", error);
+    showToast('Failed to view document.', 'error');
+  }
+};
+
+const handleDeleteDocument = async (documentId, documentName) => {
+  if (!window.confirm(`Are you sure you want to delete "${documentName}"?`)) {
+    return;
+  }
+  
+  try {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+    const token = localStorage.getItem('token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    
+    await axios.delete(`${baseUrl}/api/v1/students/${id}/documents/${documentId}`, config);
+    showToast(`Document "${documentName}" deleted successfully!`, 'success');
+    
+    // Refresh documents list
+    await fetchDocuments();
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    showToast('Failed to delete document.', 'error');
   }
 };
 
@@ -915,6 +1101,7 @@ const fetchReports = async (studentId) => {
 useEffect(() => {
   if (id) {
     fetchStudent();
+    fetchDocuments();
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [id]);
@@ -1445,6 +1632,42 @@ const handleGenerateSummaryReport = () => {
 
   return (
   <div id="profile-to-download" className="min-h-screen w-full flex flex-col items-center bg-[#f7f7f7] relative overflow-hidden py-20">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed top-8 right-8 z-[9999] animate-slide-in-right ${
+          toast.type === 'success' ? 'bg-green-500' : 
+          toast.type === 'error' ? 'bg-red-500' : 
+          'bg-blue-500'
+        } text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] max-w-md`}>
+          <div className="flex-shrink-0">
+            {toast.type === 'success' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : toast.type === 'error' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-sm leading-snug">{toast.message}</p>
+          </div>
+          <button 
+            onClick={() => setToast({ show: false, message: '', type: '' })}
+            className="flex-shrink-0 hover:bg-white/20 rounded-lg p-1 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      
       {/* Back button */}
       <button
         onClick={() => window.history.back()}
@@ -2583,126 +2806,171 @@ const handleGenerateSummaryReport = () => {
 
               {/* Certificates Section */}
               <div className="col-span-full">
-                <h2 className="text-xl font-semibold text-[#170F49] mb-4">Certificates</h2>
+                <h2 className="text-xl font-semibold text-[#170F49] mb-4">Certificates & Documents</h2>
                 <div className="p-6 bg-white/50 rounded-2xl">
-                  {/* Certificates List */}
-                  <div className="space-y-4">
-                    {/* Example certificates - replace with actual data */}
-                    <div className="flex items-center justify-between p-4 bg-white/70 rounded-xl">
+                  {/* Upload Section */}
+                  <div className="mb-6 p-4 bg-white/70 rounded-xl border-2 border-dashed border-[#E38B52]/30">
+                    <input
+                      type="file"
+                      ref={documentInputRef}
+                      onChange={handleDocumentChange}
+                      accept=".pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <svg 
-                          width="24" 
-                          height="24" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="#E38B52" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
+                        <button
+                          onClick={() => documentInputRef.current?.click()}
+                          className="px-4 py-2 bg-[#E38B52] text-white rounded-lg hover:bg-[#d67a3f] transition-all duration-200 flex items-center gap-2"
                         >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                          <polyline points="14 2 14 8 20 8"/>
-                          <line x1="16" y1="13" x2="8" y2="13"/>
-                          <line x1="16" y1="17" x2="8" y2="17"/>
-                          <line x1="10" y1="9" x2="8" y2="9"/>
-                        </svg>
-                        <div>
-                          <p className="font-medium text-[#170F49]">Academic Excellence Certificate</p>
-                          <p className="text-sm text-[#6F6C90]">Uploaded on 15 Jan 2024</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="p-2 hover:bg-white/80 rounded-lg transition-all duration-200">
-                          <svg 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          >
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
-                        </button>
-                        <button className="p-2 hover:bg-white/80 rounded-lg transition-all duration-200">
-                          <svg 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
                           </svg>
+                          Select PDF Document
                         </button>
+                        {documentFile && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-[#170F49]">{documentFile.name}</span>
+                            <span className="text-xs text-[#6F6C90]">({(documentFile.size / 1024).toFixed(2)} KB)</span>
+                          </div>
+                        )}
                       </div>
+                      {documentFile && (
+                        <button
+                          onClick={handleDocumentUpload}
+                          disabled={documentUploading}
+                          className={`px-4 py-2 text-white rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                            documentUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                        >
+                          {documentUploading ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                              Upload
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
+                    <p className="text-xs text-[#6F6C90] mt-2">Only PDF files allowed. Maximum file size: 5MB</p>
+                  </div>
 
-                    <div className="flex items-center justify-between p-4 bg-white/70 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <svg 
-                          width="24" 
-                          height="24" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="#E38B52" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                          <polyline points="14 2 14 8 20 8"/>
-                          <line x1="16" y1="13" x2="8" y2="13"/>
-                          <line x1="16" y1="17" x2="8" y2="17"/>
-                          <line x1="10" y1="9" x2="8" y2="9"/>
+                  {/* Documents List */}
+                  <div className="space-y-4">
+                    {documentsLoading ? (
+                      <div className="text-center py-8 text-[#6F6C90]">Loading documents...</div>
+                    ) : documents.length === 0 ? (
+                      <div className="text-center py-8 text-[#6F6C90]">
+                        <svg className="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <div>
-                          <p className="font-medium text-[#170F49]">Medical Certificate</p>
-                          <p className="text-sm text-[#6F6C90]">Uploaded on 10 Jan 2024</p>
+                        <p>No documents uploaded yet</p>
+                      </div>
+                    ) : (
+                      documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-4 bg-white/70 rounded-xl hover:shadow-md transition-all duration-200">
+                          <div className="flex items-center gap-3">
+                            <svg 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="#E38B52" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                              <line x1="16" y1="13" x2="8" y2="13"/>
+                              <line x1="16" y1="17" x2="8" y2="17"/>
+                              <line x1="10" y1="9" x2="8" y2="9"/>
+                            </svg>
+                            <div>
+                              <p className="font-medium text-[#170F49]">{doc.name}</p>
+                              <p className="text-sm text-[#6F6C90]">
+                                Uploaded: {new Date(doc.upload_date).toLocaleDateString()} • {(doc.file_size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleViewDocument(doc.id, doc.name)}
+                              className="p-2 hover:bg-blue-50 rounded-lg transition-all duration-200 group"
+                              title="View"
+                            >
+                              <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                                className="text-[#6F6C90] group-hover:text-blue-500"
+                              >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => handleDownloadDocument(doc.id, doc.name)}
+                              className="p-2 hover:bg-[#E38B52]/10 rounded-lg transition-all duration-200 group"
+                              title="Download"
+                            >
+                              <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                                className="text-[#6F6C90] group-hover:text-[#E38B52]"
+                              >
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                              className="p-2 hover:bg-red-50 rounded-lg transition-all duration-200 group"
+                              title="Delete"
+                            >
+                              <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                                className="text-[#6F6C90] group-hover:text-red-500"
+                              >
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              </svg>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="p-2 hover:bg-white/80 rounded-lg transition-all duration-200">
-                          <svg 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          >
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
-                        </button>
-                        <button className="p-2 hover:bg-white/80 rounded-lg transition-all duration-200">
-                          <svg 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -4282,8 +4550,21 @@ const handleGenerateSummaryReport = () => {
             transform: translate(0, 0) scale(1);
           }
         }
+        @keyframes slide-in-right {
+          0% {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
         .animate-float {
           animation: float 15s infinite ease-in-out;
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
         }
         .animation-delay-3000 {
           animation-delay: -5s;
