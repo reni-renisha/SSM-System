@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { formatAadhaar } from '../utils/validation';
 
 // Add styles for input-edit class
 const inputEditStyles = `
@@ -335,6 +336,7 @@ const StudentPage = () => {
 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [aadharEditError, setAadharEditError] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const fileInputRef = useRef(null);
@@ -381,6 +383,30 @@ const handleEditStart = () => {
   const { name, value } = e.target;
   // Prevent editing studentId
   if (name === "studentId") return;
+  // Special handling for Aadhaar formatting/validation
+  if (name === 'aadharNumber') {
+    const raw = String(value || '');
+    const digits = raw.replace(/\D/g, '').slice(0, 12);
+    const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    setEditData((prev) => ({ ...prev, [name]: formatted }));
+
+    if (digits.length !== 12) {
+      setAadharEditError('Aadhaar must be exactly 12 digits.');
+    } else if (/^[01]/.test(digits)) {
+      setAadharEditError('Aadhaar must start with a digit between 2 and 9.');
+    } else {
+      setAadharEditError('');
+    }
+    return;
+  }
+
+  // IFSC: uppercase letters, no spaces, max 11 chars
+  if (name === 'ifscCode') {
+    const v = String(value || '').replace(/\s+/g, '').toUpperCase().slice(0, 11);
+    setEditData((prev) => ({ ...prev, [name]: v }));
+    return;
+  }
+
   setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -400,6 +426,11 @@ const handleEditStart = () => {
   // Save changes
 const handleEditSave = async () => {
   try {
+    // Prevent saving when Aadhaar validation failed
+    if (aadharEditError) {
+      alert(aadharEditError || 'Invalid Aadhaar number');
+      return;
+    }
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
     
     // This payload correctly maps your form state to what the API expects
@@ -440,8 +471,12 @@ const handleEditSave = async () => {
       account_number: editData.accountNumber,
       branch: editData.branch,
       ifsc_code: editData.ifscCode,
+      aadhar_number: editData.aadharNumber ? String(editData.aadharNumber).replace(/\s+/g, '') : null,
       blood_group: editData.bloodGroup,
-      category: editData.category
+      category: editData.category,
+      // Case record fields
+      present_complaints: editData.presentComplaints,
+      previous_treatments: editData.previousTreatments,
 
     };
     // If photoFile is set, upload photo first, then update details
@@ -571,7 +606,7 @@ const fetchStudent = async () => {
             caste: data.caste,
             category: data.category,
             bloodGroup: data.blood_group,
-            aadharNumber: data.aadhar_number,
+            aadharNumber: formatAadhaar(data.aadhar_number),
             phoneNumber: data.phone_number,
             email: data.email,
 
@@ -605,7 +640,7 @@ const fetchStudent = async () => {
             bankName: data.bank_name,
             accountNumber: data.account_number,
             branch: data.branch,
-            ifscCode: data.ifsc_code,
+            ifscCode: data.ifsc_code ? String(data.ifsc_code).toUpperCase() : data.ifsc_code,
 
             // == Medical & ID ==
             disabilityType: data.disability_type,
@@ -1878,7 +1913,11 @@ const handleGenerateSummaryReport = () => {
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Student ID</p>
-                      <input type="text" name="studentId" value={student?.studentId || ''} className="input-edit" readOnly />
+                      {editMode ? (
+                        <input type="text" name="studentId" value={student?.studentId || ''} className="input-edit" readOnly />
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.studentId || ''}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[#6F6C90]">Date of Birth</p>
@@ -1928,13 +1967,25 @@ const handleGenerateSummaryReport = () => {
                     </div>
                   )}
                     <div>
-      <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
-      {editMode ? (
-        <input type="text" name="aadharNumber" value={editData?.aadharNumber || ''} onChange={handleEditChange} className="input-edit" />
-      ) : (
-        <p className="text-[#170F49] font-medium">{student?.aadharNumber}</p>
-      )}
-    </div>
+                      <p className="text-sm text-[#6F6C90]">Aadhar Number</p>
+                      {editMode ? (
+                        <>
+                          <input
+                            type="text"
+                            name="aadharNumber"
+                            inputMode="numeric"
+                            pattern="\d{4}\s?\d{4}\s?\d{4}"
+                            maxLength={14}
+                            value={editData?.aadharNumber || ''}
+                            onChange={handleEditChange}
+                            className="input-edit"
+                          />
+                          {aadharEditError && <p className="text-red-500 text-xs mt-1">{aadharEditError}</p>}
+                        </>
+                      ) : (
+                        <p className="text-[#170F49] font-medium">{student?.aadharNumber}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2657,11 +2708,31 @@ const handleGenerateSummaryReport = () => {
         </div>
         <div className="pb-6 border-b border-white/60">
             <p className="text-sm text-[#6F6C90]">Present Complaints</p>
-            <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.presentComplaints || 'N/A'}</p>
+            {editMode ? (
+              <textarea
+                name="presentComplaints"
+                value={editData?.presentComplaints || ''}
+                onChange={handleEditChange}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] bg-white/80 resize-vertical"
+              />
+            ) : (
+              <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.presentComplaints || 'N/A'}</p>
+            )}
         </div>
         <div>
             <p className="text-sm text-[#6F6C90]">Previous Consultation and Treatments</p>
-            <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.previousTreatments || 'N/A'}</p>
+            {editMode ? (
+              <textarea
+                name="previousTreatments"
+                value={editData?.previousTreatments || ''}
+                onChange={handleEditChange}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] bg-white/80 resize-vertical"
+              />
+            ) : (
+              <p className="text-lg text-[#170F49] font-medium leading-relaxed">{student?.previousTreatments || 'N/A'}</p>
+            )}
         </div>
     </div>
 </div>

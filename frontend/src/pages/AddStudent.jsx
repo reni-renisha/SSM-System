@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 import { useNavigate, useLocation, useParams } from 'react-router-dom'; // Make sure useParams is imported
+import { validateStudent, formatAadhaar, cleanAadhaar } from '../utils/validation';
 // === REPLACE your old DynamicScrollButtons component with this new, refined version ===
 const DynamicScrollButtons = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -101,6 +102,8 @@ const AddStudent = () => {
   // eslint-disable-next-line
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [aadharError, setAadharError] = useState('');
+  const [errors, setErrors] = useState({});
  const [studentForm, setStudentForm] = useState({
     // Existing Student Details
     name: '',
@@ -254,10 +257,23 @@ const AddStudent = () => {
             return;
           }
 
-          const data = await response.json();
-          // Pre-fill the form with the fetched data and mark as saved (edit mode)
-          setStudentForm(data);
-          setSavedStudent(data);
+              const data = await response.json();
+              // Normalize caste so it matches the select option values when editing
+              const normalizeCaste = (c) => {
+                if (!c && c !== "") return "";
+                const v = String(c).trim().toLowerCase();
+                if (!v) return "";
+                if (v === "general" || v === "gen") return "General";
+                if (v === "sc") return "SC";
+                if (v === "st") return "ST";
+                if (v === "obc") return "OBC";
+                // fallback: capitalize first letter
+                return c;
+              };
+              // Pre-fill the form with the fetched data and mark as saved (edit mode)
+              const normalized = { ...data, caste: normalizeCaste(data?.caste) };
+              setStudentForm(normalized);
+              setSavedStudent(normalized);
         } catch (error) {
           // Network errors (fetch failed) will be TypeError in browsers
           console.error('Network error while fetching student for edit:', error);
@@ -277,7 +293,41 @@ const AddStudent = () => {
 
 
   const handleFieldChange = (field) => (e) => {
-    setStudentForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e?.target ? e.target.value : e;
+
+    // Aadhaar: format while typing and validate locally
+    if (field === 'aadhar_number') {
+      const formatted = formatAadhaar(value);
+      setStudentForm((prev) => ({ ...prev, [field]: formatted }));
+      const cleaned = cleanAadhaar(formatted);
+      if (!cleaned) setAadharError('');
+      else if (!/^[2-9]\d{11}$/.test(cleaned)) setAadharError('Aadhaar must be 12 digits and start with 2-9.');
+      else setAadharError('');
+      return;
+    }
+
+    // Phone: numeric only, restrict to 10 digits
+    if (field === 'phone_number') {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 10);
+      setStudentForm((prev) => ({ ...prev, [field]: digits }));
+      return;
+    }
+
+    // Pin code: numeric only, 6 digits
+    if (field === 'pin_code') {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 6);
+      setStudentForm((prev) => ({ ...prev, [field]: digits }));
+      return;
+    }
+
+    // IFSC: uppercase letters, no spaces, max 11 chars
+    if (field === 'ifsc_code') {
+      const v = String(value || '').replace(/\s+/g, '').toUpperCase().slice(0, 11);
+      setStudentForm((prev) => ({ ...prev, [field]: v }));
+      return;
+    }
+
+    setStudentForm((prev) => ({ ...prev, [field]: value }));
   };
    const handleCheckboxChange = (field) => (e) => {
     setStudentForm((prev) => ({ ...prev, [field]: e.target.checked }));
@@ -302,7 +352,33 @@ const handleMedicalConditionsChange = (condition) => (e) => {
 const saveStudent = async () => {
     // This function will now either return the saved student data or throw an error.
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-    
+    // Form-level validation using shared validators
+    setErrors({});
+    const { valid, errors: verrors } = validateStudent(studentForm);
+    if (!valid) {
+      setErrors(verrors);
+      const firstKey = Object.keys(verrors)[0];
+      const firstMsg = Object.values(verrors)[0];
+      // Try to focus and scroll to the first invalid field if possible
+      try {
+        const el = document.getElementById(firstKey);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // focus if focusable
+          if (typeof el.focus === 'function') el.focus();
+        }
+      } catch (err) {
+        // ignore
+      }
+      alert('Please fix validation errors: ' + firstMsg);
+      throw new Error('Validation failed');
+    }
+
+    // Prevent saving when Aadhaar is still flagged by inline check
+    if (aadharError) {
+      throw new Error(aadharError || 'Invalid Aadhaar number');
+    }
+
     const payload = {
       name: studentForm.name,
       age: studentForm.age,
@@ -341,7 +417,7 @@ const saveStudent = async () => {
       account_number: studentForm.account_number,
       branch: studentForm.branch,
       ifsc_code: studentForm.ifsc_code,
-      aadhar_number: studentForm.aadhar_number,
+      aadhar_number: studentForm.aadhar_number ? String(studentForm.aadhar_number).replace(/\s+/g, '') : null,
       disability_type: studentForm.disability_type,
       disability_percentage: studentForm.disability_percentage,
       medical_conditions: studentForm.medical_conditions,
@@ -703,17 +779,20 @@ const developmentHistoryMap = {
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Name of Student</label>
                       <input
                         type="text"
+                        id="name"
                          className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter student's full name"
                          value={studentForm.name}
                          onChange={handleFieldChange('name')}
                       />
+                      {errors.name && (<p className="text-red-500 text-xs mt-1">{errors.name}</p>)}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Age</label>
                         <input
                           type="text"
+                          id="age"
                           inputMode="numeric"
                           pattern="[0-9]*"
                           className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
@@ -721,15 +800,17 @@ const developmentHistoryMap = {
                           value={studentForm.age}
                           onChange={handleFieldChange('age')}
                         />
+                        {errors.age && (<p className="text-red-500 text-xs mt-1">{errors.age}</p>)}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-[#170F49] mb-2">Sex</label>
-                        <select className={selectClass} value={studentForm.gender} onChange={handleFieldChange('gender')}>
+                        <select id="gender" className={selectClass} value={studentForm.gender} onChange={handleFieldChange('gender')}>
                           <option value="">Select</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="other">Other</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
                         </select>
+                          {errors.gender && (<p className="text-red-500 text-xs mt-1">{errors.gender}</p>)}
                       </div>
                     </div>
                   </div>
@@ -813,22 +894,26 @@ const developmentHistoryMap = {
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Pin Code</label>
                       <input
                         type="text"
+                        id="pin_code"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter pin code"
                         maxLength="6"
                         value={studentForm.pin_code}
                         onChange={handleFieldChange('pin_code')}
                       />
+                      {errors.pin_code && (<p className="text-red-500 text-xs mt-1">{errors.pin_code}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Revenue District</label>
                       <input
                         type="text"
+                        id="revenue_district"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter revenue district"
                         value={studentForm.revenue_district}
                         onChange={handleFieldChange('revenue_district')}
                       />
+                      {errors.revenue_district && (<p className="text-red-500 text-xs mt-1">{errors.revenue_district}</p>)}
                     </div>
                   </div>
                 </div>
@@ -841,21 +926,25 @@ const developmentHistoryMap = {
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Phone Number</label>
                       <input
                         type="tel"
+                        id="phone_number"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter phone number"
                         value={studentForm.phone_number}
                         onChange={handleFieldChange('phone_number')}
                       />
+                      {errors.phone_number && (<p className="text-red-500 text-xs mt-1">{errors.phone_number}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Email</label>
                       <input
                         type="email"
+                        id="email"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter email address"
                         value={studentForm.email}
                         onChange={handleFieldChange('email')}
                       />
+                      {errors.email && (<p className="text-red-500 text-xs mt-1">{errors.email}</p>)}
                     </div>
                   </div>
                 </div>
@@ -865,33 +954,43 @@ const developmentHistoryMap = {
                   <h3 className="text-xl font-semibold text-[#170F49] mb-6">Additional Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-      <label className="block text-sm font-medium text-[#170F49] mb-2">Aadhar Number</label>
-      <input
-        type="text"
-        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg ..."
-        placeholder="Enter Aadhar number"
-        maxLength="12"
-        value={studentForm.aadhar_number}
-        onChange={handleFieldChange('aadhar_number')}
-      />
-    </div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Aadhar Number</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d{4}\s?\d{4}\s?\d{4}"
+                        maxLength={14} /* allow spaces grouped as 4-4-4 */
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        placeholder="1234 5678 9012"
+                        id="aadhar_number"
+                        value={studentForm.aadhar_number || ''}
+                        onChange={handleFieldChange('aadhar_number')}
+                        title="Enter 12-digit Aadhaar number (groups of 4 digits allowed)"
+                      />
+                      {aadharError && (<p className="text-red-500 text-xs mt-1">{aadharError}</p>)}
+                      {errors.aadhar_number && !aadharError && (<p className="text-red-500 text-xs mt-1">{errors.aadhar_number}</p>)}
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Birth</label>
                       <input
                         type="date"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        id="dob"
                         value={studentForm.dob}
                         onChange={handleFieldChange('dob')}
                       />
+                      {errors.dob && (<p className="text-red-500 text-xs mt-1">{errors.dob}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Admission</label>
                       <input
                         type="date"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        id="admission_date"
                         value={studentForm.admission_date}
                         onChange={handleFieldChange('admission_date')}
                       />
+                      {errors.admission_date && (<p className="text-red-500 text-xs mt-1">{errors.admission_date}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Admission Number</label>
@@ -899,9 +998,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter admission number"
+                        id="admission_number"
                         value={studentForm.admission_number}
                         onChange={handleFieldChange('admission_number')}
                       />
+                      {errors.admission_number && (<p className="text-red-500 text-xs mt-1">{errors.admission_number}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Father's Name</label>
@@ -912,6 +1013,7 @@ const developmentHistoryMap = {
                         value={studentForm.father_name}
                         onChange={handleFieldChange('father_name')}
                       />
+                      {errors.father_name && (<p className="text-red-500 text-xs mt-1">{errors.father_name}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Mother's Name</label>
@@ -922,6 +1024,7 @@ const developmentHistoryMap = {
                         value={studentForm.mother_name}
                         onChange={handleFieldChange('mother_name')}
                       />
+                      {errors.mother_name && (<p className="text-red-500 text-xs mt-1">{errors.mother_name}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Religion</label>
@@ -933,18 +1036,22 @@ const developmentHistoryMap = {
                         <option value="sikhism">Sikhism</option>
                         <option value="buddhism">Buddhism</option>
                         <option value="jainism">Jainism</option>
-                        <option value="other">Other</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Caste</label>
-                      <input
-                        type="text"
-                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
-                        placeholder="Enter caste"
+                      <select
+                        className={selectClass}
                         value={studentForm.caste}
                         onChange={handleFieldChange('caste')}
-                      />
+                      >
+                        <option value="">Select caste</option>
+                        <option value="General">General</option>
+                        <option value="SC">SC</option>
+                        <option value="ST">ST</option>
+                        <option value="OBC">OBC</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -971,16 +1078,19 @@ const developmentHistoryMap = {
                         <option value="Care group Above 18 years">Care group Above 18 years</option>
                         <option value="Vocational 18-35 years">Vocational 18-35 years</option>
                       </select>
+                      {errors.class_name && (<p className="text-red-500 text-xs mt-1">{errors.class_name}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Roll Number</label>
                       <input
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        id="roll_no"
                         placeholder="Enter roll number"
                         value={studentForm.roll_no}
                         onChange={handleFieldChange('roll_no')}
                       />
+                      {errors.roll_no && (<p className="text-red-500 text-xs mt-1">{errors.roll_no}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Academic Year</label>
@@ -988,9 +1098,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="e.g., 2024-2025"
+                        id="academic_year"
                         value={studentForm.academic_year}
                         onChange={handleFieldChange('academic_year')}
                       />
+                      {errors.academic_year && (<p className="text-red-500 text-xs mt-1">{errors.academic_year}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Class Teacher</label>
@@ -998,18 +1110,23 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter class teacher's name"
+                        id="class_teacher"
                         value={studentForm.class_teacher}
                         onChange={handleFieldChange('class_teacher')}
                       />
+                      {errors.class_teacher && (<p className="text-red-500 text-xs mt-1">{errors.class_teacher}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Division (optional)</label>
                       <input
+                        id="division"
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="e.g., A, B"
-                        onChange={(e)=>{ /* store in case record on save */ }}
+                        value={studentForm.division || ''}
+                        onChange={handleFieldChange('division')}
                       />
+                      {errors.division && (<p className="text-red-500 text-xs mt-1">{errors.division}</p>)}
                     </div>
                   </div>
                 </div>
@@ -1036,9 +1153,11 @@ const developmentHistoryMap = {
                         max="100"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter percentage"
+                        id="disability_percentage"
                         value={studentForm.disability_percentage}
                         onChange={handleFieldChange('disability_percentage')}
                       />
+                      {errors.disability_percentage && (<p className="text-red-500 text-xs mt-1">{errors.disability_percentage}</p>)}
                     </div>
                   </div>
                 </div>
@@ -1053,9 +1172,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter account number"
+                        id="account_number"
                         value={studentForm.account_number}
                         onChange={handleFieldChange('account_number')}
                       />
+                      {errors.account_number && (<p className="text-red-500 text-xs mt-1">{errors.account_number}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Bank Name</label>
@@ -1063,9 +1184,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter bank name"
+                        id="bank_name"
                         value={studentForm.bank_name}
                         onChange={handleFieldChange('bank_name')}
                       />
+                      {errors.bank_name && (<p className="text-red-500 text-xs mt-1">{errors.bank_name}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Branch</label>
@@ -1073,9 +1196,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter branch name"
+                        id="branch"
                         value={studentForm.branch}
                         onChange={handleFieldChange('branch')}
                       />
+                      {errors.branch && (<p className="text-red-500 text-xs mt-1">{errors.branch}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">IFSC Code</label>
@@ -1083,9 +1208,11 @@ const developmentHistoryMap = {
                         type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         placeholder="Enter IFSC code"
+                        id="ifsc_code"
                         value={studentForm.ifsc_code}
                         onChange={handleFieldChange('ifsc_code')}
                       />
+                      {errors.ifsc_code && (<p className="text-red-500 text-xs mt-1">{errors.ifsc_code}</p>)}
                     </div>
                   </div>
                 </div>
@@ -1095,12 +1222,14 @@ const developmentHistoryMap = {
                   <h3 className="text-xl font-semibold text-[#170F49] mb-6">Identification Marks</h3>
                   <div className="space-y-4">
                     <textarea
+                      id="identification_marks"
                       className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none"
                       rows="3"
                       placeholder="Enter identification marks"
                       value={studentForm.identification_marks}
                       onChange={handleFieldChange('identification_marks')}
                     ></textarea>
+                    {errors.identification_marks && (<p className="text-red-500 text-xs mt-1">{errors.identification_marks}</p>)}
                   </div>
                 </div>
 
@@ -1163,9 +1292,9 @@ const developmentHistoryMap = {
                       <label className="block text-sm font-medium text-[#170F49]">Sex</label>
                       <select className={selectClass} value={studentForm.gender} onChange={handleFieldChange('gender')}>
                         <option value="">Select sex</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
 
@@ -1179,7 +1308,7 @@ const developmentHistoryMap = {
                         <option value="sikhism">Sikhism</option>
                         <option value="buddhism">Buddhism</option>
                         <option value="jainism">Jainism</option>
-                        <option value="other">Other</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
 

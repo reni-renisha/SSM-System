@@ -29,8 +29,9 @@ const LoginPage = () => {
         // Set the default authorization header for future requests
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.access_token}`;
 
-        // Redirect based on user role
-        const role = response.data.role || "hm"; // Default to hm if not provided
+        // Redirect based on user role (normalize casing and type)
+        const rawRole = response.data.role || "hm"; // Default to hm if not provided
+        const role = String(rawRole).toLowerCase();
         if (role === "hm" || role === "admin" || role === "headmaster") {
           navigate("/headmaster");
         } else if (role === "teacher") {
