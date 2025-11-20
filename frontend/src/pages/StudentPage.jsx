@@ -1872,8 +1872,33 @@ const handleGenerateSummaryReport = () => {
                               )}
                               {r.goals_achieved && (
                                 <div>
-                                  <div className="text-xs text-[#6F6C90]">Goals Achieved</div>
-                                  <div className="text-sm">{r.goals_achieved}</div>
+                                  <div className="text-xs text-[#6F6C90] font-semibold mb-2">Goals Achieved</div>
+                                  <div className="space-y-2">
+                                    {typeof r.goals_achieved === 'object' ? (
+                                      Object.entries(r.goals_achieved).map(([key, goal]) => (
+                                        <div key={key} className="bg-gray-50 p-2 rounded border-l-2 border-[#E38B52]">
+                                          <div className="flex items-start gap-2">
+                                            <input 
+                                              type="checkbox" 
+                                              checked={goal.checked || false} 
+                                              disabled 
+                                              className="mt-1 w-4 h-4 text-[#E38B52] rounded"
+                                            />
+                                            <div className="flex-1">
+                                              <div className="font-medium text-sm text-[#170F49]">
+                                                {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                              </div>
+                                              {goal.notes && (
+                                                <div className="text-xs text-[#6F6C90] mt-1 italic">{goal.notes}</div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="text-sm text-[#666]">{String(r.goals_achieved)}</div>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                               <div className="text-xs text-[#6F6C90]">Recorded</div>

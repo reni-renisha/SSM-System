@@ -53,14 +53,25 @@ def create_report(
     current_user: schemas.user.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """Create a therapy report for a student."""
-    # Optionally set teacher_id from current_user if not provided
-    if not report_in.teacher_id:
-        try:
-            report_in.teacher_id = current_user.id
-        except Exception:
-            report_in.teacher_id = None
+    try:
+        # Optionally set teacher_id from current_user if not provided
+        if not report_in.teacher_id:
+            try:
+                report_in.teacher_id = current_user.id
+            except Exception as e:
+                logging.warning(f"Could not set teacher_id from current_user: {e}")
+                report_in.teacher_id = None
 
-    return crud.therapy_report.create(db, obj_in=report_in)
+        # Create the report
+        report = crud.therapy_report.create(db, obj_in=report_in)
+        logging.info(f"Successfully created therapy report for student {report_in.student_id}")
+        return report
+    except Exception as e:
+        logging.error(f"Error creating therapy report: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create therapy report: {str(e)}"
+        )
 
 
 @router.get("/student/{student_id}", response_model=List[schemas.therapy_report.TherapyReport])
