@@ -108,6 +108,18 @@ const AddStudent = () => {
   const [showPopup, setShowPopup] = useState(false);
   const [aadharError, setAadharError] = useState('');
   const [errors, setErrors] = useState({});
+  const [documents, setDocuments] = useState({
+    aadhar: null,
+    birth_certificate: null,
+    disability_certificate: null,
+    ration_card: null,
+    pwd_registration: null,
+    medical_certificate: null,
+    ud_id: null,
+    hospital_assessment_report: null,
+    passbook: null,
+    nish_psychological_assessment: null
+  });
  const [studentForm, setStudentForm] = useState({
     // Existing Student Details
     name: '',
@@ -334,6 +346,26 @@ const AddStudent = () => {
 
     setStudentForm((prev) => ({ ...prev, [field]: value }));
   };
+  
+  const handleDocumentUpload = (docType) => (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert('Please upload only PDF files.');
+        e.target.value = ''; // Reset the input
+        return;
+      }
+      setDocuments((prev) => ({ ...prev, [docType]: file }));
+    }
+  };
+
+  const handleRemoveDocument = (docType) => {
+    setDocuments((prev) => ({ ...prev, [docType]: null }));
+    // Reset the file input
+    const input = document.getElementById(`document-${docType}`);
+    if (input) input.value = '';
+  };
+
    const handleCheckboxChange = (field) => (e) => {
     setStudentForm((prev) => ({ ...prev, [field]: e.target.checked }));
   };
@@ -1298,30 +1330,105 @@ const developmentHistoryMap = {
                 {/* Document Upload */}
                 <div>
                   <h3 className="text-xl font-semibold text-[#170F49] mb-6">Document Upload</h3>
-                  <div className="space-y-4">
-                    <label 
-                      htmlFor="document-upload" 
-                      className="block w-full p-4 border-2 border-dashed border-[#E38B52] rounded-xl text-center cursor-pointer hover:bg-white/50 transition-all duration-200"
-                    >
-                      <svg 
-                        className="mx-auto mb-2" 
-                        width="24" 
-                        height="24" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
-                      <span className="text-[#E38B52] font-medium">Upload Documents</span>
-                      <span className="block text-sm text-[#6F6C90] mt-1">Upload relevant documents (PDF format)</span>
-                    </label>
-                    <input type="file" id="document-upload" className="hidden" accept=".pdf" />
+                  <div className="space-y-6">
+                    {/* Document Upload Areas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Document Upload Component */}
+                      {[
+                        { key: 'aadhar', label: 'Aadhar' },
+                        { key: 'birth_certificate', label: 'Birth Certificate' },
+                        { key: 'disability_certificate', label: 'Disability Certificate' },
+                        { key: 'ration_card', label: 'Ration Card' },
+                        { key: 'pwd_registration', label: 'Person with Disability Registration' },
+                        { key: 'medical_certificate', label: 'Medical Certificate' },
+                        { key: 'ud_id', label: 'Unique Disability ID (UD ID)' },
+                        { key: 'hospital_assessment_report', label: 'Assessment Report from Hospital' },
+                        { key: 'passbook', label: 'Passbook' },
+                        { key: 'nish_psychological_assessment', label: 'NISH Psychological Assessment Report' }
+                      ].map((doc) => (
+                        <div key={doc.key} className="space-y-2">
+                          <label className="block text-sm font-medium text-[#170F49] mb-2">{doc.label}</label>
+                          <label 
+                            htmlFor={`document-${doc.key}`} 
+                            className="block w-full p-4 border-2 border-dashed border-[#E38B52] rounded-xl text-center cursor-pointer hover:bg-white/50 transition-all duration-200"
+                          >
+                            <svg 
+                              className="mx-auto mb-2" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            >
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="17 8 12 3 7 8"/>
+                              <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span className="text-[#E38B52] font-medium text-sm">
+                              {documents[doc.key] ? documents[doc.key].name : `Upload ${doc.label} (PDF)`}
+                            </span>
+                          </label>
+                          <input 
+                            type="file" 
+                            id={`document-${doc.key}`} 
+                            className="hidden" 
+                            accept=".pdf" 
+                            onChange={handleDocumentUpload(doc.key)}
+                          />
+                          {documents[doc.key] && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDocument(doc.key)}
+                              className="text-red-500 text-xs hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Uploaded Documents List */}
+                    {Object.values(documents).some(doc => doc !== null) && (
+                      <div className="mt-6">
+                        <h4 className="text-lg font-semibold text-[#170F49] mb-4">Uploaded Documents</h4>
+                        <div className="bg-white/50 rounded-xl p-4 border border-[#E38B52]/20">
+                          <ul className="space-y-2">
+                            {[
+                              { key: 'aadhar', label: 'Aadhar' },
+                              { key: 'birth_certificate', label: 'Birth Certificate' },
+                              { key: 'disability_certificate', label: 'Disability Certificate' },
+                              { key: 'ration_card', label: 'Ration Card' },
+                              { key: 'pwd_registration', label: 'Person with Disability Registration' },
+                              { key: 'medical_certificate', label: 'Medical Certificate' },
+                              { key: 'ud_id', label: 'Unique Disability ID (UD ID)' },
+                              { key: 'hospital_assessment_report', label: 'Assessment Report from Hospital' },
+                              { key: 'passbook', label: 'Passbook' },
+                              { key: 'nish_psychological_assessment', label: 'NISH Psychological Assessment Report' }
+                            ].map((doc) => documents[doc.key] && (
+                              <li key={doc.key} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                  </svg>
+                                  <span className="text-sm text-[#170F49]">{doc.label}: {documents[doc.key].name}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDocument(doc.key)}
+                                  className="text-red-500 hover:text-red-700 text-xs"
+                                >
+                                  Remove
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
