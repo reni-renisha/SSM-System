@@ -114,9 +114,10 @@ const AddStudent = () => {
     age: '',
     dob: '',
     gender: '',
-    religion: '',
-    caste: '',
-    class_name: '',
+    religion: '',
+    caste: '',
+    caste_text: '',
+    class_name: '',
     roll_no: '',
     birth_place: '',
     house_name: '',
@@ -262,7 +263,7 @@ const AddStudent = () => {
           }
 
               const data = await response.json();
-              // Normalize caste so it matches the select option values when editing
+              // Normalize category so it matches the select option values when editing
               const normalizeCaste = (c) => {
                 if (!c && c !== "") return "";
                 const v = String(c).trim().toLowerCase();
@@ -390,6 +391,7 @@ const saveStudent = async () => {
       gender: studentForm.gender,
       religion: studentForm.religion,
       caste: studentForm.caste,
+      caste_text: studentForm.caste_text,
       class_name: studentForm.class_name,
       roll_no: studentForm.roll_no,
       birth_place: studentForm.birth_place,
@@ -1000,6 +1002,22 @@ const developmentHistoryMap = {
                       {errors.aadhar_number && !aadharError && (<p className="text-red-500 text-xs mt-1">{errors.aadhar_number}</p>)}
                     </div>
                     <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">UD ID</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
+                        inputMode='alpha-numeric'
+                        pattern='^[A-Z]{2}[0-9]{2}[A-Z0-9]{1}[0-9]{2}[0-9]{4}[0-9]{6}[0-9]{1}$'
+                        placeholder="KL14B0519850001239"
+                        maxLength={18}
+                        id="ud_id"
+                        value={studentForm.ud_id}
+                        onChange={handleFieldChange('ud_id')}
+                        title="Enter 18-digit Unique Disability ID (groups of 4 digits allowed)"
+                      />
+                      {errors.ud_id && (<p className="text-red-500 text-xs mt-1">{errors.ud_id}</p>)}
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Birth</label>
                       <input
                         type="date"
@@ -1069,21 +1087,36 @@ const developmentHistoryMap = {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-[#170F49] mb-2">Caste</label>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Category</label>
                       <select
                         className={selectClass}
                         value={studentForm.caste}
                         onChange={handleFieldChange('caste')}
                       >
-                        <option value="">Select caste</option>
+                        <option value="">Select category</option>
                         <option value="General">General</option>
                         <option value="SC">SC</option>
                         <option value="ST">ST</option>
                         <option value="OBC">OBC</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#170F49] mb-2">Caste</label>
+                      <textarea
+                        id="caste_text"
+                        className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 resize-none"
+                        placeholder="Enter caste"
+                        maxLength={30}
+                        rows={1}
+                        value={studentForm.caste_text}
+                        onChange={handleFieldChange('caste_text')}
+                      ></textarea>
+                      {errors.caste_text && (<p className="text-red-500 text-xs mt-1">{errors.caste_text}</p>)}
+                    </div>
                   </div>
+
                 </div>
+                
 
                 {/* Academic Information */}
                 <div>

@@ -521,7 +521,7 @@ const AddTeacher = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-6 md:col-span-2">
                       <label className="block text-sm font-medium text-[#170F49] ml-2">
                         Class
                       </label>
@@ -544,21 +544,6 @@ const AddTeacher = () => {
                         </select>
                        {assignmentErrors[index] && assignmentErrors[index].class && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].class}</p>)}
                       </div>
-
-                                         <div className="space-y-2">
-                       <label className="block text-sm font-medium text-[#170F49] ml-2">
-                         Subject
-                       </label>
-                       <input
-                         id={`assignment_${index}_subject`}
-                         type="text"
-                         value={assignment.subject}
-                         onChange={(e) => handleClassAssignmentChange(index, 'subject', e.target.value)}
-                         placeholder="Enter Subject"
-                         className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                       />
-                      {assignmentErrors[index] && assignmentErrors[index].subject && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].subject}</p>)}
-                     </div>
 
                                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div className="space-y-2">
