@@ -10,6 +10,7 @@ import StudentPage from './pages/StudentPage.jsx';
 import TeacherPage from './pages/TeacherPage.jsx';
 import TherapistPage from './pages/TherapistPage.jsx';
 import TeacherDashboard from './pages/TeacherDashboard.jsx';
+import TherapistDashboard from './pages/TherapistDashboard.jsx';
 import AddUser from './pages/AddUser.jsx';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/headmaster" element={<HeadMaster />} />
           <Route path="/teacher" element={<TeacherDashboard />} />
+          <Route path="/therapist" element={<TherapistDashboard />} />
           <Route path="/add-teacher" element={<AddTeacher />} />
           <Route path="/add-therapist" element={<AddTherapist />} />
           <Route path="/add-student" element={<AddStudent />} />

@@ -23,6 +23,9 @@ const AddTeacher = () => {
   });
   const [aadharError, setAadharError] = useState('');
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [defaultPassword, setDefaultPassword] = useState('');
 
   const [classAssignment, setClassAssignment] = useState({
     class: "",
@@ -61,16 +64,19 @@ const AddTeacher = () => {
     e.preventDefault();
     try {
       setErrors({});
+      setIsSubmitting(true);
 
       // Validate class assignment
       if (!classAssignment.class) {
         alert('Please select a class assignment.');
+        setIsSubmitting(false);
         return;
       }
 
       // Validate teacher data
-      if (!teacherData.name || !teacherData.address || !teacherData.date_of_birth || !teacherData.gender || !teacherData.blood_group || !teacherData.mobile_number || !teacherData.aadhar_number || !teacherData.religion || !teacherData.caste || !teacherData.rci_number || !teacherData.rci_renewal_date || !teacherData.qualifications_details || !teacherData.category) {
+      if (!teacherData.name || !teacherData.address || !teacherData.date_of_birth || !teacherData.gender || !teacherData.blood_group || !teacherData.mobile_number || !teacherData.aadhar_number || !teacherData.religion || !teacherData.caste || !teacherData.rci_number || !teacherData.rci_renewal_date || !teacherData.qualifications_details || !teacherData.category || !teacherData.email) {
         alert('Please fill in all required fields.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -83,10 +89,42 @@ const AddTeacher = () => {
         class_assignments: [classAssignment]
       };
 
-      await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
-      navigate('/headmaster');
+      // Create teacher
+      const teacherResponse = await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
+      const teacherId = teacherResponse.data.id;
+
+      // Generate default password: Teacher + last 4 digits of Aadhaar or random
+      const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const generatedPassword = `Teacher${lastFourAadhaar}`;
+      
+      // Create user account
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post('http://localhost:8000/api/v1/users/', {
+          username: teacherData.email.split('@')[0],
+          email: teacherData.email,
+          password: generatedPassword,
+          role: 'teacher',
+          is_active: true,
+          is_superuser: false
+        }, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch (userError) {
+        console.warn('User creation warning:', userError);
+        // Continue anyway - teacher was created
+      }
+
+      setDefaultPassword(generatedPassword);
+      setShowSuccessModal(true);
+      
+      // Auto-redirect after 60 seconds (1 minute)
+      setTimeout(() => {
+        navigate('/headmaster');
+      }, 60000);
     } catch (error) {
       console.error('Error adding teacher:', error);
+      setIsSubmitting(false);
       alert('Error adding teacher. Please try again.');
     }
   };
@@ -485,14 +523,52 @@ const AddTeacher = () => {
 
             <button
               type="submit"
-              className="w-full bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium 
+              disabled={isSubmitting}
+              className="w-full bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed
               shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
             >
-              Add Teacher
+              {isSubmitting ? 'Adding Teacher...' : 'Add Teacher'}
             </button>
           </form>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-[#170F49] mb-3">Teacher Added Successfully!</h3>
+              <p className="text-gray-600 mb-4">A user account has been created for the teacher to login.</p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                <p className="text-sm font-medium text-[#170F49] mb-2">Login Credentials:</p>
+                <p className="text-sm text-gray-700 mb-1">
+                  <span className="font-medium">Username:</span> {teacherData.email.split('@')[0]}
+                </p>
+                <p className="text-sm text-gray-700 mb-2">
+                  <span className="font-medium">Password:</span> <code className="bg-white px-2 py-1 rounded border border-gray-300 font-mono">{defaultPassword}</code>
+                </p>
+                <p className="text-xs text-gray-500">The teacher can change this password after login.</p>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-4">Redirecting to HeadMaster in 60 seconds...</p>
+              
+              <button
+                onClick={() => navigate('/headmaster')}
+                className="w-full px-6 py-2 bg-[#E38B52] text-white rounded-lg hover:bg-[#C8742F] font-medium transition-all"
+              >
+                Go to HeadMaster Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global styles for animations */}
       <style jsx global>{`

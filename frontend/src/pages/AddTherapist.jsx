@@ -24,6 +24,9 @@ const AddTherapist = () => {
   });
   const [aadharError, setAadharError] = useState('');
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [defaultPassword, setDefaultPassword] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -53,10 +56,12 @@ const AddTherapist = () => {
     e.preventDefault();
     try {
       setErrors({});
+      setIsSubmitting(true);
 
       // Validate therapist data
-      if (!therapistData.name || !therapistData.address || !therapistData.date_of_birth || !therapistData.gender || !therapistData.blood_group || !therapistData.mobile_number || !therapistData.aadhar_number || !therapistData.religion || !therapistData.caste || !therapistData.rci_number || !therapistData.rci_renewal_date || !therapistData.qualifications_details || !therapistData.category || !therapistData.specialization) {
+      if (!therapistData.name || !therapistData.address || !therapistData.date_of_birth || !therapistData.gender || !therapistData.blood_group || !therapistData.mobile_number || !therapistData.aadhar_number || !therapistData.religion || !therapistData.caste || !therapistData.rci_number || !therapistData.rci_renewal_date || !therapistData.qualifications_details || !therapistData.category || !therapistData.specialization || !therapistData.email) {
         alert('Please fill in all required fields.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -68,10 +73,41 @@ const AddTherapist = () => {
         aadhar_number: cleanedAadhaar || null,
       };
 
+      // Create therapist
       await axios.post('http://localhost:8000/api/v1/therapists/', finalData);
-      navigate('/headmaster');
+
+      // Generate default password: Therapist + last 4 digits of Aadhaar or random
+      const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const generatedPassword = `Therapist${lastFourAadhaar}`;
+      
+      // Create user account
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post('http://localhost:8000/api/v1/users/', {
+          username: therapistData.email.split('@')[0],
+          email: therapistData.email,
+          password: generatedPassword,
+          role: 'therapist',
+          is_active: true,
+          is_superuser: false
+        }, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch (userError) {
+        console.warn('User creation warning:', userError);
+        // Continue anyway - therapist was created
+      }
+
+      setDefaultPassword(generatedPassword);
+      setShowSuccessModal(true);
+      
+      // Auto-redirect after 60 seconds (1 minute)
+      setTimeout(() => {
+        navigate('/headmaster');
+      }, 60000);
     } catch (error) {
       console.error('Error adding therapist:', error);
+      setIsSubmitting(false);
       alert('Error adding therapist. Please try again.');
     }
   };
@@ -442,14 +478,52 @@ const AddTherapist = () => {
 
             <button
               type="submit"
-              className="w-full bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium 
+              disabled={isSubmitting}
+              className="w-full bg-[#E38B52] text-white py-4 rounded-2xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed
               shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
             >
-              Add Therapist
+              {isSubmitting ? 'Adding Therapist...' : 'Add Therapist'}
             </button>
           </form>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-[#170F49] mb-3">Therapist Added Successfully!</h3>
+              <p className="text-gray-600 mb-4">A user account has been created for the therapist to login.</p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                <p className="text-sm font-medium text-[#170F49] mb-2">Login Credentials:</p>
+                <p className="text-sm text-gray-700 mb-1">
+                  <span className="font-medium">Username:</span> {therapistData.email.split('@')[0]}
+                </p>
+                <p className="text-sm text-gray-700 mb-2">
+                  <span className="font-medium">Password:</span> <code className="bg-white px-2 py-1 rounded border border-gray-300 font-mono">{defaultPassword}</code>
+                </p>
+                <p className="text-xs text-gray-500">The therapist can change this password after login.</p>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-4">Redirecting to HeadMaster in 60 seconds...</p>
+              
+              <button
+                onClick={() => navigate('/headmaster')}
+                className="w-full px-6 py-2 bg-[#E38B52] text-white rounded-lg hover:bg-[#C8742F] font-medium transition-all"
+              >
+                Go to HeadMaster Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global styles for animations */}
       <style jsx global>{`

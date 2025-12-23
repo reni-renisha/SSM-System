@@ -36,6 +36,8 @@ const LoginPage = () => {
           navigate("/headmaster");
         } else if (role === "teacher") {
           navigate("/teacher");
+        } else if (role === "therapist") {
+          navigate("/therapist");
         } else {
           navigate("/"); // fallback, or you can show an error
         }

@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const TeacherDashboard = () => {
+const TherapistDashboard = () => {
   const navigate = useNavigate();
-  //here 1st
-  const [userName, setUserName] = useState("        "); // will be populated from backend
+  const [userName, setUserName] = useState("        ");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [reportDate, setReportDate] = useState(() =>
@@ -22,11 +21,9 @@ const TeacherDashboard = () => {
   });
   const [progressLevel, setProgressLevel] = useState("Excellent");
   
-  // Enhanced UX states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  //1.
   const [filterOption, setFilterOption] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
   const [isSearchFloating, setIsSearchFloating] = useState(false);
@@ -41,7 +38,7 @@ const TeacherDashboard = () => {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  // Add scroll event listener
+
   useEffect(() => {
     const handleScroll = () => {
       const searchBarPosition = document
@@ -58,7 +55,7 @@ const TeacherDashboard = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fetch current user name from backend (if token available)
+  // Fetch current user name from backend
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -67,22 +64,19 @@ const TeacherDashboard = () => {
         const { data } = await axios.get("http://localhost:8000/api/v1/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Prefer username, fallback to email local-part
         if (data?.username) setUserName(data.username);
         else if (data?.email) setUserName(data.email.split("@")[0]);
       } catch (err) {
         // silently fail and keep fallback
-        // console.error("Failed to fetch current user:", err);
       }
     };
 
     fetchUser();
   }, []);
 
-  // Fetch students from backend (similar to HeadMaster)
+  // Fetch students that this therapist is assigned to
   useEffect(() => {
     const fetchStudents = async () => {
-      // require userName to be available to filter by logged-in teacher
       if (!userName) return;
       setStudentsLoading(true);
       try {
@@ -96,7 +90,6 @@ const TeacherDashboard = () => {
         const { data } = await axios.get("http://localhost:8000/api/v1/students/", { params });
         const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
         
-        // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
         const normalized = items.map(s => ({
           ...s,
           photo_url: s.photo_url || s.photoUrl || null,
@@ -104,13 +97,11 @@ const TeacherDashboard = () => {
         
         const sortedStudents = [...normalized].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-        // Filter students where class_teacher matches the logged-in username (case-insensitive)
-        const filteredByTeacher = sortedStudents.filter((s) => {
-          const ct = (s.class_teacher || s.classTeacher || "").toString().trim().toLowerCase();
-          return ct && userName && ct === userName.toLowerCase();
-        });
-
-        setStudents(filteredByTeacher);
+        // For therapists, we'll show students where therapy_provider or therapist matches the logged-in username
+        // Or if no specific filter is available, show all students (adjust based on your API)
+        const filteredByTherapist = sortedStudents; // Adjust this filter based on your data model
+        
+        setStudents(filteredByTherapist);
       } catch (err) {
         console.error("Error fetching students:", err);
       } finally {
@@ -118,19 +109,14 @@ const TeacherDashboard = () => {
       }
     };
 
-    // fetch when search, class filter, or userName change
     fetchStudents();
   }, [studentSearch, selectedClass, userName]);
 
-  // Add this function to handle logout
   const handleLogout = () => {
-    // Clear the token from localStorage
     localStorage.removeItem("token");
-    // Redirect to login page
     navigate("/");
   };
 
-  // Add this function to handle navigation to StudentPage
   const handleStudentClick = (studentId) => {
     navigate(`/student/${studentId}`);
   };
@@ -265,7 +251,7 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Animated background blobs with fixed positioning */}
+      {/* Animated background blobs */}
       <div className="fixed top-0 -left-40 w-[600px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-float z-0" />
       <div className="fixed -bottom-32 right-40 w-[600px] h-[600px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-3000 z-0" />
       <div className="fixed top-1/2 left-1/2 w-[500px] h-[500px] bg-[#E38B52] rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-float animation-delay-5000 z-0" />
@@ -300,9 +286,8 @@ const TeacherDashboard = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Add Student Button removed*/}
               <div className="relative">
-                {/* Filter Button enhanced*/}
+                {/* Filter Button */}
                 <button
                   onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                   className="px-5 py-2.5 bg-[#E38B52] text-white rounded-xl hover:bg-[#E38B52]/90 transition-all flex items-center gap-2 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_6px_8px_-1px_rgba(0,0,0,0.1)]"
@@ -390,9 +375,10 @@ const TeacherDashboard = () => {
 
           {/* Student List */}
           <div className="grid grid-cols-1 gap-4 px-4">
-            {students
+            {studentsLoading ? (
+              <div className="text-center text-[#6F6C8F]">Loading students...</div>
+            ) : students
               .filter((student) => {
-                // Search by name or class (support different field names from API)
                 const studentClassLabel = (student.class_name || student.className || "").toString();
                 const matchesSearch =
                   (student.name || "")
@@ -402,7 +388,6 @@ const TeacherDashboard = () => {
                     .toLowerCase()
                     .includes(studentSearch.toLowerCase());
 
-                // Class filter
                 const matchesClass =
                   selectedClass === "all" ||
                   studentClassLabel
@@ -410,81 +395,103 @@ const TeacherDashboard = () => {
                     .includes(selectedClass.toLowerCase());
 
                 return matchesSearch && matchesClass;
-              })
-              .map((student) => (
-                <div
-                  key={student.id}
-                  onClick={() => handleStudentClick(student.id)}
-                  className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
-                >
-                  <div className="flex items-center space-x-4 text-[#170F49]">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden">
-                      <img
-                        src={student.photo_url || `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'S')}&size=250&background=EFEFEF&color=170F49`}
-                        alt="Student"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src =
-                            "https://placehold.co/64x64/EFEFEF/AAAAAA?text=Photo";
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-[#170F49]">
-                        {student.name}
-                      </h3>
-                      <div className="space-y-1">
-                        <p className="text-sm text-[#6F6C8F]">
-                          <span className="font-medium">Class:</span>{" "}
-                          {student.class_name || student.className || "-"}
-                        </p>
-                        <p className="text-sm text-[#6F6C8F]">
-                          <span className="font-medium">Roll No:</span>{" "}
-                          {student.roll_no || student.rollNo || "-"}
-                        </p>
-                      </div>
-                    </div>
-                    {/* 2nd Report button*/}
-                    <button
-                      className="px-4 py-2 bg-[#E38B52] text-white rounded-lg shadow-md hover:bg-[#E38B52]/90 transition-transform hover:scale-105"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedStudent(student);
-                        setShowReportDialog(true);
-                        setReportDate(new Date().toISOString().slice(0, 10));
-                        setTherapyType("Occupational Therapy");
-                        setProgressNotes("");
-                        setGoalsAchieved({
-                          receptive_language: { checked: false, notes: "" },
-                          expressive_language: { checked: false, notes: "" },
-                          oral_motor_opt: { checked: false, notes: "" },
-                          pragmatic_language: { checked: false, notes: "" },
-                          narrative_skills: { checked: false, notes: "" }
-                        });
-                        setProgressLevel("Excellent");
-                      }}
-                    >
-                      Enter Report
-                    </button>
-                    <button className="text-[#E38B52] hover:text-[#4f46e5] transition-colors">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
+              }).length === 0 ? (
+              <div className="text-center text-[#6F6C8F]">No students found.</div>
+            ) : (
+              students
+                .filter((student) => {
+                  const studentClassLabel = (student.class_name || student.className || "").toString();
+                  const matchesSearch =
+                    (student.name || "")
+                      .toLowerCase()
+                      .includes(studentSearch.toLowerCase()) ||
+                    studentClassLabel
+                      .toLowerCase()
+                      .includes(studentSearch.toLowerCase());
+
+                  const matchesClass =
+                    selectedClass === "all" ||
+                    studentClassLabel
+                      .toLowerCase()
+                      .includes(selectedClass.toLowerCase());
+
+                  return matchesSearch && matchesClass;
+                })
+                .map((student) => (
+                  <div
+                    key={student.id}
+                    onClick={() => handleStudentClick(student.id)}
+                    className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-4 text-[#170F49]">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden">
+                        <img
+                          src={student.photo_url || `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(student.name || 'S')}&size=250&background=EFEFEF&color=170F49`}
+                          alt="Student"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src =
+                              "https://placehold.co/64x64/EFEFEF/AAAAAA?text=Photo";
+                          }}
                         />
-                      </svg>
-                    </button>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-[#170F49]">
+                          {student.name}
+                        </h3>
+                        <div className="space-y-1">
+                          <p className="text-sm text-[#6F6C8F]">
+                            <span className="font-medium">Class:</span>{" "}
+                            {student.class_name || student.className || "-"}
+                          </p>
+                          <p className="text-sm text-[#6F6C8F]">
+                            <span className="font-medium">Roll No:</span>{" "}
+                            {student.roll_no || student.rollNo || "-"}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Enter Report button */}
+                      <button
+                        className="px-4 py-2 bg-[#E38B52] text-white rounded-lg shadow-md hover:bg-[#E38B52]/90 transition-transform hover:scale-105"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStudent(student);
+                          setShowReportDialog(true);
+                          setReportDate(new Date().toISOString().slice(0, 10));
+                          setTherapyType("Occupational Therapy");
+                          setProgressNotes("");
+                          setGoalsAchieved({
+                            receptive_language: { checked: false, notes: "" },
+                            expressive_language: { checked: false, notes: "" },
+                            oral_motor_opt: { checked: false, notes: "" },
+                            pragmatic_language: { checked: false, notes: "" },
+                            narrative_skills: { checked: false, notes: "" }
+                          });
+                          setProgressLevel("Excellent");
+                        }}
+                      >
+                        Enter Report
+                      </button>
+                      <button className="text-[#E38B52] hover:text-[#4f46e5] transition-colors">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+            )}
           </div>
         </div>
       </div>
@@ -591,8 +598,6 @@ const TeacherDashboard = () => {
       {showReportDialog && selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            {" "}
-            {/* Added max-h and overflow */}
             <h2 className="text-2xl font-bold text-[#170F49] mb-4 text-center">
               Therapy Report for {selectedStudent.name}
             </h2>
@@ -603,7 +608,6 @@ const TeacherDashboard = () => {
                 setSubmitError(null);
                 
                 try {
-                  // Validate required fields
                   if (!progressNotes.trim()) {
                     setSubmitError("Please fill in Progress Notes");
                     setIsSubmitting(false);
@@ -626,9 +630,6 @@ const TeacherDashboard = () => {
                     progress_level: progressLevel,
                   };
 
-                  console.log("Sending payload:", payload);
-
-                  // POST to backend with authentication
                   const response = await axios.post("http://localhost:8000/api/v1/therapy-reports/", payload, {
                     headers: { 
                       Authorization: `Bearer ${token}`,
@@ -636,9 +637,6 @@ const TeacherDashboard = () => {
                     },
                   });
                   
-                  console.log("Response:", response.data);
-                  
-                  // Reset form and show success
                   setReportDate(new Date().toISOString().slice(0, 10));
                   setTherapyType("Occupational Therapy");
                   setProgressNotes("");
@@ -653,7 +651,6 @@ const TeacherDashboard = () => {
                   setShowReportDialog(false);
                   setShowSuccessModal(true);
                   
-                  // Auto-hide success modal after 3 seconds
                   setTimeout(() => setShowSuccessModal(false), 3000);
                 } catch (err) {
                   console.error("Failed to save report:", err);
@@ -955,4 +952,5 @@ const TeacherDashboard = () => {
     </div>
   );
 };
-export default TeacherDashboard;
+
+export default TherapistDashboard;

@@ -40,3 +40,19 @@ def login(
         "token_type": "bearer",
         "role": user.role
     } 
+
+@router.post("/change-password")
+def change_password(
+    password_in: schemas.PasswordChange,
+    db: Session = Depends(deps.get_db),
+    current_user = Depends(deps.get_current_active_user),
+) -> Any:
+    """Change the password for the current authenticated user"""
+    if not security.verify_password(password_in.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password",
+        )
+
+    crud.user.update(db, db_obj=current_user, obj_in={"password": password_in.new_password})
+    return {"msg": "Password updated successfully"}
