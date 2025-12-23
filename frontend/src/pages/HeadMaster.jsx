@@ -56,8 +56,11 @@ const HeadMaster = () => {
   const [teacherToDelete, setTeacherToDelete] = useState(null);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
+  const [therapistSearch, setTherapistSearch] = useState("");
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
+  const [therapists, setTherapists] = useState([]);
+  const [therapistsLoading, setTherapistsLoading] = useState(false);
 
   // Add scroll event listener
   useEffect(() => {
@@ -92,6 +95,29 @@ const HeadMaster = () => {
 
     if (activeTab === 'teachers') {
       fetchTeachers();
+    }
+  }, [activeTab]);
+
+  // Fetch therapists (teachers who provide therapy)
+  useEffect(() => {
+    const fetchTherapists = async () => {
+      setTherapistsLoading(true);
+      try {
+        const response = await axios.get('http://localhost:8000/api/v1/therapists/');
+        // Sort therapists alphabetically by name
+        const sortedTherapists = response.data.sort((a, b) => 
+          a.name.localeCompare(b.name)
+        );
+        setTherapists(sortedTherapists);
+      } catch (error) {
+        console.error('Error fetching therapists:', error);
+      } finally {
+        setTherapistsLoading(false);
+      }
+    };
+
+    if (activeTab === 'therapists') {
+      fetchTherapists();
     }
   }, [activeTab]);
 
@@ -147,6 +173,12 @@ const HeadMaster = () => {
     navigate('/add-teacher');
   };
 
+  // Add this function to handle navigation to AddTherapist
+  const handleAddTherapist = () => {
+    // Don't change tab, maintain current state
+    navigate('/add-therapist');
+  };
+
   // Add this function to handle navigation to StudentPage
   const handleStudentClick = (studentId) => {
     // Don't change tab, maintain current state
@@ -157,6 +189,12 @@ const HeadMaster = () => {
   const handleTeacherClick = (teacherId) => {
     // Don't change tab, maintain current state
     navigate(`/teacher/${teacherId}`);
+  };
+
+  // Add this function to handle navigation to TherapistPage
+  const handleTherapistClick = (therapistId) => {
+    // Don't change tab, maintain current state
+    navigate(`/therapist/${therapistId}`);
   };
 
   // Add this function to handle navigation to AddUser
@@ -201,11 +239,48 @@ const HeadMaster = () => {
   // 1. Add state for student delete modal
   const [showStudentDeleteConfirm, setShowStudentDeleteConfirm] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState(null);
+  
+  // Add state for therapist delete modal
+  const [showTherapistDeleteConfirm, setShowTherapistDeleteConfirm] = useState(false);
+  const [therapistToDelete, setTherapistToDelete] = useState(null);
 
   // 2. Add handler functions
   const handleDeleteStudent = (studentId, studentName) => {
     setStudentToDelete({ id: studentId, name: studentName });
     setShowStudentDeleteConfirm(true);
+  };
+  
+  // Add therapist delete handler
+  const handleDeleteTherapist = (therapistId, therapistName) => {
+    setTherapistToDelete({ id: therapistId, name: therapistName });
+    setShowTherapistDeleteConfirm(true);
+  };
+  
+  // Confirm therapist deletion
+  const confirmDeleteTherapist = async () => {
+    if (!therapistToDelete) return;
+    
+    try {
+      const response = await axios.delete(`http://localhost:8000/api/v1/therapists/${therapistToDelete.id}`);
+      
+      if (response.status === 200 || response.status === 204) {
+        // Remove the therapist from the local state
+        setTherapists(therapists.filter(therapist => therapist.id !== therapistToDelete.id));
+        alert(`${therapistToDelete.name} has been successfully deleted.`);
+      }
+    } catch (error) {
+      console.error('Error deleting therapist:', error);
+      alert('Failed to delete therapist. Please try again.');
+    } finally {
+      setShowTherapistDeleteConfirm(false);
+      setTherapistToDelete(null);
+    }
+  };
+  
+  // Cancel therapist deletion
+  const cancelDeleteTherapist = () => {
+    setShowTherapistDeleteConfirm(false);
+    setTherapistToDelete(null);
   };
  const confirmDeleteStudent = async () => {
     if (!studentToDelete) return;
@@ -298,7 +373,7 @@ const HeadMaster = () => {
             <div className="relative w-full md:w-[443px] mx-auto">
               <input
                 type="text"
-                placeholder={`Search ${activeTab === "students" ? "students" : "teachers"}...`}
+                placeholder={`Search ${activeTab === "students" ? "students" : activeTab === "teachers" ? "teachers" : "therapists"}...`}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border bg-[#FAF9F6] shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
               />
               <svg
@@ -332,8 +407,8 @@ const HeadMaster = () => {
             <div
               className="absolute h-[calc(100%-8px)] top-[4px] transition-all duration-300 ease-in-out rounded-xl bg-[#E38B52] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
               style={{
-                left: activeTab === "students" ? "4px" : "50%",
-                width: "calc(50% - 6px)",
+                left: activeTab === "students" ? "4px" : activeTab === "teachers" ? "calc(33.33% + 2px)" : "calc(66.66% + 0px)",
+                width: "calc(33.33% - 6px)",
                 background: 'linear-gradient(135deg, #E38B52 0%, #E38B52 100%)',
               }}
             >
@@ -373,6 +448,21 @@ const HeadMaster = () => {
               }`}
             >
               Teachers List
+            </button>
+            
+            {/* Therapists Tab */}
+            <button
+              onClick={() => {
+                setActiveTab("therapists");
+                localStorage.setItem('headmistressActiveTab', "therapists");
+              }}
+              className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 ${
+                activeTab === "therapists"
+                  ? "text-white scale-105"
+                  : "text-[#170F49] hover:text-[#E38B52]"
+              }`}
+            >
+              Therapists List
             </button>
           </div>
         </div>
@@ -554,7 +644,7 @@ const HeadMaster = () => {
                 ))}
               </div>
             </>
-          ) : (
+          ) : activeTab === "teachers" ? (
             <>
               {/* Teachers List Content */}
               {/* Filter and Search Section */}
@@ -669,7 +759,132 @@ const HeadMaster = () => {
                   )))}
               </div>
             </>
-          )}
+          ) : activeTab === "therapists" ? (
+            <>
+              {/* Therapists List Content */}
+              {/* Filter and Search Section */}
+              <div className="flex justify-between items-center mb-8 px-4">
+                {/* Search Bar */}
+                <div id="search-container" className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search therapists..."
+                    className="w-[443px] pl-10 pr-4 py-3 rounded-xl border bg-[#FAF9F6] shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300 placeholder:text-gray-400 hover:placeholder:text-gray-600"
+                    value={therapistSearch}
+                    onChange={e => setTherapistSearch(e.target.value)}
+                  />
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+
+                {/* Add Therapist Button */}
+                <button 
+                  onClick={handleAddTherapist}
+                  className="px-6 py-3 bg-[#E38B52] text-white rounded-xl hover:bg-[#E38B52]/90 transition-all duration-200 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)] hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5" 
+                    viewBox="0 0 20 20" 
+                    fill="currentColor"
+                  >
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Add Therapist
+                </button>
+              </div>
+
+              {/* Therapists List */}
+              <div className="grid grid-cols-1 gap-4 px-4">
+                {therapistsLoading && (
+                  <div className="text-center text-[#6F6C8F]">Loading therapists...</div>
+                )}
+                {!therapistsLoading && therapists.filter(therapist =>
+                  therapist.name.toLowerCase().includes(therapistSearch.toLowerCase()) ||
+                  (therapist.qualifications_details && therapist.qualifications_details.toLowerCase().includes(therapistSearch.toLowerCase())) ||
+                  (therapist.specialization && therapist.specialization.toLowerCase().includes(therapistSearch.toLowerCase())) ||
+                  (therapist.mobile_number && therapist.mobile_number.includes(therapistSearch))
+                ).length === 0 ? (
+                  <div className="text-center text-[#6F6C8F]">No therapists found.</div>
+                ) : (
+                  therapists
+                    .filter(therapist =>
+                      therapist.name.toLowerCase().includes(therapistSearch.toLowerCase()) ||
+                      (therapist.qualifications_details && therapist.qualifications_details.toLowerCase().includes(therapistSearch.toLowerCase())) ||
+                      (therapist.specialization && therapist.specialization.toLowerCase().includes(therapistSearch.toLowerCase())) ||
+                      (therapist.mobile_number && therapist.mobile_number.includes(therapistSearch))
+                    )
+                    .map((therapist) => (
+                      <div 
+                        key={therapist.id}
+                        onClick={() => handleTherapistClick(therapist.id)}
+                        className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-4 text-[#170F49]">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden">
+                            <img 
+                              src={`https://eu.ui-avatars.com/api/?name=${therapist.name.replace(' ', '+')}&size=250`}
+                              alt="Therapist"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-[#170F49]">
+                              {therapist.name}
+                            </h3>
+                            <div className="space-y-1">
+                              <p className="text-sm text-[#6F6C8F]">
+                                <span className="font-medium">Mobile:</span> {therapist.mobile_number}
+                              </p>
+                              {therapist.specialization && (
+                                <p className="text-sm text-[#6F6C8F]">
+                                  <span className="font-medium">Specialization:</span> {therapist.specialization}
+                                </p>
+                              )}
+                              <p className="text-sm text-[#6F6C8F]">
+                                <span className="font-medium">Qualifications:</span> {therapist.qualifications_details}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={() => handleTherapistClick(therapist.id)}
+                              className="text-[#E38B52] hover:text-[#E38B52]/90 transition-colors p-2 rounded-lg hover:bg-[#E38B52]/10"
+                              title="View Therapist Details"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTherapist(therapist.id, therapist.name);
+                              }}
+                              className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-[rgba(227,139,82,0.2)]"
+                              title="Delete Therapist"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                  )))}
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -869,6 +1084,51 @@ const HeadMaster = () => {
           </div>
         </div>
       )}
+      
+      {/* Custom Delete Confirmation Modal for Therapists */}
+      {showTherapistDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#FAF9F6] rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
+            <div className="text-center">
+              {/* Warning Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Delete Therapist
+              </h3>
+              
+              {/* Message */}
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold text-[#170F49]">{therapistToDelete?.name}</span>? 
+                <br />
+                <span className="text-red-600 font-medium">This action cannot be undone.</span>
+              </p>
+              
+              {/* Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelDeleteTherapist}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteTherapist}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors duration-200 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {notification.message && (
         <div 
           className={`fixed top-8 right-8 z-50 text-white px-6 py-3 rounded-xl shadow-lg transition-transform transform-gpu animate-fade-in-down
