@@ -23,17 +23,11 @@ const AddTeacher = () => {
   });
   const [aadharError, setAadharError] = useState('');
   const [errors, setErrors] = useState({});
-  const [assignmentErrors, setAssignmentErrors] = useState([]);
 
-  const [classAssignments, setClassAssignments] = useState([
-    {
-      class: "",
-      subject: "",
-      days: [],
-      startTime: "",
-      endTime: "",
-    }
-  ]);
+  const [classAssignment, setClassAssignment] = useState({
+    class: "",
+    year: new Date().getFullYear().toString()
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -59,77 +53,25 @@ const AddTeacher = () => {
     setTeacherData({ ...teacherData, [name]: value });
   };
 
-  const handleClassAssignmentChange = (index, field, value) => {
-    const updatedAssignments = [...classAssignments];
-    updatedAssignments[index][field] = value;
-    setClassAssignments(updatedAssignments);
-  };
-
-  const addClassAssignment = () => {
-    setClassAssignments([
-      ...classAssignments,
-      {
-        class: "",
-        subject: "",
-        days: [],
-        startTime: "",
-        endTime: "",
-      }
-    ]);
-  };
-
-  const removeClassAssignment = (index) => {
-    if (classAssignments.length > 1) {
-      const updatedAssignments = classAssignments.filter((_, i) => i !== index);
-      setClassAssignments(updatedAssignments);
-    }
-  };
-
-  const handleDayToggle = (assignmentIndex, day) => {
-    const updatedAssignments = [...classAssignments];
-    const currentDays = updatedAssignments[assignmentIndex].days;
-    
-    if (currentDays.includes(day)) {
-      // Remove day if already selected
-      updatedAssignments[assignmentIndex].days = currentDays.filter(d => d !== day);
-    } else {
-      // Add day if not selected
-      updatedAssignments[assignmentIndex].days = [...currentDays, day];
-    }
-    
-    setClassAssignments(updatedAssignments);
+  const handleClassAssignmentChange = (field, value) => {
+    setClassAssignment({ ...classAssignment, [field]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setErrors({});
-      setAssignmentErrors([]);
 
-      // Run form + assignments validation
-      const { valid, errors: vErrors, assignmentErrors: aErrors } = validateTeacher(teacherData, classAssignments);
-      if (!valid) {
-        setErrors(vErrors);
-        setAssignmentErrors(aErrors || []);
-        // focus first field with error
-        const firstKey = Object.keys(vErrors)[0];
-        if (firstKey) {
-          const el = document.getElementById(firstKey);
-          if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-          alert(vErrors[firstKey]);
-          return;
-        }
-        // if no top-level error, check assignment errors
-        for (let i = 0; i < (aErrors||[]).length; i++) {
-          const aErr = aErrors[i];
-          if (aErr && Object.keys(aErr).length > 0) {
-            // try to focus the class field of this assignment
-            const el = document.getElementById(`assignment_${i}_class`);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
-            alert(Object.values(aErr)[0]);
-            return;
-          }
-        }
+      // Validate class assignment
+      if (!classAssignment.class) {
+        alert('Please select a class assignment.');
+        return;
+      }
+
+      // Validate teacher data
+      if (!teacherData.name || !teacherData.address || !teacherData.date_of_birth || !teacherData.gender || !teacherData.blood_group || !teacherData.mobile_number || !teacherData.aadhar_number || !teacherData.religion || !teacherData.caste || !teacherData.rci_number || !teacherData.rci_renewal_date || !teacherData.qualifications_details || !teacherData.category) {
+        alert('Please fill in all required fields.');
+        return;
       }
 
       // Clean Aadhaar before sending (remove spaces)
@@ -138,7 +80,7 @@ const AddTeacher = () => {
       const teacherDataWithAssignments = {
         ...teacherData,
         aadhar_number: cleanedAadhaar || null,
-        class_assignments: classAssignments
+        class_assignments: [classAssignment]
       };
 
       await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
@@ -486,122 +428,59 @@ const AddTeacher = () => {
             </div>
 
             {/* Class Assignment Section */}
-            <div className="space-y-4 w-full">
-              <div className="flex items-center justify-between">
-                <label className="block text-lg font-semibold text-[#170F49] ml-4">
-                  Class Assignments
-                </label>
-                <button
-                  type="button"
-                  onClick={addClassAssignment}
-                  className="px-4 py-2 bg-[#E38B52] text-white rounded-xl hover:bg-[#C8742F] hover:-translate-y-1 transition-all duration-200 font-medium duration-200 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Add Class
-                </button>
-              </div>
+            <div className="space-y-6 w-full">
+              <h2 className="text-xl font-semibold text-[#170F49] border-b pb-2">
+                Class Assignment
+              </h2>
 
-              {classAssignments.map((assignment, index) => (
-                <div key={index} className="bg-white/50 rounded-2xl p-6 border border-white/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-[#170F49]">Class Assignment {index + 1}</h3>
-                    {classAssignments.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeClassAssignment(index)}
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-6 md:col-span-2">
-                      <label className="block text-sm font-medium text-[#170F49] ml-2">
-                        Class
-                      </label>
-                      <select
-                        id={`assignment_${index}_class`}
-                        value={assignment.class}
-                        onChange={(e) => handleClassAssignmentChange(index, 'class', e.target.value)}
-                        className={selectClassName}
-                      >
-                        <option value="">Select Class</option>
-                        <option value="PrePrimary">PrePrimary</option>
-                        <option value="Primary 1">Primary 1</option>
-                        <option value="Primary 2">Primary 2</option>
-                        <option value="Secondary">Secondary</option>
-                        <option value="Pre vocational 1">Pre vocational 1</option>
-                        <option value="Pre vocational 2">Pre vocational 2</option>
-                        <option value="Care group below 18 years">Care group below 18 years</option>
-                        <option value="Care group Above 18 years">Care group Above 18 years</option>
-                        <option value="Vocational 18-35 years">Vocational 18-35 years</option>
-                        </select>
-                       {assignmentErrors[index] && assignmentErrors[index].class && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].class}</p>)}
-                      </div>
-
-                                         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div className="space-y-2">
-                         <label className="block text-sm font-medium text-[#170F49] ml-2">
-                           Days
-                         </label>
-                         <div className="bg-white rounded-2xl border shadow-lg p-3">
-                           <div className="grid grid-cols-1 gap-2">
-                             {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
-                               <label key={day} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors">
-                                 <input
-                                   type="checkbox"
-                                   checked={assignment.days.includes(day)}
-                                   onChange={() => handleDayToggle(index, day)}
-                                   className="w-4 h-4 text-[#E38B52] bg-white border-gray-300 rounded focus:ring-[#E38B52] focus:ring-2"
-                                 />
-                                 <span className="text-sm text-[#6F6C90]">{day}</span>
-                               </label>
-                             ))}
-                             {assignmentErrors[index] && assignmentErrors[index].days && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].days}</p>)}
-                           </div>
-                         </div>
-                       </div>
-
-                       <div className="space-y-4">
-                         <div className="space-y-2">
-                           <label className="block text-sm font-medium text-[#170F49] ml-2">
-                             Start Time
-                           </label>
-                           <input
-                             id={`assignment_${index}_startTime`}
-                             type="time"
-                             value={assignment.startTime}
-                             onChange={(e) => handleClassAssignmentChange(index, 'startTime', e.target.value)}
-                             className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
-                           />
-                          {assignmentErrors[index] && assignmentErrors[index].startTime && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].startTime}</p>)}
-                         </div>
-
-                         <div className="space-y-2">
-                           <label className="block text-sm font-medium text-[#170F49] ml-2">
-                             End Time
-                           </label>
-                          <input
-                            id={`assignment_${index}_endTime`}
-                            type="time"
-                            value={assignment.endTime}
-                            onChange={(e) => handleClassAssignmentChange(index, 'endTime', e.target.value)}
-                            className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all text-[#6F6C90]"
-                          />
-                          {assignmentErrors[index] && assignmentErrors[index].endTime && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].endTime}</p>)}
-                          {assignmentErrors[index] && assignmentErrors[index].timeRange && (<p className="text-red-500 text-xs mt-1">{assignmentErrors[index].timeRange}</p>)}
-                         </div>
-                       </div>
-                     </div>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-[#170F49] ml-4">
+                    Class <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="class_assignment_class"
+                    value={classAssignment.class}
+                    onChange={(e) => handleClassAssignmentChange('class', e.target.value)}
+                    className={selectClassName}
+                    required
+                  >
+                    <option value="">Select Class</option>
+                    <option value="PrePrimary">PrePrimary</option>
+                    <option value="Primary 1">Primary 1</option>
+                    <option value="Primary 2">Primary 2</option>
+                    <option value="Secondary">Secondary</option>
+                    <option value="Pre vocational 1">Pre vocational 1</option>
+                    <option value="Pre vocational 2">Pre vocational 2</option>
+                    <option value="Care group below 18 years">Care group below 18 years</option>
+                    <option value="Care group Above 18 years">Care group Above 18 years</option>
+                    <option value="Vocational 18-35 years">Vocational 18-35 years</option>
+                  </select>
                 </div>
-              ))}
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-[#170F49] ml-4">
+                    Year <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="class_assignment_year"
+                    value={classAssignment.year}
+                    onChange={(e) => handleClassAssignmentChange('year', e.target.value)}
+                    className={selectClassName}
+                    required
+                  >
+                    <option value={new Date().getFullYear().toString()}>{new Date().getFullYear()}</option>
+                    {[...Array(5)].map((_, i) => {
+                      const year = new Date().getFullYear() - i - 1;
+                      return <option key={year} value={year.toString()}>{year}</option>
+                    })}
+                    {[...Array(5)].map((_, i) => {
+                      const year = new Date().getFullYear() + i + 1;
+                      return <option key={year} value={year.toString()}>{year}</option>
+                    })}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <button
