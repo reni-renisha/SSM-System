@@ -1701,7 +1701,7 @@ const handleGenerateSummaryReport = () => {
 
         {/* Tabs */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-2 inline-flex gap-2 shadow-lg relative w-[560px]">
+          <div className="bg-white/30 backdrop-blur-xl rounded-2xl p-2 inline-flex gap-2 shadow-lg relative w-[925px]">
             {/* Active Tab Background */}
             <div
               className="absolute h-[calc(100%-8px)] top-[4px] transition-all duration-300 ease-in-out rounded-xl bg-[#E38B52] shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),inset_0_4px_8px_rgba(255,255,255,0.2)]"
@@ -1711,7 +1711,11 @@ const handleGenerateSummaryReport = () => {
                     ? "4px"
                     : activeTab === "case-record"
                     ? "188px"
-                    : "372px",
+                    : activeTab === "therapy-reports"
+                    ? "372px"
+                    : activeTab === "iep"
+                    ? "556px"
+                    : "740px",
                 width: "180px",
                 background: 'linear-gradient(135deg, #E38B52 0%, #E38B52 100%)',
               }}
@@ -1758,6 +1762,29 @@ const handleGenerateSummaryReport = () => {
               }`}
             >
               Therapy Reports
+            </button>
+            {/* IEP Tab */}
+            <button
+              onClick={() => setActiveTab("iep")}
+              className={`w-[180px] px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 text-center whitespace-nowrap ${
+                activeTab === "iep"
+                  ? "text-white"
+                  : "text-[#170F49] hover:text-[#E38B52]"
+              }`}
+            >
+              IEP
+            </button>
+            
+            {/* Special Education Tab */}
+            <button
+              onClick={() => setActiveTab("special-education")}
+              className={`w-[180px] px-6 py-3 rounded-xl font-medium transition-all duration-300 relative z-10 text-center whitespace-nowrap ${
+                activeTab === "special-education"
+                  ? "text-white"
+                  : "text-[#170F49] hover:text-[#E38B52]"
+              }`}
+            >
+              Special Education
             </button>
           </div>
         </div>
@@ -1862,6 +1889,14 @@ const handleGenerateSummaryReport = () => {
                               </svg>
                               Generating Report...
                             </>
+                          ) : activeTab === "special-education" ? (
+                            <div className="text-center text-[#170F49] text-xl font-semibold py-16">
+                              add content
+                            </div>
+                          ) : activeTab === "iep" ? (
+                            <div className="text-center text-[#170F49] text-xl font-semibold py-16">
+                              add content
+                            </div>
                           ) : (
                             <>
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2999,6 +3034,14 @@ const handleGenerateSummaryReport = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          ) : activeTab === "iep" ? (
+            <div className="text-center text-[#170F49] text-xl font-semibold py-16">
+              add content
+            </div>
+          ) : activeTab === "special-education" ? (
+            <div className="text-center text-[#170F49] text-xl font-semibold py-16">
+              add content
             </div>
           ) : (
             <div className="flex gap-6 items-start justify-center relative max-w-[1600px] mx-auto">
