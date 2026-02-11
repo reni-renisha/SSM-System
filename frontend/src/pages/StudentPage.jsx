@@ -702,6 +702,10 @@ const StudentPage = () => {
   const [translating, setTranslating] = useState(false);
   const [translatedSummary, setTranslatedSummary] = useState(null);
 
+  // Send to Parent state
+  const [sendingToParent, setSendingToParent] = useState(false);
+  const [sentToParent, setSentToParent] = useState(false);
+
   // IEP Report state
   const [iepData, setIepData] = useState({
     selectedMonth: "",
@@ -715,6 +719,47 @@ const StudentPage = () => {
     },
   });
   const [savingIep, setSavingIep] = useState(false);
+
+  // Handle sending AI summary to parent
+  const handleSendToParent = async () => {
+    if (!aiAnalysis?.summary) return;
+    setSendingToParent(true);
+    setSentToParent(false);
+    try {
+      const baseUrl =
+        process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+      const token = localStorage.getItem("token");
+      const studentId = student?.studentId || id;
+      const payload = {
+        student_id: studentId,
+        title: `Progress Summary - ${student?.name || studentId}`,
+        message: "A new AI-generated progress summary is available for your child.",
+        report_summary: translatedSummary || aiAnalysis.summary,
+        report_from_date: fromDate || null,
+        report_to_date: toDate || null,
+        therapy_type: selectedTherapyType || null,
+      };
+      const res = await fetch(`${baseUrl}/api/v1/notifications/send-report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to send report to parent");
+      }
+      setSentToParent(true);
+      setTimeout(() => setSentToParent(false), 4000);
+    } catch (err) {
+      console.error("Send to parent error:", err);
+      alert(err.message || "Failed to send report to parent");
+    } finally {
+      setSendingToParent(false);
+    }
+  };
 
   // Handle translation - always translates to Malayalam
   const handleTranslate = async () => {
@@ -4110,6 +4155,27 @@ const StudentPage = () => {
                                     />
                                   </svg>
                                   {translating ? "Translating..." : "Malayalam"}
+                                </button>
+                                <button
+                                  onClick={handleSendToParent}
+                                  disabled={sendingToParent || sentToParent}
+                                  className={`ml-2 px-3 py-2 border-2 text-sm rounded-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-60 disabled:cursor-not-allowed ${
+                                    sentToParent
+                                      ? "border-green-500 text-green-600 bg-green-50"
+                                      : "border-[#E38B52] text-[#E38B52] bg-white hover:bg-orange-50 active:bg-orange-100"
+                                  }`}
+                                  title="Send this summary to the parent portal"
+                                >
+                                  {sentToParent ? (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                  )}
+                                  {sendingToParent ? "Sending..." : sentToParent ? "Sent!" : "Send to Parent"}
                                 </button>
                               </>
                             )}
