@@ -13,6 +13,8 @@ const StudentViewPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [expandedReports, setExpandedReports] = useState({});
+  const [translatedReports, setTranslatedReports] = useState({});
+  const [translatingReports, setTranslatingReports] = useState({});
 
   useEffect(() => {
     fetchStudentData();
@@ -54,6 +56,61 @@ const StudentViewPage = () => {
       } catch (err) {
         console.error("Error marking notification as read:", err);
       }
+    }
+  };
+
+  const handleTranslateReport = async (reportId, summaryText) => {
+    if (!summaryText || summaryText.trim() === "") {
+      alert("No summary text to translate");
+      return;
+    }
+
+    try {
+      setTranslatingReports(prev => ({ ...prev, [reportId]: true }));
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+      const res = await fetch(`${baseUrl}/api/v1/translate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          text: summaryText,
+          target_language: "mal_Mlym",
+          source_language: "eng_Latn",
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `Translation failed: ${res.status}`
+        );
+      }
+
+      const data = await res.json();
+      setTranslatedReports(prev => ({
+        ...prev,
+        [reportId]: data.translated_text
+      }));
+    } catch (e) {
+      alert(`Translation failed: ${e.message}`);
+      setTranslatedReports(prev => {
+        const newState = { ...prev };
+        delete newState[reportId];
+        return newState;
+      });
+    } finally {
+      setTranslatingReports(prev => ({
+        ...prev,
+        [reportId]: false
+      }));
     }
   };
 
@@ -1339,8 +1396,62 @@ const StudentViewPage = () => {
                           </button>
                           {expandedReports[notification.id] && (
                             <div className="mt-2 p-4 bg-white rounded-xl border border-[#E38B52]/10">
-                              <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                                {notification.report_summary}
+                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                                <span className="text-xs font-semibold text-gray-600 uppercase">
+                                  {translatedReports[notification.id] ? 'Malayalam Translation' : 'English Summary'}
+                                </span>
+                                <div className="flex gap-2">
+                                  {translatedReports[notification.id] && (
+                                    <button
+                                      onClick={() => {
+                                        setTranslatedReports(prev => {
+                                          const newState = { ...prev };
+                                          delete newState[notification.id];
+                                          return newState;
+                                        });
+                                      }}
+                                      className="text-xs text-gray-500 hover:text-[#E38B52] underline transition-colors"
+                                    >
+                                      Show Original
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleTranslateReport(notification.id, notification.report_summary)}
+                                    disabled={translatingReports[notification.id]}
+                                    className="px-3 py-1 text-xs font-medium text-white bg-[#E38B52] rounded-lg hover:bg-[#D67A3F] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow-md"
+                                    title="Translate to Malayalam"
+                                  >
+                                    {translatingReports[notification.id] ? (
+                                      <>
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Translating...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none" />
+                                          <path d="M2 12h20" stroke="currentColor" strokeWidth="2" />
+                                          <path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="2" fill="none" />
+                                        </svg>
+                                        <span>മലയാളം</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                {translatingReports[notification.id] ? (
+                                  <div className="flex items-center gap-2 text-gray-500 py-4">
+                                    <div className="w-4 h-4 border-2 border-[#E38B52] border-t-transparent rounded-full animate-spin"></div>
+                                    Translating to Malayalam...
+                                  </div>
+                                ) : translatedReports[notification.id] ? (
+                                  <div className="text-base" style={{ fontFamily: 'system-ui, sans-serif', lineHeight: '1.8' }}>
+                                    {translatedReports[notification.id]}
+                                  </div>
+                                ) : (
+                                  notification.report_summary
+                                )}
                               </div>
                             </div>
                           )}
