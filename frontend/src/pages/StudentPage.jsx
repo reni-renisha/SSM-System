@@ -632,6 +632,24 @@ const getHighestFilledPhase = (table) => {
   return "1st assmt"; // fallback
 };
 
+// Order of quadrants for cascaded edits
+const SPECIAL_EDU_PHASE_ORDER = ['1st Qtr', '2nd Qtr', '3rd Qtr', '4th Qtr'];
+
+function getEffectiveValueForPhase(baseVal, cellKey, phase, snapshots) {
+  if (!phase || phase === '1st assmt') return baseVal;
+
+  const idx = SPECIAL_EDU_PHASE_ORDER.indexOf(phase);
+  if (idx === -1) return baseVal;
+
+  let v = baseVal;
+  for (let i = 0; i <= idx; i++) {
+    const p = SPECIAL_EDU_PHASE_ORDER[i];
+    const map = snapshots[p];
+    if (map && map[cellKey] != null) v = map[cellKey];
+  }
+  return v;
+}
+
 const normalizeSectionKey = (label) =>
   String(label || "")
     .toLowerCase()
@@ -683,60 +701,6 @@ const StudentPage = () => {
   // Translation state
   const [translating, setTranslating] = useState(false);
   const [translatedSummary, setTranslatedSummary] = useState(null);
-  
-  // Send Report to Parent state
-  const [sendingReport, setSendingReport] = useState(false);
-  const [sendReportSuccess, setSendReportSuccess] = useState(false);
-  const [sendReportError, setSendReportError] = useState(null);
-  
-  // Handle sending report to parent
-  const handleSendReportToParent = async () => {
-    if (!aiAnalysis || !aiAnalysis.summary) {
-      setSendReportError("Please generate AI analysis first");
-      return;
-    }
-    
-    setSendingReport(true);
-    setSendReportSuccess(false);
-    setSendReportError(null);
-    
-    try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
-      const token = localStorage.getItem("token");
-      
-      const payload = {
-        student_id: student?.studentId || id,
-        title: "Therapy Progress Report",
-        message: `A new therapy progress report has been shared with you for ${student?.name || 'the student'}.`,
-        report_summary: aiAnalysis.summary,
-        report_from_date: fromDate || null,
-        report_to_date: toDate || null,
-        therapy_type: selectedTherapyType || null,
-      };
-      
-      const response = await fetch(`${baseUrl}/api/v1/notifications/send-report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to send report: ${errorText}`);
-      }
-      
-      setSendReportSuccess(true);
-      setTimeout(() => setSendReportSuccess(false), 4000);
-    } catch (error) {
-      console.error('Error sending report to parent:', error);
-      setSendReportError(error.message || 'Failed to send report');
-    } finally {
-      setSendingReport(false);
-    }
-  };
 
   // IEP Report state
   const [iepData, setIepData] = useState({
@@ -751,6 +715,7 @@ const StudentPage = () => {
     },
   });
   const [savingIep, setSavingIep] = useState(false);
+
   // Handle translation - always translates to Malayalam
   const handleTranslate = async () => {
     setTranslating(true);
@@ -4052,16 +4017,6 @@ const StudentPage = () => {
                         {aiSummaryError}
                       </div>
                     )}
-                    {sendReportSuccess && (
-                      <div className="p-2 mb-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded">
-                        ✓ Report sent to parent successfully!
-                      </div>
-                    )}
-                    {sendReportError && (
-                      <div className="p-2 mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">
-                        {sendReportError}
-                      </div>
-                    )}
                     {aiSummarizing && (
                       <div className="text-sm text-gray-600 animate-pulse flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-[#E38B52] border-t-transparent rounded-full animate-spin"></div>
@@ -4155,12 +4110,6 @@ const StudentPage = () => {
                                     />
                                   </svg>
                                   {translating ? "Translating..." : "Malayalam"}
-                                </button>
-                                <button onClick={handleSendReportToParent} disabled={sendingReport} className="ml-2 px-3 py-2 border-2 border-[#E38B52] text-white text-sm rounded-xl bg-[#E38B52] hover:bg-[#D67A3F] active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-50 disabled:cursor-not-allowed" title="Send this report to parent user">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                  </svg>
-                                  {sendingReport ? 'Sending...' : 'Send to Parent'}
                                 </button>
                               </>
                             )}
@@ -6350,61 +6299,9 @@ const StudentPage = () => {
                           </div>
                           <div className="flex items-center gap-3 ml-auto">
                             <div className="relative">
-                              <select
-                                value={table.assessment_phase || "1st assmt"}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  const phase = e.target.value;
-                                  const nowIso = new Date().toISOString();
-
-                                  setSavedTables((prev) => {
-                                    const updated = prev.map((t) =>
-                                      t === table
-                                        ? {
-                                            ...t,
-                                            assessment_phase: phase,
-                                            last_edited_at: nowIso,
-                                          }
-                                        : t,
-                                    );
-                                    try {
-                                      if (typeof window !== "undefined" && id) {
-                                        const key = `special-education-tables:${id}`;
-                                        window.localStorage.setItem(
-                                          key,
-                                          JSON.stringify(updated),
-                                        );
-                                      }
-                                    } catch (err) {
-                                      console.warn(
-                                        "Failed to persist assessment phase",
-                                        err,
-                                      );
-                                    }
-                                    return updated;
-                                  });
-                                }}
-                                className="text-xs font-medium bg-white text-gray-700 border-2 border-white/30 rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white hover:bg-white/95 hover:border-white/50 transition-all duration-200 shadow-md cursor-pointer appearance-none"
-                              >
-                                {SPECIAL_EDU_ASSESSMENT_PHASES.map((phase) => (
-                                  <option key={phase} value={phase}>
-                                    {phase}
-                                  </option>
-                                ))}
-                              </select>
-                              <svg
-                                className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-700 pointer-events-none"
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                              <span className="text-[11px] bg-gray-100 text-gray-600 rounded-full px-2 py-1">
+                                {table.assessment_phase || "1st assmt"}
+                              </span>
                             </div>
 
                             {/* Export icon */}
@@ -6557,84 +6454,68 @@ const StudentPage = () => {
 
                           const handleToggleCell = (colName, newValue) => {
                             if (!skillRow || !activeKey || !canEdit) return;
-
-                            const phase = table.assessment_phase || "1st assmt";
+                          
+                            const phase = table.assessment_phase || '1st assmt';
                             const isQuarterPhase =
-                              phase === "1st Qtr" ||
-                              phase === "2nd Qtr" ||
-                              phase === "3rd Qtr" ||
-                              phase === "4th Qtr";
-
-                            setSavedTables((prev) => {
+                              phase === '1st Qtr' ||
+                              phase === '2nd Qtr' ||
+                              phase === '3rd Qtr' ||
+                              phase === '4th Qtr';
+                          
+                            setSavedTables(prev => {
                               const nowIso = new Date().toISOString();
-
-                              const updated = prev.map((t) => {
+                          
+                              const updated = prev.map(t => {
                                 if (t !== table) return t;
                                 const rows = t.rows || [];
-                                const cellKey = `${skillRowIndex}:${colName}`;
-
+                          
+                                // For non‑quarter phases (e.g. 1st assmt), edit the base value directly
                                 if (!isQuarterPhase) {
-                                  // 1st Assessment: edit the base value directly
                                   const newRows = rows.map((row, idx) =>
-                                    idx === skillRowIndex
-                                      ? { ...row, [colName]: newValue }
-                                      : row,
+                                    idx === skillRowIndex ? { ...row, [colName]: newValue } : row
                                   );
-                                  return {
-                                    ...t,
-                                    rows: newRows,
-                                    last_edited_at: nowIso,
-                                  };
+                                  return { ...t, rows: newRows, last_edited_at: nowIso };
                                 }
-
-                                // Quarter phases: track B→A overrides per quarter
-                                // The base data stays unchanged (B remains B)
-                                const currentRow = rows[skillRowIndex] || {};
-                                const currentBaseVal =
-                                  typeof currentRow[colName] === "string"
-                                    ? currentRow[colName].trim().toUpperCase()
-                                    : "";
-
-                                if (currentBaseVal !== "B") return t; // only B cells can be overridden
-
-                                const quarterOverrides =
-                                  t.quarterOverrides || {};
-                                const phaseOverrides =
-                                  quarterOverrides[phase] || {};
-                                let newPhaseOverrides = { ...phaseOverrides };
-
-                                if (newValue === "A") {
-                                  // Mark B as improved (A) for THIS quarter
-                                  newPhaseOverrides[cellKey] = "A";
-                                } else if (newValue === "B") {
-                                  // Remove override for THIS quarter
-                                  delete newPhaseOverrides[cellKey];
+                          
+                                // For quarter phases (1st–4th Qtr): only original B can be changed
+                                const row = rows[skillRowIndex] || {};
+                                const rawCurrent = row[colName];
+                                const baseVal =
+                                  typeof rawCurrent === 'string'
+                                    ? rawCurrent.trim().toUpperCase()
+                                    : '';
+                          
+                                if (baseVal !== 'B') return t; // ignore non‑B cells in quarter phases
+                          
+                                const cellKey = `${skillRowIndex}:${colName}`;
+                                const existingSnapshots = t.quarterSnapshots || {};
+                                const phaseSnapshot = existingSnapshots[phase] || {};
+                          
+                                let newPhaseSnapshot = phaseSnapshot;
+                                if (newValue === 'A' || newValue === 'B') {
+                                  newPhaseSnapshot = { ...phaseSnapshot, [cellKey]: newValue };
+                                } else {
+                                  return t;
                                 }
-
+                          
                                 return {
                                   ...t,
-                                  quarterOverrides: {
-                                    ...quarterOverrides,
-                                    [phase]: newPhaseOverrides,
-                                  },
+                                  quarterSnapshots: { ...existingSnapshots, [phase]: newPhaseSnapshot },
                                   last_edited_at: nowIso,
                                 };
                               });
-
+                          
                               try {
-                                if (typeof window !== "undefined" && id) {
+                                if (typeof window !== 'undefined' && id) {
                                   window.localStorage.setItem(
                                     `special-education-tables:${id}`,
-                                    JSON.stringify(updated),
+                                    JSON.stringify(updated)
                                   );
                                 }
                               } catch (err) {
-                                console.warn(
-                                  "Failed to persist updated Special Education tables",
-                                  err,
-                                );
+                                console.warn('Failed to persist updated Special Education tables', err);
                               }
-
+                          
                               return updated;
                             });
                           };
@@ -6713,6 +6594,41 @@ const StudentPage = () => {
                                       )}
                                     </button>
 
+                                    {/* Assessment Phase Dropdown - only when editing */}
+                                    {table.isEditable && (
+                                      <select
+                                        value={table.assessment_phase || '1st assmt'}
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => {
+                                          e.stopPropagation();
+                                          const phase = e.target.value;
+                                          const nowIso = new Date().toISOString();
+
+                                          setSavedTables(prev => {
+                                            const updated = prev.map(t =>
+                                              t === table
+                                                ? { ...t, assessment_phase: phase, last_edited_at: nowIso }
+                                                : t
+                                            );
+                                            try {
+                                              if (typeof window !== 'undefined' && id) {
+                                                const key = `special-education-tables:${id}`;
+                                                window.localStorage.setItem(key, JSON.stringify(updated));
+                                              }
+                                            } catch (err) {
+                                              console.warn('Failed to persist assessment phase', err);
+                                            }
+                                            return updated;
+                                          });
+                                        }}
+                                        className="text-[10px] bg-white text-[#170F49] border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#E38B52] shadow-sm"
+                                      >
+                                        {SPECIAL_EDU_ASSESSMENT_PHASES.map(phase => (
+                                          <option key={phase} value={phase}>{phase}</option>
+                                        ))}
+                                      </select>
+                                    )}
+
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -6770,42 +6686,20 @@ const StudentPage = () => {
 
                                         const rawValue = skillRow[colName];
                                         const baseVal =
-                                          typeof rawValue === "string"
+                                          typeof rawValue === 'string'
                                             ? rawValue.trim().toUpperCase()
-                                            : "";
-
-                                        // For quarters: check if this cell has been overridden
-                                        // in the current quarter or any previous quarter (cumulative)
-                                        const QUARTER_ORDER = [
-                                          "1st Qtr",
-                                          "2nd Qtr",
-                                          "3rd Qtr",
-                                          "4th Qtr",
-                                        ];
-                                        const currentQIdx =
-                                          QUARTER_ORDER.indexOf(phase);
-                                        let effectiveVal = baseVal;
-                                        if (currentQIdx >= 0) {
-                                          for (
-                                            let qi = 0;
-                                            qi <= currentQIdx;
-                                            qi++
-                                          ) {
-                                            const qPhase = QUARTER_ORDER[qi];
-                                            if (
-                                              quarterOverrides[qPhase] &&
-                                              quarterOverrides[qPhase][
-                                                cellKey
-                                              ] === "A"
-                                            ) {
-                                              effectiveVal = "A";
-                                              break;
-                                            }
-                                          }
-                                        }
-
-                                        const isYes = effectiveVal === "A";
-                                        const isNo = effectiveVal === "B";
+                                            : '';
+                                        
+                                        const snapshots = table.quarterSnapshots || {};
+                                        const effectiveVal = getEffectiveValueForPhase(
+                                          baseVal,
+                                          cellKey,
+                                          phase,
+                                          snapshots
+                                        );
+                                        
+                                        const isYes = effectiveVal === 'A';
+                                        const isNo = effectiveVal === 'B';
                                         const isActiveQuestion =
                                           activeQuestionByTable[tableKey] ===
                                           idx;
@@ -6991,296 +6885,269 @@ const StudentPage = () => {
                                   .includes("skill"),
                               ) || allHeaders[0];
 
-                            const sessionHeaders = baseHeaders.filter(
-                              (h) => h !== skillColumn,
-                            );
-
-                            // Table key and currently active skill for this table
-                            const tableKey = tableIndex;
-                            const activeKey =
-                              activeSkillByTable[tableKey] || null;
-
-                            // Build leaf columns (second header row + body)
-                            const leafColumns = [];
-
-                            // Which header group should show dynamic A/B counts for this table?
-                            const phaseToGroupLabel = {
-                              "1st assmt": "1st Assmt",
-                              "1st Qtr": "I Qr",
-                              "2nd Qtr": "II Qr",
-                              "3rd Qtr": "III Qr",
-                              "4th Qtr": "IV Qr",
-                            };
-                            const activeSummaryGroup =
-                              phaseToGroupLabel[table.assessment_phase] ||
-                              "1st Assmt";
-
-                            // Base columns: one cell, spanning both header rows
-                            baseHeaders.forEach((h) => {
-                              const isSkillCol = h === skillColumn;
-                              leafColumns.push({
-                                group: null,
-                                header: String(h).replace(/^Session\s+/i, ""),
-                                subLabel: null,
-                                isSkill: isSkillCol,
-                                fieldName: h,
-                                getValue: (row) => row[h],
-                              });
+                          const sessionHeaders = baseHeaders.filter(h => h !== skillColumn);
+                      
+                          // Table key and currently active skill for this table
+                          const tableKey = tableIndex;
+                          const activeKey = activeSkillByTable[tableKey] || null;
+                      
+                          // Build leaf columns (second header row + body)
+                          const leafColumns = [];
+                          
+                          
+                        
+                          
+                          
+                      
+                          // Base columns: one cell, spanning both header rows
+                          baseHeaders.forEach(h => {
+                            const isSkillCol = h === skillColumn;
+                            leafColumns.push({
+                              group: null,
+                              header: String(h).replace(/^Session\s+/i, ''),
+                              subLabel: null,
+                              isSkill: isSkillCol,
+                              fieldName: h,
+                              getValue: row => row[h],
                             });
-
-                            // 1st Assessment group: TOTAL A / TOTAL B
-                            if (totalAKey || totalBKey) {
-                              if (totalAKey) {
-                                leafColumns.push({
-                                  group: "1st Assmt",
-                                  header: "A",
-                                  subLabel: "A",
-                                  getValue: (row) => row[totalAKey],
-                                });
-                              }
-                              if (totalBKey) {
-                                leafColumns.push({
-                                  group: "1st Assmt",
-                                  header: "B",
-                                  subLabel: "B",
-                                  getValue: (row) => row[totalBKey],
-                                });
-                              }
+                          });
+                      
+                          // 1st Assessment group: TOTAL A / TOTAL B
+                          if (totalAKey || totalBKey) {
+                            if (totalAKey) {
+                              leafColumns.push({
+                                group: '1st Assmt',
+                                header: 'A',
+                                subLabel: 'A',
+                                getValue: row => row[totalAKey],
+                              });
                             }
-
-                            // Quarter groups: for now, show existing value under A, leave B empty
-                            quarterKeys.forEach(({ def, key }) => {
-                              if (!key) return;
+                            if (totalBKey) {
                               leafColumns.push({
-                                group: def.label,
-                                header: "A",
-                                subLabel: "A",
-                                getValue: (row) => row[key],
+                                group: '1st Assmt',
+                                header: 'B',
+                                subLabel: 'B',
+                                getValue: row => row[totalBKey],
                               });
-                              leafColumns.push({
-                                group: def.label,
-                                header: "B",
-                                subLabel: "B",
-                                getValue: () => "",
-                              });
+                            }
+                          }
+                      
+                          // Quarter groups: for now, show existing value under A, leave B empty
+                          quarterKeys.forEach(({ def, key }) => {
+                            if (!key) return;
+                            leafColumns.push({
+                              group: def.label,
+                              header: 'A',
+                              subLabel: 'A',
+                              getValue: row => row[key],
                             });
-
-                            if (!leafColumns.length) return null;
-
-                            return (
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  {/* Top header row: base cols (rowSpan=2) + grouped headings */}
-                                  <tr>
-                                    {(() => {
-                                      const cells = [];
-                                      let i = 0;
-                                      while (i < leafColumns.length) {
-                                        const col = leafColumns[i];
-                                        if (!col.group) {
-                                          // Simple column spanning both header rows
-                                          cells.push(
-                                            <th
-                                              key={`h1-${i}`}
-                                              rowSpan={2}
-                                              className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider"
-                                            >
-                                              {col.header}
-                                            </th>,
-                                          );
-                                          i += 1;
-                                          continue;
-                                        }
-                                        // Grouped columns (1st Assessment, I Qr, …)
-                                        const group = col.group;
-                                        let span = 0;
-                                        while (
-                                          i + span < leafColumns.length &&
-                                          leafColumns[i + span].group === group
-                                        ) {
-                                          span += 1;
-                                        }
+                            leafColumns.push({
+                              group: def.label,
+                              header: 'B',
+                              subLabel: 'B',
+                              getValue: () => '',
+                            });
+                          });
+                      
+                          if (!leafColumns.length) return null;
+                      
+                          return (
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                {/* Top header row: base cols (rowSpan=2) + grouped headings */}
+                                <tr>
+                                  {(() => {
+                                    const cells = [];
+                                    let i = 0;
+                                    while (i < leafColumns.length) {
+                                      const col = leafColumns[i];
+                                      if (!col.group) {
+                                        // Simple column spanning both header rows
                                         cells.push(
                                           <th
-                                            key={`group-${group}-${i}`}
-                                            colSpan={span}
-                                            className="px-2 py-1.5 text-center text-[10px] font-semibold text-gray-600 uppercase tracking-wider"
+                                            key={`h1-${i}`}
+                                            rowSpan={2}
+                                            className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider"
                                           >
-                                            {group}
-                                          </th>,
+                                            {col.header}
+                                          </th>
                                         );
-                                        i += span;
+                                        i += 1;
+                                        continue;
                                       }
-                                      return cells;
-                                    })()}
-                                  </tr>
-                                  {/* Second header row: A/B under each grouped heading */}
-                                  <tr>
-                                    {leafColumns.map((col, idx) =>
-                                      col.group ? (
+                                      // Grouped columns (1st Assessment, I Qr, …)
+                                      const group = col.group;
+                                      let span = 0;
+                                      while (
+                                        i + span < leafColumns.length &&
+                                        leafColumns[i + span].group === group
+                                      ) {
+                                        span += 1;
+                                      }
+                                      cells.push(
                                         <th
-                                          key={`h2-${idx}`}
-                                          className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider"
+                                          key={`group-${group}-${i}`}
+                                          colSpan={span}
+                                          className="px-2 py-1.5 text-center text-[10px] font-semibold text-gray-600 uppercase tracking-wider"
                                         >
-                                          {col.subLabel || col.header}
+                                          {group}
                                         </th>
-                                      ) : null,
-                                    )}
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {table.rows?.map((row, rowIdx) => {
-                                    const rawSkillVal = row[skillColumn];
-                                    const normalizedSkill =
-                                      normalizeSectionKey(rawSkillVal);
-                                    const rowSkillKey = normalizedSkill || null;
-                                    const isRowSelected =
-                                      rowSkillKey && activeKey === rowSkillKey;
-                                    const phase =
-                                      table.assessment_phase || "1st assmt";
-                                    const quarterOverrides =
-                                      table.quarterOverrides || {};
-                                    const QUARTER_ORDER = [
-                                      "1st Qtr",
-                                      "2nd Qtr",
-                                      "3rd Qtr",
-                                      "4th Qtr",
-                                    ];
-                                    const currentQIdx =
-                                      QUARTER_ORDER.indexOf(phase);
-
-                                    // Dynamic A/B counts for THIS row from the session columns
-                                    const { aCount, bCount } = (() => {
-                                      let a = 0;
-                                      let b = 0;
-                                      sessionHeaders.forEach((colName) => {
-                                        const raw = row[colName];
-                                        const baseVal =
-                                          typeof raw === "string"
-                                            ? raw.trim().toUpperCase()
-                                            : "";
-                                        const cellKey = `${rowIdx}:${colName}`;
-
-                                        // Check cumulative overrides up to current quarter
-                                        let effectiveVal = baseVal;
-                                        if (currentQIdx >= 0) {
-                                          for (
-                                            let qi = 0;
-                                            qi <= currentQIdx;
-                                            qi++
-                                          ) {
-                                            const qPhase = QUARTER_ORDER[qi];
-                                            if (
-                                              quarterOverrides[qPhase] &&
-                                              quarterOverrides[qPhase][
-                                                cellKey
-                                              ] === "A"
-                                            ) {
-                                              effectiveVal = "A";
-                                              break;
+                                      );
+                                      i += span;
+                                    }
+                                    return cells;
+                                  })()}
+                                </tr>
+                                {/* Second header row: A/B under each grouped heading */}
+                                <tr>
+                                  {leafColumns.map((col, idx) =>
+                                    col.group ? (
+                                      <th
+                                        key={`h2-${idx}`}
+                                        className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500 uppercase tracking-wider"
+                                      >
+                                        {col.subLabel || col.header}
+                                      </th>
+                                    ) : null
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {table.rows?.map((row, rowIdx) => {
+                                  const rawSkillVal = row[skillColumn];
+                                  const normalizedSkill = normalizeSectionKey(rawSkillVal);
+                                  const rowSkillKey = normalizedSkill || null;
+                                  const isRowSelected = rowSkillKey && activeKey === rowSkillKey;
+                                  const phase = table.assessment_phase || '1st assmt';
+                                  const snapshots = table.quarterSnapshots || {};
+                              
+                                  
+                                  // Function to calculate A/B counts for any specific phase
+                                  const getCountsForPhase = (targetPhase) => {
+                                    let a = 0;
+                                    let b = 0;
+                                    sessionHeaders.forEach(colName => {
+                                      const raw = row[colName];
+                                      const baseVal =
+                                        typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+                                      const cellKey = `${rowIdx}:${colName}`;
+                                  
+                                      const v = getEffectiveValueForPhase(
+                                        baseVal,
+                                        cellKey,
+                                        targetPhase,
+                                        snapshots
+                                      );
+                                      if (v === 'A') a += 1;
+                                      else if (v === 'B') b += 1;
+                                    });
+                                    return { aCount: a, bCount: b };
+                                  };
+                              
+                                  return (
+                                    <tr
+                                      key={rowIdx}
+                                      className={
+                                        'hover:bg-gray-50 ' +
+                                        (isRowSelected ? 'bg-[#FFEBD7]' : '')
+                                      }
+                                    >
+                                      {leafColumns.map((col, cellIdx) => {
+                                        // Determine if this cell is one of the summary A/B cells
+                                        const isSummaryCell = !!col.group;
+                                        let cellValue;
+                              
+                                        if (isSummaryCell) {
+                                          const label = (col.subLabel || col.header || '').toUpperCase();
+                                          
+                                          // Determine which phase this column represents
+                                          let columnPhase = '1st assmt';
+                                          if (col.group === 'I Qr') columnPhase = '1st Qtr';
+                                          else if (col.group === 'II Qr') columnPhase = '2nd Qtr';
+                                          else if (col.group === 'III Qr') columnPhase = '3rd Qtr';
+                                          else if (col.group === 'IV Qr') columnPhase = '4th Qtr';
+                                          
+                                          let showCounts = true;
+                                          if (columnPhase !== '1st assmt') {
+                                            const phaseSnapshot = snapshots[columnPhase];
+                                            if (!phaseSnapshot || Object.keys(phaseSnapshot).length === 0) {
+                                              showCounts = false;
                                             }
                                           }
-                                        }
 
-                                        if (effectiveVal === "A") a += 1;
-                                        else if (effectiveVal === "B") b += 1;
-                                      });
-                                      return { aCount: a, bCount: b };
-                                    })();
+                                          if (showCounts) {
+                                            const { aCount: colACount, bCount: colBCount } =
+                                              getCountsForPhase(columnPhase);
 
-                                    return (
-                                      <tr
-                                        key={rowIdx}
-                                        className={
-                                          "hover:bg-gray-50 " +
-                                          (isRowSelected ? "bg-[#FFEBD7]" : "")
-                                        }
-                                      >
-                                        {leafColumns.map((col, cellIdx) => {
-                                          // Determine if this cell is one of the summary A/B cells
-                                          const isSummaryCell =
-                                            !!col.group &&
-                                            col.group === activeSummaryGroup;
-                                          let cellValue;
-
-                                          if (isSummaryCell) {
-                                            const label = (
-                                              col.subLabel ||
-                                              col.header ||
-                                              ""
-                                            ).toUpperCase();
-                                            if (label === "A") {
-                                              cellValue = aCount || "0";
-                                            } else if (label === "B") {
-                                              cellValue = bCount || "0";
+                                            if (label === 'A') {
+                                              cellValue = colACount || '0';
+                                            } else if (label === 'B') {
+                                              cellValue = colBCount || '0';
                                             } else {
-                                              cellValue = "-";
+                                              cellValue = '-';
                                             }
                                           } else {
-                                            const raw = col.getValue(row);
-                                            cellValue =
-                                              raw === undefined ||
-                                              raw === null ||
-                                              raw === ""
-                                                ? "-"
-                                                : raw;
+                                            // quadrant not edited yet → show "-"
+                                            cellValue = '-';
                                           }
-
-                                          const fieldName = col.fieldName;
-                                          const isSessionBaseCell =
-                                            !col.group &&
-                                            !col.isSkill &&
-                                            fieldName &&
-                                            sessionHeaders.includes(fieldName);
-                                          const cellKey = isSessionBaseCell
-                                            ? `${rowIdx}:${fieldName}`
-                                            : null;
-
-                                          // Find which quarter this cell was overridden in (if any),
-                                          // looking cumulatively up to the current quarter
-                                          let overrideQuarter = null;
-                                          if (cellKey && currentQIdx >= 0) {
-                                            for (
-                                              let qi = 0;
-                                              qi <= currentQIdx;
-                                              qi++
-                                            ) {
-                                              const qPhase = QUARTER_ORDER[qi];
-                                              if (
-                                                quarterOverrides[qPhase] &&
-                                                quarterOverrides[qPhase][
-                                                  cellKey
-                                                ] === "A"
-                                              ) {
-                                                overrideQuarter = qPhase;
-                                                break;
+                                        } else {
+                                          const raw = col.getValue(row);
+                                          cellValue =
+                                            raw === undefined || raw === null || raw === '' ? '-' : raw;
+                                        }
+                              
+                                        const fieldName = col.fieldName;
+                                        const isSessionBaseCell =
+                                          !col.group && !col.isSkill && fieldName && sessionHeaders.includes(fieldName);
+                                        
+                                        let hasQuadrantChange = false;
+                                        let overrideQuarter = null;
+                                        if (isSessionBaseCell) {
+                                          const raw = row[fieldName];
+                                          const baseVal =
+                                            typeof raw === 'string' ? raw.trim().toUpperCase() : '';
+                                          const cellKey = `${rowIdx}:${fieldName}`;
+                                          const effectiveVal = getEffectiveValueForPhase(
+                                            baseVal,
+                                            cellKey,
+                                            phase,
+                                            snapshots
+                                          );
+                                          hasQuadrantChange = baseVal === 'B' && effectiveVal === 'A';
+                                          
+                                          // Find which quarter made the change (for correct strike pattern)
+                                          if (hasQuadrantChange) {
+                                            const phaseOrder = ['1st Qtr', '2nd Qtr', '3rd Qtr', '4th Qtr'];
+                                            const idx = phaseOrder.indexOf(phase);
+                                            if (idx >= 0) {
+                                              for (let i = 0; i <= idx; i++) {
+                                                const p = phaseOrder[i];
+                                                const map = snapshots[p];
+                                                if (map && map[cellKey] === 'A') {
+                                                  overrideQuarter = p;
+                                                  break;
+                                                }
                                               }
                                             }
                                           }
-                                          const hasOverrideToA =
-                                            !!overrideQuarter;
-
-                                          // For color: just use the actual letter we see (A = blue, B = red)
-                                          const isAVisual =
-                                            !isSummaryCell && cellValue === "A";
-                                          const isBVisual =
-                                            !isSummaryCell && cellValue === "B";
-
-                                          let textClass;
-                                          if (isSummaryCell)
-                                            textClass = "text-gray-900 ";
-                                          else if (isAVisual)
-                                            textClass = "text-blue-600 ";
-                                          else if (isBVisual)
-                                            textClass = "text-red-600 "; // B stays red even when overridden
-                                          else textClass = "text-gray-900 ";
+                                        }
+                                        
+                                        // For color: just use the actual letter we see (A = blue, B = red)
+                                        const isAVisual = !isSummaryCell && cellValue === 'A';
+                                        const isBVisual = !isSummaryCell && cellValue === 'B';
+                                        
+                                        let textClass;
+                                        if (isSummaryCell) textClass = 'text-gray-900 ';
+                                        else if (isAVisual) textClass = 'text-blue-600 ';
+                                        else if (isBVisual) textClass = 'text-red-600 '; // B stays red even when overridden
+                                        else textClass = 'text-gray-900 ';
 
                                           let cellInner = cellValue;
                                           // Show B with strikethrough pattern based on WHICH quarter the override was made in
                                           if (
                                             isSessionBaseCell &&
                                             cellValue === "B" &&
-                                            hasOverrideToA &&
+                                            hasQuadrantChange &&
                                             !isSummaryCell
                                           ) {
                                             if (overrideQuarter === "1st Qtr") {
