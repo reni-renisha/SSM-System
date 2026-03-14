@@ -2291,6 +2291,76 @@ const StudentPage = () => {
     if (fileInputRef.current) fileInputRef.current.value = null;
   };
 
+  const handleAddManualTable = () => {
+    const nowIso = new Date().toISOString();
+  
+    // Meta + skill column
+    const baseMetaHeaders = [
+      "Student Name",
+      "Register Number",
+      "Assessment Date",
+      "Skill Area",
+    ];
+  
+    // 20 session columns (drives 20 questions per skill)
+    const sessionHeaders = Array.from({ length: 20 }, (_, i) => `Session ${i + 1}`);
+  
+    // Summary / quarter-total columns (same names used by extracted tables)
+    const summaryHeaders = ["Total A", "Total B", "I Qr", "II Qr", "III Qr", "IV Qr"];
+  
+    const headers = [...baseMetaHeaders, ...sessionHeaders, ...summaryHeaders];
+  
+    // One row per skill (18 skills), sessions prefilled with "B"
+    const rows = SPECIAL_EDU_SKILLS.map((skill) => {
+      const row = {};
+      headers.forEach((h) => {
+        const lower = String(h).toLowerCase();
+        if (lower === "student name") {
+          row[h] = student?.name || "";
+        } else if (lower === "register number") {
+          row[h] = student?.admissionNumber || "";
+        } else if (lower === "assessment date") {
+          row[h] = reportDate || "";
+        } else if (lower.includes("skill")) {
+          row[h] = skill.label;
+        } else if (sessionHeaders.includes(h)) {
+          // All session cells start as "B"
+          row[h] = "B";
+        } else {
+          // Total A/B and quarter columns start empty
+          row[h] = "";
+        }
+      });
+      return row;
+    });
+  
+    const newTable = {
+      headers,
+      rows,
+      assessment_phase: "1st assmt",
+      report_date: reportDate || "",
+      extracted_at: nowIso,
+      isEditable: true,
+      last_edited_at: nowIso,
+      quarterSnapshots: {},
+      quarterOverrides: {},
+    };
+  
+    setSavedTables((prev) => {
+      const updated = [...prev, newTable];
+      try {
+        if (typeof window !== "undefined" && id) {
+          window.localStorage.setItem(
+            `special-education-tables:${id}`,
+            JSON.stringify(updated),
+          );
+        }
+      } catch (err) {
+        console.warn("Failed to persist manually added Special Education table", err);
+      }
+      return updated;
+    });
+  };
   // Helper function to format dates in a human-friendly way (no seconds)
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -6143,6 +6213,28 @@ const StudentPage = () => {
                       )}
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={handleAddManualTable}
+                      className="px-6 py-2.5 bg-white text-[#E38B52] border border-[#E38B52] rounded-lg hover:bg-[#FFF3E8] transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v12m6-6H6"
+                        />
+                      </svg>
+                      Add Table
+                    </button>        
+
                     {(ocrImage || extractedTables.length > 0) && (
                       <button
                         onClick={handleClearOcrData}
@@ -6296,6 +6388,7 @@ const StudentPage = () => {
                     .map((table, tableIndex) => (
                       <details
                         key={tableIndex}
+                        data-special-edu-table="true"
                         className="bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-200 hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.01]"
                       >
                         {/* Clickable header row */}
@@ -6588,113 +6681,94 @@ const StudentPage = () => {
 
                           return (
                             <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-xs font-semibold text-gray-700">
                                   Questionnaire (A = Yes, B = No)
                                 </h4>
-                                {activeKey && (
-                                  <div className="flex items-center gap-2">
-                                    {/* Edit/Save/Saved Toggle */}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-
-                                        if (table.isEditable) {
-                                          // Currently in edit mode, save the changes
-                                          handleSetTableEditable(table, false);
-
-                                          // Show "Saved ✓" status
+                                <div className="flex items-center gap-2">
+                                  {/* Edit/Save/Saved Toggle – now always visible */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                              
+                                      if (table.isEditable) {
+                                        // Currently in edit mode, save the changes
+                                        handleSetTableEditable(table, false);
+                                        setTableSavedStatus((prev) => ({
+                                          ...prev,
+                                          [tableIndex]: true,
+                                        }));
+                                        setTimeout(() => {
                                           setTableSavedStatus((prev) => ({
                                             ...prev,
-                                            [tableIndex]: true,
+                                            [tableIndex]: false,
                                           }));
-
-                                          // Revert to "Edit" after 1 second
-                                          setTimeout(() => {
-                                            setTableSavedStatus((prev) => ({
-                                              ...prev,
-                                              [tableIndex]: false,
-                                            }));
-                                          }, 1000);
-                                        } else {
-                                          // Enter edit mode
-                                          handleSetTableEditable(table, true);
-                                        }
-                                      }}
-                                      className={
-                                        "px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-all duration-200 shadow-sm " +
-                                        (tableSavedStatus[tableIndex]
-                                          ? "bg-green-50 text-green-700 border-green-300"
-                                          : table.isEditable
-                                            ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
-                                            : "bg-[#E38B52] text-white border-[#E38B52] hover:bg-[#C8742F] hover:shadow-md") +
-                                        (pulsatingEditButton[tableKey]
-                                          ? " pulsate-edit"
-                                          : "")
+                                        }, 1000);
+                                      } else {
+                                        // Enter edit mode
+                                        handleSetTableEditable(table, true);
                                       }
-                                    >
-                                      {tableSavedStatus[tableIndex] ? (
-                                        <span className="flex items-center gap-1">
-                                          Saved
-                                          <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-3.5 w-3.5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M5 13l4 4L19 7"
-                                            />
-                                          </svg>
-                                        </span>
-                                      ) : table.isEditable ? (
-                                        "Save"
-                                      ) : (
-                                        "Edit"
-                                      )}
-                                    </button>
-
-                                    {/* Assessment Phase Dropdown - only when editing */}
-                                    {table.isEditable && (
-                                      <select
-                                        value={table.assessment_phase || '1st assmt'}
-                                        onClick={e => e.stopPropagation()}
-                                        onChange={e => {
-                                          e.stopPropagation();
-                                          const phase = e.target.value;
-                                          const nowIso = new Date().toISOString();
-
-                                          setSavedTables(prev => {
-                                            const updated = prev.map(t =>
-                                              t === table
-                                                ? { ...t, assessment_phase: phase, last_edited_at: nowIso }
-                                                : t
-                                            );
-                                            try {
-                                              if (typeof window !== 'undefined' && id) {
-                                                const key = `special-education-tables:${id}`;
-                                                window.localStorage.setItem(key, JSON.stringify(updated));
-                                              }
-                                            } catch (err) {
-                                              console.warn('Failed to persist assessment phase', err);
-                                            }
-                                            return updated;
-                                          });
-                                        }}
-                                        className="text-[10px] bg-white text-[#170F49] border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#E38B52] shadow-sm"
-                                      >
-                                        {SPECIAL_EDU_ASSESSMENT_PHASES.map(phase => (
-                                          <option key={phase} value={phase}>{phase}</option>
-                                        ))}
-                                      </select>
+                                    }}
+                                    className={
+                                      "px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-all duration-200 shadow-sm " +
+                                      (tableSavedStatus[tableIndex]
+                                        ? "bg-green-50 text-green-700 border-green-300"
+                                        : table.isEditable
+                                          ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+                                          : "bg-[#E38B52] text-white border-[#E38B52] hover:bg-[#C8742F] hover:shadow-md") +
+                                      (pulsatingEditButton[tableKey] ? " pulsate-edit" : "")
+                                    }
+                                  >
+                                    {tableSavedStatus[tableIndex] ? (
+                                      <span className="flex items-center gap-1">
+                                        Saved
+                                        {/* ...check icon svg... */}
+                                      </span>
+                                    ) : table.isEditable ? (
+                                      "Save"
+                                    ) : (
+                                      "Edit"
                                     )}
-
+                                  </button>
+                              
+                                  {/* Assessment Phase Dropdown - only when editing */}
+                                  {table.isEditable && (
+                                    <select
+                                      value={table.assessment_phase || "1st assmt"}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        const phase = e.target.value;
+                                        const nowIso = new Date().toISOString();
+                                        setSavedTables((prev) => {
+                                          const updated = prev.map((t) =>
+                                            t === table ? { ...t, assessment_phase: phase, last_edited_at: nowIso } : t,
+                                          );
+                                          try {
+                                            if (typeof window !== "undefined" && id) {
+                                              const key = `special-education-tables:${id}`;
+                                              window.localStorage.setItem(key, JSON.stringify(updated));
+                                            }
+                                          } catch (err) {
+                                            console.warn("Failed to persist assessment phase", err);
+                                          }
+                                          return updated;
+                                        });
+                                      }}
+                                      className="text-[10px] bg-white text-[#170F49] border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#E38B52] shadow-sm"
+                                    >
+                                      {SPECIAL_EDU_ASSESSMENT_PHASES.map((phase) => (
+                                        <option key={phase} value={phase}>
+                                          {phase}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                              
+                                  {/* Show/Hide questions only makes sense when a skill is selected */}
+                                  {activeKey && (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -6705,12 +6779,10 @@ const StudentPage = () => {
                                       }
                                       className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-100"
                                     >
-                                      {questionsOpenByTable[tableKey]
-                                        ? "Hide questions"
-                                        : "Show questions"}
+                                      {questionsOpenByTable[tableKey] ? "Hide questions" : "Show questions"}
                                     </button>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </div>
                               {!canEdit && (
                                 <p className="text-[11px] text-gray-500 mb-1">
