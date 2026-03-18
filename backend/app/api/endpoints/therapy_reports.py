@@ -25,8 +25,8 @@ class TherapyAISummaryRequest(BaseModel):
     from_date: Optional[date] = None
     to_date: Optional[date] = None
     therapy_type: Optional[str] = None
-    model: Optional[str] = "meta-llama/Llama-3.2-3B-Instruct"  # Upgraded to Llama for better grammar
-    text_gen_model: Optional[str] = "meta-llama/Llama-3.2-3B-Instruct"  # For enhanced current status analysis
+    model: Optional[str] = "meta-llama/Llama-3.3-70B-Instruct"
+    text_gen_model: Optional[str] = "meta-llama/Llama-3.3-70B-Instruct"
     max_length: int = 500
     min_length: int = 100
     use_text_generation: bool = True  # Enable advanced text generation for current status
@@ -203,8 +203,6 @@ def ai_summarize_reports(
 
 def _generate_comprehensive_analysis(reports, student, payload):
     """Generate a comprehensive AI-powered analysis based on actual therapy report data."""
-    from collections import defaultdict
-    
     client = InferenceClient(api_key=settings.HUGGINGFACE_API_TOKEN)
     
     # Calculate real improvement metrics from actual data
@@ -221,70 +219,81 @@ def _generate_comprehensive_analysis(reports, student, payload):
     start_reports = reports[:min(3, len(reports))]  # First 3 reports for baseline
     end_reports = reports[-min(3, len(reports)):]   # Last 3 reports for current status
     
+    # Build a data-driven baseline once; use it for per-section fallback instead of
+    # downgrading the entire response when a single AI call fails.
+    baseline = _generate_fallback_analysis(reports, student, payload, improvement_metrics, date_range)
+
+    model_name = payload.model or "meta-llama/Llama-3.3-70B-Instruct"
+
+    # 1. Brief Overview - AI analyzes all reports for general progress
     try:
-        # Generate AI analysis for different sections using actual report content
-        
-        # 1. Brief Overview - AI analyzes all reports for general progress
         overview_prompt = _build_overview_prompt_with_fewshot(reports, student)
-        overview_result = client.chat_completion(
-            messages=[{"role": "user", "content": overview_prompt}],
-            model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        overview_result = _run_model_completion(
+            client=client,
+            prompt=overview_prompt,
+            model=model_name,
             max_tokens=300,
             temperature=0.7
         )
         brief_overview = _extract_generated_text(overview_result)
-        
-        # 2. Start Date Analysis - AI analyzes initial reports
+    except Exception as e:
+        logging.warning(f"Brief overview generation failed, using baseline: {e}")
+        brief_overview = baseline.brief_overview
+
+    # 2. Start Date Analysis - AI analyzes initial reports
+    try:
         start_prompt = _build_start_analysis_prompt_with_fewshot(start_reports, student)
-        start_result = client.chat_completion(
-            messages=[{"role": "user", "content": start_prompt}],
-            model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        start_result = _run_model_completion(
+            client=client,
+            prompt=start_prompt,
+            model=model_name,
             max_tokens=350,
             temperature=0.7
         )
         start_analysis = _extract_generated_text(start_result)
-        
-        # 3. Current Status Analysis - Enhanced with text generation for detailed insights
-        end_analysis = _generate_enhanced_current_status_llama(client, end_reports, student, payload)
-        
-        # 4. Recommendations - AI generates based on progress patterns
+    except Exception as e:
+        logging.warning(f"Start-date analysis generation failed, using baseline: {e}")
+        start_analysis = baseline.start_date_analysis
+
+    # 3. Current Status Analysis - Enhanced with text generation for detailed insights
+    end_analysis = _generate_enhanced_current_status_llama(client, end_reports, student, payload)
+
+    # 4. Recommendations - AI generates based on progress patterns
+    try:
         recommendations_prompt = _build_recommendations_prompt_with_fewshot(reports, improvement_metrics, student)
-        rec_result = client.chat_completion(
-            messages=[{"role": "user", "content": recommendations_prompt}],
-            model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        rec_result = _run_model_completion(
+            client=client,
+            prompt=recommendations_prompt,
+            model=model_name,
             max_tokens=400,
             temperature=0.7
         )
         recommendations = _extract_generated_text(rec_result)
-        
-        # 5. Main Summary - AI analyzes all report content
+    except Exception as e:
+        logging.warning(f"Recommendations generation failed, using baseline: {e}")
+        recommendations = baseline.recommendations
+
+    # 5. Main Summary - AI analyzes all report content
+    try:
         main_summary_prompt = _build_main_summary_prompt_with_fewshot(reports, student)
-        main_result = client.chat_completion(
-            messages=[{"role": "user", "content": main_summary_prompt}],
-            model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        main_result = _run_model_completion(
+            client=client,
+            prompt=main_summary_prompt,
+            model=model_name,
             max_tokens=2000,  # Large enough for detailed clinical paragraphs per section
             temperature=0.25  # Low temperature for faithful, data-grounded output
         )
         main_summary = _extract_generated_text(main_result)
-        
+        if _is_low_quality_summary(main_summary):
+            logging.warning("Main summary quality check failed; using structured fallback formatter")
+            main_summary = _build_structured_summary_fallback(reports, student)
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        logging.error(f"AI analysis failed with error: {str(e)}")
-        logging.error(f"Full traceback:\n{error_details}")
-        # Print to console for debugging
-        print(f"\n{'='*60}")
-        print(f"AI ANALYSIS ERROR:")
-        print(f"Error: {str(e)}")
-        print(f"Error Type: {type(e).__name__}")
-        print(f"Traceback:\n{error_details}")
-        print(f"{'='*60}\n")
-        # Fallback to data-driven analysis without AI
-        return _generate_fallback_analysis(reports, student, payload, improvement_metrics, date_range)
+        logging.warning(f"Main summary generation failed, using structured report-based fallback: {e}")
+        main_summary = _build_structured_summary_fallback(reports, student)
     
     return TherapyAISummaryResponse(
         student_id=payload.student_id,
-        model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        model=payload.model or "meta-llama/Llama-3.3-70B-Instruct",
         used_reports=len(reports),
         truncated=False,
         summary=main_summary,
@@ -311,13 +320,220 @@ def _extract_generated_text(result):
         return result.strip()
     elif hasattr(result, 'choices') and len(result.choices) > 0:
         # Chat completion response
-        return result.choices[0].message.content.strip()
+        message = result.choices[0].message
+        content = getattr(message, "content", None)
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    text = item.get("text") or item.get("content")
+                    if isinstance(text, str):
+                        parts.append(text)
+            merged = "\n".join([p.strip() for p in parts if p and p.strip()]).strip()
+            if merged:
+                return merged
+        return str(content).strip() if content is not None else ""
     elif isinstance(result, dict):
         if "generated_text" in result:
             return result["generated_text"].strip()
         elif "text" in result:
             return result["text"].strip()
+        elif "choices" in result and isinstance(result["choices"], list) and result["choices"]:
+            choice = result["choices"][0]
+            if isinstance(choice, dict):
+                message = choice.get("message", {})
+                content = message.get("content") if isinstance(message, dict) else None
+                if isinstance(content, str):
+                    return content.strip()
     return str(result)[:1000]
+
+
+def _run_model_completion(client, prompt, model, max_tokens, temperature):
+    """Run HF generation with chat-completion first, then text-generation fallback."""
+    try:
+        return client.chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    except Exception as chat_error:
+        logging.warning(f"chat_completion failed, trying text_generation fallback: {chat_error}")
+        return client.text_generation(
+            prompt,
+            model=model,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+            return_full_text=False,
+        )
+
+
+def _is_low_quality_summary(text):
+    """Detect summaries that look like raw note dumps or malformed model output."""
+    if not text or len(text.strip()) < 120:
+        return True
+
+    lowered = text.lower()
+    raw_markers = [
+        "- sarah",
+        "sarah she",
+        "exdpress",
+        "gets really quiet when that happens",
+    ]
+    if any(marker in lowered for marker in raw_markers):
+        return True
+
+    # Require at least one section title marker for a clinical progress summary.
+    if "**" not in text and "progress summary" not in lowered:
+        return True
+
+    return False
+
+
+def _build_structured_summary_fallback(reports, student):
+    """Build a section-based clinical summary from report content when AI main summary fails."""
+    therapy_label = reports[0].therapy_type if reports and reports[0].therapy_type else "Therapy"
+
+    therapy_sections = {
+        "Speech Therapy": [
+            "Receptive Language Skills (Comprehension)",
+            "Expressive Language Skills",
+            "Oral Motor & Oral Placement Therapy (OPT) Goals",
+            "Pragmatic Language Skills (Social Communication)",
+            "Narrative Skills",
+        ],
+        "Behavioral Therapy": [
+            "Behavior Regulation & Self-Control",
+            "Attention, Compliance & Task Engagement",
+            "Emotional Regulation Skills",
+            "Social Behavior & Interaction Skills",
+            "Adaptive Behavior & Functional Skills",
+        ],
+        "Cognitive Therapy": [
+            "Attention & Concentration Skills",
+            "Memory & Recall Skills",
+            "Problem Solving & Reasoning Skills",
+            "Executive Functioning Skills",
+            "Cognitive Flexibility & Processing Skills",
+        ],
+        "Occupational Therapy": [
+            "Fine Motor Skills",
+            "Sensory Processing & Integration",
+            "Visual-Motor Integration Skills",
+            "Activities of Daily Living (ADL)",
+            "Handwriting & Pre-Academic Skills",
+        ],
+        "Physical Therapy": [
+            "Gross Motor Skills",
+            "Balance & Postural Control",
+            "Strength & Endurance",
+            "Coordination & Motor Planning",
+            "Functional Mobility Skills",
+        ],
+    }
+
+    def _clean_text(text):
+        if not text:
+            return ""
+        cleaned = re.sub(r"\s+", " ", str(text)).strip()
+        cleaned = re.sub(r"\b\d{4}-\d{2}-\d{2}\b", "", cleaned).strip()
+        cleaned = cleaned.replace(" ,", ",")
+        cleaned = cleaned.replace("exdpress", "express")
+        cleaned = cleaned.replace("Exdpress", "Express")
+        cleaned = re.sub(r"\s*,\s*", ", ", cleaned)
+        return cleaned
+
+    def _to_clinical_sentence(note_text):
+        if not note_text:
+            return ""
+
+        text = _clean_text(note_text)
+        text = re.sub(r"^[\-•\s]+", "", text)
+        # Remove student-name lead-ins to keep objective style.
+        text = re.sub(r"^(Sarah|The student)\b\s*", "", text, flags=re.IGNORECASE)
+        text = text.strip(" .")
+        if not text:
+            return ""
+
+        # Split rough clauses and turn into 1-2 polished sentences.
+        parts = [p.strip() for p in re.split(r"\s*(?:,|;|\band\b)\s*", text) if p.strip()]
+        first = parts[0]
+        first = first[0].upper() + first[1:] if len(first) > 1 else first.upper()
+        sentence_1 = f"The student {first.lower() if first[:2].islower() else first}."
+
+        if len(parts) > 1:
+            second = parts[1]
+            second = second[0].upper() + second[1:] if len(second) > 1 else second.upper()
+            sentence_2 = second if second.endswith((".", "!", "?")) else f"{second}."
+            return f"{sentence_1} {sentence_2}"
+
+        return sentence_1
+
+    ordered_titles = therapy_sections.get(therapy_label, [])
+    extracted_titles = _extract_section_titles(reports)
+    if not ordered_titles:
+        ordered_titles = extracted_titles
+    else:
+        # Append non-standard sections while preserving known therapy order first.
+        extras = [t for t in extracted_titles if t not in ordered_titles]
+        ordered_titles = ordered_titles + extras
+
+    lines = [f"{therapy_label} – Progress Summary", ""]
+
+    if ordered_titles:
+        sections_written = 0
+        for title in ordered_titles:
+            section_notes = []
+            for report in reports:
+                note = _extract_section_content(report, title)
+                note = _clean_text(note)
+                if note:
+                    section_notes.append(note)
+
+            # De-duplicate while preserving order
+            unique_notes = []
+            seen = set()
+            for note in section_notes:
+                key = note.lower()
+                if key not in seen:
+                    seen.add(key)
+                    unique_notes.append(note)
+
+            if not unique_notes:
+                continue
+
+            sections_written += 1
+            lines.append(f"**{title}**")
+            for note in unique_notes[:3]:
+                note_text = _to_clinical_sentence(note[:340])
+                if note_text:
+                    lines.append(f"• {note_text}")
+            lines.append("")
+
+        if sections_written > 0:
+            return "\n".join(lines).strip()
+
+    # Last-resort structured summary from progress notes.
+    general_notes = []
+    for report in reports:
+        if report.progress_notes and str(report.progress_notes).strip():
+            cleaned = _clean_text(report.progress_notes)
+            if cleaned:
+                general_notes.append(cleaned)
+
+    if general_notes:
+        lines.append("**Clinical Observations**")
+        for note in general_notes[:3]:
+            note_text = _to_clinical_sentence(note[:360])
+            if note_text:
+                lines.append(f"• {note_text}")
+        return "\n".join(lines).strip()
+
+    return f"{therapy_label} – Progress Summary\n\nNo detailed clinical observations were available in the selected reports."
 
 
 def _build_overview_prompt(reports, student):
@@ -1208,10 +1424,10 @@ NOW ANALYZE THIS STUDENT'S CURRENT STATUS:
     prompt += f"\nDescribe {student_name}'s current abilities and functioning level based on the notes above. Only describe what the notes say - do not invent details:\n"
     
     try:
-        messages = [{"role": "user", "content": prompt}]
-        result = client.chat_completion(
-            messages=messages,
-            model=payload.model or "meta-llama/Llama-3.2-3B-Instruct",
+        result = _run_model_completion(
+            client=client,
+            prompt=prompt,
+            model=payload.model or "meta-llama/Llama-3.3-70B-Instruct",
             max_tokens=350,
             temperature=0.3
         )

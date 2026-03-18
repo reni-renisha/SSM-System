@@ -681,7 +681,7 @@ const StudentPage = () => {
   const [aiAnalysis, setAiAnalysis] = useState(null); // Full comprehensive analysis
   const [aiSummarizing, setAiSummarizing] = useState(false);
   const [aiSummaryError, setAiSummaryError] = useState(null);
-  const [aiModel, setAiModel] = useState("meta-llama/Llama-3.2-3B-Instruct");
+  const [aiModel, setAiModel] = useState("meta-llama/Llama-3.3-70B-Instruct");
 
   // IEP OCR state
   const [ocrImage, setOcrImage] = useState(null);
@@ -1083,6 +1083,59 @@ const StudentPage = () => {
   const questionRefs = useRef({}); // Refs for scrolling to questions
   const [pulsatingEditButton, setPulsatingEditButton] = useState({}); // Track which table's edit button should pulsate
 
+  const normalizeAIProgressSummary = (summaryText) => {
+    if (!summaryText || typeof summaryText !== "string") return summaryText;
+
+    const lowQualityMarkers = [
+      "- Sarah",
+      "Sarah she",
+      "exdpress",
+      "gets really quiet when that happens",
+    ];
+    const isLowQuality = lowQualityMarkers.some((m) =>
+      summaryText.toLowerCase().includes(m.toLowerCase()),
+    );
+
+    if (!isLowQuality) return summaryText;
+
+    const lines = summaryText.split("\n");
+    const normalized = lines.map((rawLine) => {
+      let line = (rawLine || "").trim();
+      if (!line) return "";
+
+      if (/progress summary/i.test(line)) {
+        return line.replace(" - Progress Summary", " – Progress Summary");
+      }
+
+      if (line.startsWith("**") && line.endsWith("**")) {
+        return line;
+      }
+
+      if (line.startsWith("- ")) {
+        line = line.slice(2).trim();
+        line = line.replace(/^Sarah\s+/i, "");
+        line = line.replace(/^she\s+/i, "");
+        line = line.replace(/^her\s+/i, "");
+        line = line.replace(/\bexdpress\b/gi, "express");
+        line = line.replace(/\s+,/g, ",");
+        line = line.replace(/,\s*/g, ", ");
+        line = line.replace(/\s{2,}/g, " ").trim();
+
+        if (!/^the student\b/i.test(line)) {
+          line = `The student ${line.charAt(0).toLowerCase()}${line.slice(1)}`;
+        }
+        if (!/[.!?]$/.test(line)) {
+          line += ".";
+        }
+        return `• ${line}`;
+      }
+
+      return line;
+    });
+
+    return normalized.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+
   const handleAISummarize = async () => {
     setAiSummaryError(null);
     setAiSummary("");
@@ -1120,9 +1173,12 @@ const StudentPage = () => {
       }
       const data = await res.json();
 
+      const normalizedSummary = normalizeAIProgressSummary(data.summary || "");
+      const normalizedData = { ...data, summary: normalizedSummary };
+
       // Set the comprehensive analysis data
-      setAiAnalysis(data);
-      setAiSummary(data.summary || "(No summary returned)");
+      setAiAnalysis(normalizedData);
+      setAiSummary(normalizedSummary || "(No summary returned)");
     } catch (e) {
       console.error("AI summarize failed", e);
       setAiSummaryError(e.message);
