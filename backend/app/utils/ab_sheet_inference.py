@@ -57,11 +57,11 @@ HEADERS = [
 N_ROWS = len(SKILL_AREAS)
 N_COLS = 20  # 20 sessions
 
-# Heuristic table crop (fractions of height/width) – adjust to your sheet
-TABLE_TOP = 0.0
-TABLE_BOTTOM = 1.0
-TABLE_LEFT = 0.0
-TABLE_RIGHT = 1.0
+# Fixed pixel crop for the A/B table region
+TABLE_TOP = 390
+TABLE_BOTTOM = 875
+TABLE_LEFT = 280
+TABLE_RIGHT = 985
 
 # ====== MODEL LOADING (singleton) ======
 
@@ -106,19 +106,24 @@ def _deskew_and_rotate(image_bgr: np.ndarray) -> np.ndarray:
     return image_bgr
 
 
+def _compute_fixed_crop_bounds(height: int, width: int) -> tuple[int, int, int, int]:
+    """Return clamped fixed crop bounds: (top, bottom, left, right)."""
+    top = max(0, min(TABLE_TOP, height - 1))
+    bottom = max(top + 1, min(TABLE_BOTTOM, height))
+    left = max(0, min(TABLE_LEFT, width - 1))
+    right = max(left + 1, min(TABLE_RIGHT, width))
+    return top, bottom, left, right
+
+
 def _crop_table_region(image_bgr: np.ndarray) -> np.ndarray:
     """Crop the fixed region where the assessment table lives."""
     h, w = image_bgr.shape[:2]
-    top = int(h * TABLE_TOP)
-    bottom = int(h * TABLE_BOTTOM)
-    left = int(w * TABLE_LEFT)
-    right = int(w * TABLE_RIGHT)
+    top, bottom, left, right = _compute_fixed_crop_bounds(h, w)
 
     cropped = image_bgr[top:bottom, left:right]
     if cropped.size == 0:
-        raise ValueError("Table crop is empty; adjust TABLE_* constants")
+        raise ValueError("Table crop is empty; adjust fixed TABLE_* pixel constants")
     return cropped
-
 
 def _split_into_cells(table_bgr: np.ndarray) -> List[List[np.ndarray]]:
     h, w = table_bgr.shape[:2]
@@ -209,6 +214,23 @@ def predict_ab_table_from_image(file_bytes: bytes) -> Dict[str, Any]:
         image_bgr = _bytes_to_bgr(file_bytes)
         rotated = _deskew_and_rotate(image_bgr)
         table_bgr = _crop_table_region(rotated)
+
+        # Save debug images to verify fixed crop region on every upload.
+        crop_h, crop_w = rotated.shape[:2]
+        crop_top, crop_bottom, crop_left, crop_right = _compute_fixed_crop_bounds(crop_h, crop_w)
+        debug_crop_path = os.path.join(DEBUG_CROPS_DIR, "latest_table_crop.png")
+        cv2.imwrite(debug_crop_path, table_bgr)
+
+        debug_overlay = rotated.copy()
+        cv2.rectangle(
+            debug_overlay,
+            (crop_left, crop_top),
+            (crop_right - 1, crop_bottom - 1),
+            (0, 255, 0),
+            3,
+        )
+        debug_overlay_path = os.path.join(DEBUG_CROPS_DIR, "latest_full_with_crop_box.png")
+        cv2.imwrite(debug_overlay_path, debug_overlay)
         grid_cells = _split_into_cells(table_bgr)
         model = _get_model()
 
@@ -310,3 +332,5 @@ def predict_ab_table_from_image(file_bytes: bytes) -> Dict[str, Any]:
             "tables": [],
             "table_count": 0,
         }
+
+
