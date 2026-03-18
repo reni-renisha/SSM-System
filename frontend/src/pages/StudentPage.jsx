@@ -682,6 +682,8 @@ const StudentPage = () => {
   const [aiSummarizing, setAiSummarizing] = useState(false);
   const [aiSummaryError, setAiSummaryError] = useState(null);
   const [aiModel, setAiModel] = useState("meta-llama/Llama-3.3-70B-Instruct");
+  const aiSummaryAbortControllerRef = useRef(null);
+  const [collapsedSummarySections, setCollapsedSummarySections] = useState({});
 
   // IEP OCR state
   const [ocrImage, setOcrImage] = useState(null);
@@ -1136,10 +1138,175 @@ const StudentPage = () => {
     return normalized.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   };
 
+  const renderSummaryContent = (summaryText, isStreaming = false) => {
+    const text = String(summaryText || "").trim();
+
+    if (!text) {
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 text-sm text-gray-700">
+          <div className="font-semibold text-[#C56930]">Generating summary...</div>
+          <div className="mt-1 text-gray-600">
+            The AI is preparing a structured progress summary from the selected reports.
+          </div>
+        </div>
+      );
+    }
+
+    const lines = text.split("\n");
+    const sections = [];
+    let summaryTitle = selectedTherapyType || "Therapy";
+    let currentSection = { heading: "Summary", lines: [] };
+
+    const pushSection = () => {
+      const hasContent = currentSection.lines.some((line) => (line || "").trim().length > 0);
+      if (hasContent) {
+        sections.push(currentSection);
+      }
+    };
+
+    lines.forEach((rawLine) => {
+      const line = (rawLine || "").trim();
+
+      if (!line) {
+        currentSection.lines.push("");
+        return;
+      }
+
+      const cleanedHeading = line.replace(/^\*\*|\*\*$/g, "").trim();
+      const isMainTitle = /progress summary/i.test(cleanedHeading);
+      const isSectionHeading =
+        (line.startsWith("**") && line.endsWith("**")) ||
+        (/^[A-Z][^:]{2,80}:$/.test(cleanedHeading) && !isMainTitle);
+
+      if (isMainTitle) {
+        const titleWithoutSuffix = cleanedHeading
+          .replace(/\s*[–-]\s*progress summary\s*$/i, "")
+          .replace(/\s*progress summary\s*$/i, "")
+          .trim();
+        summaryTitle = titleWithoutSuffix || summaryTitle;
+        return;
+      }
+
+      if (isSectionHeading) {
+        pushSection();
+        currentSection = {
+          heading: cleanedHeading.replace(/:$/, ""),
+          lines: [],
+        };
+        return;
+      }
+
+      currentSection.lines.push(line);
+    });
+
+    pushSection();
+
+    return (
+      <div className="space-y-3">
+        <div className="mb-2 rounded-xl border border-[#E38B52]/40 bg-gradient-to-r from-orange-100 to-orange-50 px-4 py-3">
+          <div className="text-lg sm:text-xl font-extrabold text-[#B85D2A] tracking-wide uppercase">
+            {summaryTitle}
+          </div>
+        </div>
+
+        {sections.map((section, sectionIndex) => {
+          const sectionKey = `${section.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${sectionIndex}`;
+          const isCollapsed = !!collapsedSummarySections[sectionKey];
+
+          return (
+            <div key={sectionKey} className="rounded-xl border border-orange-200/70 bg-white/90">
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapsedSummarySections((prev) => ({
+                    ...prev,
+                    [sectionKey]: !prev[sectionKey],
+                  }))
+                }
+                className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-left hover:bg-orange-50/70 transition-colors"
+              >
+                <h5 className="text-sm sm:text-base font-bold text-[#B65E2A]">
+                  {section.heading}
+                </h5>
+                <span className="text-[#E38B52] text-xs font-semibold">
+                  {isCollapsed ? "Expand" : "Collapse"}
+                </span>
+              </button>
+
+              {!isCollapsed && (
+                <div className="mt-1 px-4 pb-4 space-y-3">
+                  {section.lines.map((sectionLine, lineIndex) => {
+                    const line = (sectionLine || "").trim();
+                    if (!line) {
+                      return <div key={`${sectionKey}-spacer-${lineIndex}`} className="h-2" />;
+                    }
+
+                    const isBullet = /^[-•*]\s+/.test(line);
+                    const bulletText = isBullet ? line.replace(/^[-•*]\s+/, "") : line;
+                    const isFinalVisibleLine =
+                      isStreaming &&
+                      sectionIndex === sections.length - 1 &&
+                      lineIndex === section.lines.length - 1;
+
+                    return (
+                      <div
+                        key={`${sectionKey}-line-${lineIndex}`}
+                        className={`rounded-lg px-3 py-2 ${
+                          isBullet
+                            ? "bg-white/80 border border-orange-100"
+                            : "bg-transparent"
+                        }`}
+                      >
+                        <p className="text-sm sm:text-[15px] text-gray-800 leading-7">
+                          {isBullet && <span className="text-[#E38B52] font-bold mr-2">•</span>}
+                          {bulletText}
+                          {isFinalVisibleLine && (
+                            <span className="inline-block ml-1 text-[#E38B52] font-semibold animate-pulse">
+                              |
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const getFilteredReportsForCurrentFilters = () => {
+    return reports.filter((r) => {
+      if (fromDate) {
+        if (!r.report_date) return false;
+        const reportDate = new Date(r.report_date);
+        const filterFromDate = new Date(fromDate);
+        if (reportDate < filterFromDate) return false;
+      }
+      if (toDate) {
+        if (!r.report_date) return false;
+        const reportDate = new Date(r.report_date);
+        const filterToDate = new Date(toDate);
+        if (reportDate > filterToDate) return false;
+      }
+      if (selectedTherapyType) {
+        if (!r.therapy_type || r.therapy_type.trim() !== selectedTherapyType.trim()) {
+          return false;
+        }
+      }
+      return true;
+    });
+  };
+
   const handleAISummarize = async () => {
     setAiSummaryError(null);
     setAiSummary("");
     setAiAnalysis(null);
+    setTranslatedSummary(null);
+    setCollapsedSummarySections({});
     // Build server payload based on current filters
     const payload = {
       student_id: student?.studentId || id,
@@ -1155,12 +1322,15 @@ const StudentPage = () => {
       return;
     }
     setAiSummarizing(true);
+    const abortController = new AbortController();
+    aiSummaryAbortControllerRef.current = abortController;
     try {
       const baseUrl =
         process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
       const token = localStorage.getItem("token");
-      const res = await fetch(`${baseUrl}/api/v1/therapy-reports/summary/ai`, {
+      const res = await fetch(`${baseUrl}/api/v1/therapy-reports/summary/ai/stream`, {
         method: "POST",
+        signal: abortController.signal,
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -1171,19 +1341,113 @@ const StudentPage = () => {
         const text = await res.text();
         throw new Error(`${res.status} ${text}`);
       }
-      const data = await res.json();
 
-      const normalizedSummary = normalizeAIProgressSummary(data.summary || "");
-      const normalizedData = { ...data, summary: normalizedSummary };
+      if (!res.body) {
+        throw new Error("Streaming response body is not available");
+      }
 
-      // Set the comprehensive analysis data
-      setAiAnalysis(normalizedData);
-      setAiSummary(normalizedSummary || "(No summary returned)");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamedSummary = "";
+      let gotCompleteEvent = false;
+
+      const processSseEvent = (rawEvent) => {
+        if (!rawEvent) return;
+
+        const lines = rawEvent
+          .split("\n")
+          .map((line) => line.trimEnd())
+          .filter(Boolean);
+        if (!lines.length) return;
+
+        let eventType = "message";
+        const dataLines = [];
+
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          }
+        }
+
+        const dataText = dataLines.join("\n");
+        if (!dataText) return;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(dataText);
+        } catch {
+          return;
+        }
+
+        if (eventType === "summary") {
+          const nextChunk = parsed?.chunk || "";
+          if (nextChunk) {
+            streamedSummary += nextChunk;
+            setAiSummary(streamedSummary);
+          }
+          return;
+        }
+
+        if (eventType === "summary_replace") {
+          const replacement = parsed?.summary || "";
+          streamedSummary = replacement;
+          setAiSummary(replacement);
+          return;
+        }
+
+        if (eventType === "complete") {
+          gotCompleteEvent = true;
+          const normalizedSummary = normalizeAIProgressSummary(parsed?.summary || streamedSummary || "");
+          const normalizedData = { ...parsed, summary: normalizedSummary };
+          setAiAnalysis(normalizedData);
+          setAiSummary(normalizedSummary || "(No summary returned)");
+          return;
+        }
+
+        if (eventType === "error") {
+          throw new Error(parsed?.message || "AI summary streaming failed");
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          if (buffer.trim()) {
+            processSseEvent(buffer.trim());
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+        for (const evt of events) {
+          processSseEvent(evt.trim());
+        }
+      }
+
+      if (!gotCompleteEvent) {
+        throw new Error("AI summary stream closed before completion");
+      }
     } catch (e) {
+      if (e?.name === "AbortError") {
+        setAiSummaryError("Generation stopped");
+        return;
+      }
       console.error("AI summarize failed", e);
       setAiSummaryError(e.message);
     } finally {
+      aiSummaryAbortControllerRef.current = null;
       setAiSummarizing(false);
+    }
+  };
+
+  const handleStopAISummarize = () => {
+    if (aiSummaryAbortControllerRef.current) {
+      aiSummaryAbortControllerRef.current.abort();
     }
   };
 
@@ -4191,10 +4455,10 @@ const StudentPage = () => {
                     {aiSummarizing && (
                       <div className="text-sm text-gray-600 animate-pulse flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-[#E38B52] border-t-transparent rounded-full animate-spin"></div>
-                        Generating comprehensive AI analysis...
+                        Generating summary... live typing in progress
                       </div>
                     )}
-                    {aiAnalysis && !aiSummarizing && (
+                    {(aiSummarizing || aiAnalysis || aiSummary) && (
                       <div className="mt-4 space-y-4 animate-fadeIn">
                         <div className="relative bg-gradient-to-br from-white via-orange-50/40 to-orange-100/60 backdrop-blur-sm p-8 rounded-2xl border border-[#E38B52]/30 shadow-md shadow-orange-100/30 transition-all duration-300 hover:shadow-lg hover:shadow-orange-200/40">
                           <h4 className="text-3xl font-extrabold text-[#C56930] mb-6 flex items-center gap-3 pb-3">
@@ -4226,88 +4490,126 @@ const StudentPage = () => {
                                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                               />
                             </svg>
-                            {aiAnalysis && !aiSummarizing && (
-                              <>
-                                <button
-                                  onClick={generateAIAnalysisPDF}
-                                  className="ml-auto px-3 py-2 border-2 border-[#E38B52] text-[#E38B52] text-sm rounded-xl bg-white hover:bg-orange-50 active:scale-95 active:bg-orange-100 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold"
-                                  title="Download AI Analysis Report as PDF"
+                            {aiSummarizing && (
+                              <button
+                                onClick={handleStopAISummarize}
+                                className="ml-auto px-3 py-2 border-2 border-red-400 text-red-700 text-sm rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold"
+                                title="Stop summary generation"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
                                 >
-                                  <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.2"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M12 16v-8m0 8l-4-4m4 4l4-4M4 20h16a2 2 0 002-2V6a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                  Summary
-                                </button>
-                                <button
-                                  onClick={() => handleTranslate()}
-                                  disabled={translating}
-                                  className="ml-2 px-3 py-2 border-2 border-[#E38B52] text-[#E38B52] text-sm rounded-xl bg-white hover:bg-orange-50 active:scale-95 active:bg-orange-100 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Translate to Malayalam"
-                                >
-                                  <svg
-                                    className="w-5 h-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                  >
-                                    <circle
-                                      cx="12"
-                                      cy="12"
-                                      r="10"
-                                      stroke="#E38B52"
-                                      strokeWidth="2"
-                                      fill="#fff"
-                                    />
-                                    <path
-                                      d="M2 12h20"
-                                      stroke="#E38B52"
-                                      strokeWidth="2"
-                                    />
-                                    <path
-                                      d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"
-                                      stroke="#E38B52"
-                                      strokeWidth="2"
-                                      fill="none"
-                                    />
-                                  </svg>
-                                  {translating ? "Translating..." : "Malayalam"}
-                                </button>
-                                <button
-                                  onClick={handleSendToParent}
-                                  disabled={sendingToParent || sentToParent}
-                                  className={`ml-2 px-3 py-2 border-2 text-sm rounded-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-60 disabled:cursor-not-allowed ${
-                                    sentToParent
-                                      ? "border-green-500 text-green-600 bg-green-50"
-                                      : "border-[#E38B52] text-[#E38B52] bg-white hover:bg-orange-50 active:bg-orange-100"
-                                  }`}
-                                  title="Send this summary to the parent portal"
-                                >
-                                  {sentToParent ? (
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  ) : (
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                  )}
-                                  {sendingToParent ? "Sending..." : sentToParent ? "Sent!" : "Send to Parent"}
-                                </button>
-                              </>
+                                  <rect x="5" y="5" width="10" height="10" rx="1" />
+                                </svg>
+                                Stop
+                              </button>
                             )}
                           </h4>
 
-                          <div className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap max-h-96 overflow-auto prose prose-sm max-w-none">
+                          {(() => {
+                            const filteredReports = getFilteredReportsForCurrentFilters();
+                            const usedReports = aiAnalysis?.used_reports ?? filteredReports.length;
+                            const startDate = aiAnalysis?.date_range?.start_date || fromDate || "All dates";
+                            const endDate = aiAnalysis?.date_range?.end_date || toDate || "Current";
+                            const therapyLabel = selectedTherapyType || "All therapies";
+
+                            return (
+                              <div className="mb-4 rounded-xl border border-orange-200 bg-white/80 px-4 py-2 text-xs sm:text-sm text-gray-700">
+                                <span className="font-semibold text-[#B65E2A]">Based on {usedReports} reports</span>
+                                <span className="mx-2 text-gray-400">|</span>
+                                <span>Date range: {startDate} to {endDate}</span>
+                                <span className="mx-2 text-gray-400">|</span>
+                                <span>Therapy: {therapyLabel}</span>
+                              </div>
+                            );
+                          })()}
+
+                          <div className="text-sm text-gray-800 leading-relaxed max-h-96 overflow-auto max-w-none pr-1 rounded-xl border border-orange-100 bg-white/50">
+                            {aiAnalysis && !aiSummarizing && (
+                              <div className="sticky top-0 z-10 px-3 py-2 border-b border-orange-200 bg-white/95 backdrop-blur-sm">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button
+                                    onClick={generateAIAnalysisPDF}
+                                    className="px-3 py-2 border-2 border-[#E38B52] text-[#E38B52] text-xs sm:text-sm rounded-xl bg-white hover:bg-orange-50 active:scale-95 active:bg-orange-100 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold"
+                                    title="Download AI Analysis Report as PDF"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.2"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 16v-8m0 8l-4-4m4 4l4-4M4 20h16a2 2 0 002-2V6a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
+                                    </svg>
+                                    Download
+                                  </button>
+                                  <button
+                                    onClick={() => handleTranslate()}
+                                    disabled={translating}
+                                    className="px-3 py-2 border-2 border-[#E38B52] text-[#E38B52] text-xs sm:text-sm rounded-xl bg-white hover:bg-orange-50 active:scale-95 active:bg-orange-100 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Translate to Malayalam"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="#E38B52"
+                                        strokeWidth="2"
+                                        fill="#fff"
+                                      />
+                                      <path
+                                        d="M2 12h20"
+                                        stroke="#E38B52"
+                                        strokeWidth="2"
+                                      />
+                                      <path
+                                        d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"
+                                        stroke="#E38B52"
+                                        strokeWidth="2"
+                                        fill="none"
+                                      />
+                                    </svg>
+                                    {translating ? "Translating..." : "Malayalam"}
+                                  </button>
+                                  <button
+                                    onClick={handleSendToParent}
+                                    disabled={sendingToParent || sentToParent}
+                                    className={`px-3 py-2 border-2 text-xs sm:text-sm rounded-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-60 disabled:cursor-not-allowed ${
+                                      sentToParent
+                                        ? "border-green-500 text-green-600 bg-green-50"
+                                        : "border-[#E38B52] text-[#E38B52] bg-white hover:bg-orange-50 active:bg-orange-100"
+                                    }`}
+                                    title="Send this summary to the parent portal"
+                                  >
+                                    {sentToParent ? (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                      </svg>
+                                    )}
+                                    {sendingToParent ? "Sending..." : sentToParent ? "Sent" : "Send to Parent"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="p-3">
                             {translating ? (
                               <div className="flex items-center gap-2 text-gray-600">
                                 <div className="w-4 h-4 border-2 border-[#E38B52] border-t-transparent rounded-full animate-spin"></div>
@@ -4333,9 +4635,12 @@ const StudentPage = () => {
                                 </div>
                               </div>
                             ) : (
-                              aiAnalysis?.summary ||
-                              "No progress summary available"
+                              renderSummaryContent(
+                                aiSummarizing ? aiSummary : aiAnalysis?.summary,
+                                aiSummarizing,
+                              )
                             )}
+                            </div>
                           </div>
                           {aiAnalysis?.truncated && (
                             <div className="mt-3 text-xs text-orange-700 bg-orange-50 p-2 rounded border border-orange-200">
@@ -6165,6 +6470,15 @@ const StudentPage = () => {
                       </>
                     )}
                   </button>
+                      {aiSummarizing && (
+                        <button
+                          onClick={handleStopAISummarize}
+                          className="px-6 py-3 rounded-2xl border-2 border-red-400 text-red-700 bg-red-50 hover:bg-red-100 active:scale-95 transition-all duration-200 font-semibold"
+                          title="Stop streaming AI summary"
+                        >
+                          Stop
+                        </button>
+                      )}
                 </div>
               </div>
             </div>

@@ -1,5 +1,6 @@
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import os
 import json
@@ -44,6 +45,35 @@ class TherapyAISummaryResponse(BaseModel):
     improvement_metrics: dict
     recommendations: str
     date_range: dict
+
+
+def _get_filtered_reports_for_payload(db: Session, payload: TherapyAISummaryRequest):
+    """Resolve student and filter reports by optional date/type filters."""
+    from app.crud.student import student as crud_student
+
+    db_student = crud_student.get_by_student_id(db, student_id=payload.student_id)
+    if not db_student:
+        raise HTTPException(status_code=404, detail=f"Student with ID {payload.student_id} not found.")
+
+    reports = crud.therapy_report.get_by_student(db, student_id=db_student.id)
+    if not reports:
+        raise HTTPException(status_code=404, detail="No therapy reports found for student.")
+
+    filtered = []
+    for r in reports:
+        if payload.from_date and r.report_date < payload.from_date:
+            continue
+        if payload.to_date and r.report_date > payload.to_date:
+            continue
+        if payload.therapy_type and (not r.therapy_type or r.therapy_type != payload.therapy_type):
+            continue
+        filtered.append(r)
+
+    if not filtered:
+        raise HTTPException(status_code=404, detail="No therapy reports matched the provided filters.")
+
+    filtered.sort(key=lambda r: r.report_date)
+    return db_student, filtered
 
 
 
@@ -113,30 +143,7 @@ def ai_summarize_reports_test(
     if not settings.HUGGINGFACE_API_TOKEN:
         raise HTTPException(status_code=503, detail="HUGGINGFACE_API_TOKEN environment variable not set on server.")
 
-    from app.crud.student import student as crud_student
-    db_student = crud_student.get_by_student_id(db, student_id=payload.student_id)
-    if not db_student:
-        raise HTTPException(status_code=404, detail=f"Student with ID {payload.student_id} not found.")
-    
-    reports = crud.therapy_report.get_by_student(db, student_id=db_student.id)
-    if not reports:
-        raise HTTPException(status_code=404, detail="No therapy reports found for student.")
-
-    # Filter by date range / therapy type
-    filtered = []
-    for r in reports:
-        if payload.from_date and r.report_date < payload.from_date:
-            continue
-        if payload.to_date and r.report_date > payload.to_date:
-            continue
-        if payload.therapy_type and (not r.therapy_type or r.therapy_type != payload.therapy_type):
-            continue
-        filtered.append(r)
-
-    if not filtered:
-        raise HTTPException(status_code=404, detail="No therapy reports matched the provided filters.")
-
-    filtered.sort(key=lambda r: r.report_date)
+    db_student, filtered = _get_filtered_reports_for_payload(db, payload)
     analysis = _generate_comprehensive_analysis(filtered, db_student, payload)
     return analysis
 
@@ -168,40 +175,78 @@ def ai_summarize_reports(
     print(f"Student: {payload.student_id}, Model: {payload.model}")
     print(f"{'='*60}\n")
 
-    # First, look up the student by string student_id to get the integer id
-    from app.crud.student import student as crud_student
-    db_student = crud_student.get_by_student_id(db, student_id=payload.student_id)
-    if not db_student:
-        raise HTTPException(status_code=404, detail=f"Student with ID {payload.student_id} not found.")
-    
-    # Now get therapy reports using the integer student id (foreign key)
-    reports = crud.therapy_report.get_by_student(db, student_id=db_student.id)
-    if not reports:
-        raise HTTPException(status_code=404, detail="No therapy reports found for student.")
-
-    # Filter by date range / therapy type
-    filtered = []
-    for r in reports:
-        if payload.from_date and r.report_date < payload.from_date:
-            continue
-        if payload.to_date and r.report_date > payload.to_date:
-            continue
-        if payload.therapy_type and (not r.therapy_type or r.therapy_type != payload.therapy_type):
-            continue
-        filtered.append(r)
-
-    if not filtered:
-        raise HTTPException(status_code=404, detail="No therapy reports matched the provided filters.")
-
-    # Sort reports by date for chronological analysis
-    filtered.sort(key=lambda r: r.report_date)
+    db_student, filtered = _get_filtered_reports_for_payload(db, payload)
     
     # Generate comprehensive analysis based on actual data
     analysis = _generate_comprehensive_analysis(filtered, db_student, payload)
     return analysis
 
 
-def _generate_comprehensive_analysis(reports, student, payload):
+@router.post("/summary/ai/stream")
+def ai_summarize_reports_stream(
+    payload: TherapyAISummaryRequest = Body(...),
+    db: Session = Depends(deps.get_db),
+    current_user: schemas.user.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """Stream main summary progressively, then return full AI analysis as final event."""
+    if InferenceClient is None:
+        raise HTTPException(status_code=503, detail="huggingface_hub not installed on server.")
+
+    if not settings.HUGGINGFACE_API_TOKEN:
+        raise HTTPException(status_code=503, detail="HUGGINGFACE_API_TOKEN environment variable not set on server.")
+
+    db_student, filtered = _get_filtered_reports_for_payload(db, payload)
+
+    def event_stream():
+        try:
+            client = InferenceClient(api_key=settings.HUGGINGFACE_API_TOKEN)
+            model_name = payload.model or "meta-llama/Llama-3.3-70B-Instruct"
+            main_summary_prompt = _build_main_summary_prompt_with_fewshot(filtered, db_student)
+
+            streamed_summary_parts = []
+            for chunk in _stream_model_completion(
+                client=client,
+                prompt=main_summary_prompt,
+                model=model_name,
+                max_tokens=2000,
+                temperature=0.25,
+            ):
+                if not chunk:
+                    continue
+                streamed_summary_parts.append(chunk)
+                yield f"event: summary\ndata: {json.dumps({'chunk': chunk})}\n\n"
+
+            main_summary = "".join(streamed_summary_parts).strip()
+            if _is_low_quality_summary(main_summary):
+                logging.warning("Streamed main summary quality check failed; using structured fallback formatter")
+                main_summary = _build_structured_summary_fallback(filtered, db_student)
+                yield f"event: summary_replace\ndata: {json.dumps({'summary': main_summary})}\n\n"
+
+            analysis = _generate_comprehensive_analysis(
+                filtered,
+                db_student,
+                payload,
+                precomputed_main_summary=main_summary,
+            )
+
+            analysis_payload = analysis.dict() if hasattr(analysis, "dict") else analysis
+            yield f"event: complete\ndata: {json.dumps(analysis_payload)}\n\n"
+        except Exception as e:
+            logging.exception("AI summary stream failed")
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _generate_comprehensive_analysis(reports, student, payload, precomputed_main_summary: Optional[str] = None):
     """Generate a comprehensive AI-powered analysis based on actual therapy report data."""
     client = InferenceClient(api_key=settings.HUGGINGFACE_API_TOKEN)
     
@@ -274,22 +319,25 @@ def _generate_comprehensive_analysis(reports, student, payload):
         recommendations = baseline.recommendations
 
     # 5. Main Summary - AI analyzes all report content
-    try:
-        main_summary_prompt = _build_main_summary_prompt_with_fewshot(reports, student)
-        main_result = _run_model_completion(
-            client=client,
-            prompt=main_summary_prompt,
-            model=model_name,
-            max_tokens=2000,  # Large enough for detailed clinical paragraphs per section
-            temperature=0.25  # Low temperature for faithful, data-grounded output
-        )
-        main_summary = _extract_generated_text(main_result)
-        if _is_low_quality_summary(main_summary):
-            logging.warning("Main summary quality check failed; using structured fallback formatter")
+    if precomputed_main_summary:
+        main_summary = precomputed_main_summary
+    else:
+        try:
+            main_summary_prompt = _build_main_summary_prompt_with_fewshot(reports, student)
+            main_result = _run_model_completion(
+                client=client,
+                prompt=main_summary_prompt,
+                model=model_name,
+                max_tokens=2000,  # Large enough for detailed clinical paragraphs per section
+                temperature=0.25  # Low temperature for faithful, data-grounded output
+            )
+            main_summary = _extract_generated_text(main_result)
+            if _is_low_quality_summary(main_summary):
+                logging.warning("Main summary quality check failed; using structured fallback formatter")
+                main_summary = _build_structured_summary_fallback(reports, student)
+        except Exception as e:
+            logging.warning(f"Main summary generation failed, using structured report-based fallback: {e}")
             main_summary = _build_structured_summary_fallback(reports, student)
-    except Exception as e:
-        logging.warning(f"Main summary generation failed, using structured report-based fallback: {e}")
-        main_summary = _build_structured_summary_fallback(reports, student)
     
     return TherapyAISummaryResponse(
         student_id=payload.student_id,
@@ -370,6 +418,69 @@ def _run_model_completion(client, prompt, model, max_tokens, temperature):
             temperature=temperature,
             return_full_text=False,
         )
+
+
+def _stream_model_completion(client, prompt, model, max_tokens, temperature):
+    """Yield text chunks from HF chat streaming; fallback to chunked full completion."""
+    try:
+        stream = client.chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=True,
+        )
+        for chunk in stream:
+            text = _extract_stream_chunk_text(chunk)
+            if text:
+                yield text
+        return
+    except Exception as chat_stream_error:
+        logging.warning(f"chat_completion stream failed, using non-stream fallback: {chat_stream_error}")
+
+    fallback = _run_model_completion(
+        client=client,
+        prompt=prompt,
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    full_text = _extract_generated_text(fallback)
+    for piece in _chunk_text_for_streaming(full_text):
+        yield piece
+
+
+def _extract_stream_chunk_text(chunk):
+    """Extract incremental text from HF stream chunk object/dict shapes."""
+    try:
+        # Object form with OpenAI-like delta path
+        choices = getattr(chunk, "choices", None)
+        if choices:
+            delta = getattr(choices[0], "delta", None)
+            if delta is not None:
+                content = getattr(delta, "content", None)
+                if isinstance(content, str):
+                    return content
+
+        # Dict form fallback
+        if isinstance(chunk, dict):
+            choices_dict = chunk.get("choices")
+            if isinstance(choices_dict, list) and choices_dict:
+                delta_dict = choices_dict[0].get("delta", {}) if isinstance(choices_dict[0], dict) else {}
+                content = delta_dict.get("content") if isinstance(delta_dict, dict) else None
+                if isinstance(content, str):
+                    return content
+    except Exception:
+        return ""
+    return ""
+
+
+def _chunk_text_for_streaming(text: str, chunk_size: int = 28):
+    """Split completed text into small chunks for progressive UI updates."""
+    if not text:
+        return
+    for i in range(0, len(text), chunk_size):
+        yield text[i:i + chunk_size]
 
 
 def _is_low_quality_summary(text):
