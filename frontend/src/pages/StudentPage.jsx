@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { jsPDF } from "jspdf";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -2536,7 +2536,7 @@ const StudentPage = () => {
           extracted_at: t.extracted_at || extractedAt,
           isEditable: true, // newly extracted tables are editable + show Save
           assessment_phase: "1st assmt", // default: converted image = 1st assessment
-          last_edited_at: extractedAt, // first “edit” time = extraction
+          last_edited_at: extractedAt, // first â€œeditâ€ time = extraction
         }));
 
         // Use enriched tables for current session
@@ -2823,6 +2823,161 @@ const StudentPage = () => {
     URL.revokeObjectURL(url);
 
     showToast("Table exported to CSV successfully!", "success");
+  };
+
+  const handleExportToPDF = (table, index) => {
+    if (!table || !table.rows || table.rows.length === 0) return;
+
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const allHeaders = table.headers || Object.keys(table.rows[0]);
+      const headers = allHeaders.filter(
+        (h) =>
+          h !== "Student Name" &&
+          h !== "Register Number" &&
+          h !== "Assessment Date",
+      );
+
+      const skillHeader =
+        headers.find((h) => String(h).toLowerCase().includes("skill")) ||
+        headers[0];
+      const sessionHeaders = headers.filter((h) =>
+        /^session\s+/i.test(String(h)),
+      );
+      const summaryHeaders = headers.filter(
+        (h) => h !== skillHeader && !/^session\s+/i.test(String(h)),
+      );
+
+      const orderedHeaders = [skillHeader, ...sessionHeaders, ...summaryHeaders];
+      const displayHeaders = [
+        skillHeader,
+        ...sessionHeaders.map((h) => String(h).replace(/^Session\s+/i, "")),
+        ...summaryHeaders,
+      ];
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginLeft = 8;
+      const marginRight = 8;
+      const marginTop = 10;
+      const marginBottom = 8;
+      const tableWidth = pageWidth - marginLeft - marginRight;
+
+      const colWidths = displayHeaders.map((_, idx) => {
+        if (idx === 0) return 48; // Skill Area
+        if (idx <= sessionHeaders.length) return 7.5; // Sessions 1..20
+        return 9; // Totals and quarter columns
+      });
+
+      const baseWidth = colWidths.reduce((sum, w) => sum + w, 0);
+      const widthScale = tableWidth / baseWidth;
+      const scaledColWidths = colWidths.map((w) => w * widthScale);
+
+      const lineHeight = 3.1;
+      const cellPad = 1.0;
+      let y = marginTop;
+
+      const studentName =
+        table.rows[0]?.["Student Name"] || student?.name || "Unknown";
+      const phaseText = table.assessment_phase || "1st assmt";
+      const dateText = table.report_date || "N/A";
+
+      const drawMeta = () => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("Special Education Table", marginLeft, y);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        y += 5;
+        doc.text("Student: " + studentName, marginLeft, y);
+        doc.text("Phase: " + phaseText, pageWidth / 2 - 10, y);
+        doc.text("Date: " + dateText, pageWidth - marginRight - 45, y);
+        y += 4;
+      };
+
+      const drawHeader = () => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        const headerHeight = 7;
+        let x = marginLeft;
+        displayHeaders.forEach((header, idx) => {
+          doc.rect(x, y, scaledColWidths[idx], headerHeight);
+          doc.text(
+            String(header),
+            x + scaledColWidths[idx] / 2,
+            y + 4.5,
+            { align: "center" },
+          );
+          x += scaledColWidths[idx];
+        });
+        y += headerHeight;
+      };
+
+      drawMeta();
+      drawHeader();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+
+      table.rows.forEach((row) => {
+        const values = orderedHeaders.map((h) => String(row[h] ?? ""));
+        const wrapped = values.map((v, idx) =>
+          doc.splitTextToSize(v, Math.max(1, scaledColWidths[idx] - cellPad * 2)),
+        );
+
+        const maxLines = Math.max(
+          1,
+          ...wrapped.map((cellLines) => Math.max(1, cellLines.length)),
+        );
+        const rowHeight = Math.max(6, maxLines * lineHeight + cellPad * 2);
+
+        if (y + rowHeight > pageHeight - marginBottom) {
+          doc.addPage();
+          y = marginTop;
+          drawMeta();
+          drawHeader();
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.5);
+        }
+
+        let x = marginLeft;
+        wrapped.forEach((cellLines, idx) => {
+          doc.rect(x, y, scaledColWidths[idx], rowHeight);
+          const linesToDraw = cellLines.length ? cellLines : [""];
+
+          if (idx === 0) {
+            doc.text(linesToDraw, x + cellPad, y + cellPad + lineHeight - 0.7);
+          } else {
+            const blockHeight = (linesToDraw.length - 1) * lineHeight;
+            const startY = y + (rowHeight - blockHeight) / 2 - 0.2;
+            linesToDraw.forEach((line, lineIdx) => {
+              doc.text(line, x + scaledColWidths[idx] / 2, startY + lineIdx * lineHeight, {
+                align: "center",
+              });
+            });
+          }
+
+          x += scaledColWidths[idx];
+        });
+
+        y += rowHeight;
+      });
+
+      const safeName = String(studentName).replace(/[^a-zA-Z0-9_-]+/g, "_");
+      const filename =
+        "special_education_table_" + (index + 1) + "_" + safeName + ".pdf";
+      doc.save(filename);
+
+      showToast("Table exported to PDF successfully!", "success");
+    } catch (error) {
+      console.error("Error exporting table to PDF:", error);
+      showToast("Failed to export table to PDF", "error");
+    }
   };
 
   // Download Profile as PDF (screenshot)
@@ -4192,7 +4347,7 @@ const StudentPage = () => {
 
                                       pdf.setFont(undefined, "bold");
                                       pdf.text(
-                                        `• ${sectionTitle}:`,
+                                        `â€¢ ${sectionTitle}:`,
                                         marginLeft + 5,
                                         yPosition,
                                       );
@@ -4644,7 +4799,7 @@ const StudentPage = () => {
                           </div>
                           {aiAnalysis?.truncated && (
                             <div className="mt-3 text-xs text-orange-700 bg-orange-50 p-2 rounded border border-orange-200">
-                              ⚠️ Analysis was truncated due to content length.
+                              âš ï¸ Analysis was truncated due to content length.
                               Consider filtering by date range for more detailed
                               analysis.
                             </div>
@@ -6042,7 +6197,7 @@ const StudentPage = () => {
                               <p className="text-sm text-[#6F6C90]">
                                 Uploaded:{" "}
                                 {new Date(doc.upload_date).toLocaleDateString()}{" "}
-                                • {(doc.file_size / 1024).toFixed(2)} KB
+                                â€¢ {(doc.file_size / 1024).toFixed(2)} KB
                               </p>
                             </div>
                           </div>
@@ -6771,12 +6926,12 @@ const StudentPage = () => {
                                 table.rows.length > 0 &&
                                 table.rows[0]["Student Name"] && (
                                   <span className="text-sm font-normal ml-2">
-                                    – {table.rows[0]["Student Name"]}
+                                    â€“ {table.rows[0]["Student Name"]}
                                   </span>
                                 )}
                             </h3>
                             <div className="text-sm text-white/90 mt-1.5 font-medium">
-                              {table.assessment_phase || "1st Assessment"} •
+                              {table.assessment_phase || "1st Assessment"} â€¢
                               Report Date:{" "}
                               {table.report_date || "Not specified"}
                             </div>
@@ -6856,6 +7011,32 @@ const StudentPage = () => {
                                   strokeLinejoin="round"
                                   strokeWidth={2}
                                   d="M12 4v10m0 0l-4-4m4 4l4-4M5 20h14"
+                                />
+                              </svg>
+                            </button>
+
+                            <button
+                              type="button"
+                              aria-label="Export table as PDF"
+                              title="Export PDF"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleExportToPDF(table, tableIndex);
+                              }}
+                              className="w-11 h-11 rounded-full bg-white/95 shadow-md hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center text-[#170F49]"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zm2 9h6m-6 4h6"
                                 />
                               </svg>
                             </button>
@@ -6998,7 +7179,7 @@ const StudentPage = () => {
                                 if (t !== table) return t;
                                 const rows = t.rows || [];
                           
-                                // For non‑quarter phases (e.g. 1st assmt), edit the base value directly
+                                // For nonâ€‘quarter phases (e.g. 1st assmt), edit the base value directly
                                 if (!isQuarterPhase) {
                                   const newRows = rows.map((row, idx) =>
                                     idx === skillRowIndex ? { ...row, [colName]: newValue } : row
@@ -7006,7 +7187,7 @@ const StudentPage = () => {
                                   return { ...t, rows: newRows, last_edited_at: nowIso };
                                 }
                           
-                                // For quarter phases (1st–4th Qtr): only original B can be changed
+                                // For quarter phases (1stâ€“4th Qtr): only original B can be changed
                                 const row = rows[skillRowIndex] || {};
                                 const rawCurrent = row[colName];
                                 const baseVal =
@@ -7014,7 +7195,7 @@ const StudentPage = () => {
                                     ? rawCurrent.trim().toUpperCase()
                                     : '';
                           
-                                if (baseVal !== 'B') return t; // ignore non‑B cells in quarter phases
+                                if (baseVal !== 'B') return t; // ignore nonâ€‘B cells in quarter phases
                           
                                 const cellKey = `${skillRowIndex}:${colName}`;
                                 const existingSnapshots = t.quarterSnapshots || {};
@@ -7056,7 +7237,7 @@ const StudentPage = () => {
                                   Questionnaire (A = Yes, B = No)
                                 </h4>
                                 <div className="flex items-center gap-2">
-                                  {/* Edit/Save/Saved Toggle – now always visible */}
+                                  {/* Edit/Save/Saved Toggle â€“ now always visible */}
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -7483,7 +7664,7 @@ const StudentPage = () => {
                                         i += 1;
                                         continue;
                                       }
-                                      // Grouped columns (1st Assessment, I Qr, …)
+                                      // Grouped columns (1st Assessment, I Qr, â€¦)
                                       const group = col.group;
                                       let span = 0;
                                       while (
@@ -7595,7 +7776,7 @@ const StudentPage = () => {
                                               cellValue = '-';
                                             }
                                           } else {
-                                            // quadrant not edited yet → show "-"
+                                            // quadrant not edited yet â†’ show "-"
                                             cellValue = '-';
                                           }
                                         } else {
@@ -8994,11 +9175,11 @@ const StudentPage = () => {
                                 {/* Display a green check for true, red cross for false */}
                                 {value ? (
                                   <span className="text-green-500 font-bold mr-2 text-xl">
-                                    ✓
+                                    âœ“
                                   </span>
                                 ) : (
                                   <span className="text-red-500 font-bold mr-2 text-xl">
-                                    ✗
+                                    âœ—
                                   </span>
                                 )}
                                 {/* Format the key from snake_case to Title Case */}
@@ -10538,7 +10719,7 @@ const StudentPage = () => {
               {student?.name || "Student"}
             </h2>
             <p className="text-sm text-[#6F6C90] mb-6">
-              {fromDate || "Any time"} — {toDate || "Any time"}
+              {fromDate || "Any time"} â€” {toDate || "Any time"}
             </p>
             <div className="mb-4 text-sm text-[#333]">
               Showing {Math.min(reports.length, visibleCount)} of{" "}
@@ -10556,7 +10737,7 @@ const StudentPage = () => {
         </div>
       )}
       {/* Move the button component INSIDE the main div */}
-      <DynamicScrollButtons />   {" "}
+      <DynamicScrollButtons />Â  Â {" "}
     </div>
   );
 };
