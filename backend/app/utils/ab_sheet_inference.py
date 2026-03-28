@@ -1,4 +1,4 @@
-import os
+﻿import os
 import io
 from typing import Dict, Any, List
 
@@ -10,9 +10,12 @@ import torchvision.transforms as T
 
 from app.ml.ab_classifier_model import load_trained_model
 
-# Folder for saving debug cell images
-DEBUG_CELLS_DIR = "debug_cells"
+# Folder for saving debug images (absolute path)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEBUG_CELLS_DIR = os.path.join(_SCRIPT_DIR, "debug_cells")
+DEBUG_CROPS_DIR = os.path.join(_SCRIPT_DIR, "debug_crops")
 os.makedirs(DEBUG_CELLS_DIR, exist_ok=True)
+os.makedirs(DEBUG_CROPS_DIR, exist_ok=True)
 
 # ====== FIXED STRUCTURE (match your existing table) ======
 
@@ -126,45 +129,27 @@ def _crop_table_region(image_bgr: np.ndarray) -> np.ndarray:
     return cropped
 
 def _split_into_cells(table_bgr: np.ndarray) -> List[List[np.ndarray]]:
+    """Split the entire cropped image into 18x20 cells without any trimming or margin loss."""
     h, w = table_bgr.shape[:2]
 
-    # Trim so height/width are divisible by N_ROWS/N_COLS (keep this part)
-    extra_h = h % N_ROWS
-    if extra_h != 0:
-        trim_top = extra_h // 2
-        trim_bottom = extra_h - trim_top
-        table_bgr = table_bgr[trim_top:h - trim_bottom, :]
-        h = table_bgr.shape[0]
-
-    extra_w = w % N_COLS
-    if extra_w != 0:
-        trim_left = extra_w // 2
-        trim_right = extra_w - trim_left
-        table_bgr = table_bgr[:, trim_left:w - trim_right]
-        w = table_bgr.shape[1]
-
-    cell_h = h // N_ROWS
-    cell_w = w // N_COLS
-
-    # Margin inside each cell to avoid grid lines (15% each side)
-    V_MARGIN_FRAC = 0.15
-    H_MARGIN_FRAC = 0.15
+    # Calculate cell dimensions using floating point
+    cell_h = h / N_ROWS
+    cell_w = w / N_COLS
 
     cells: List[List[np.ndarray]] = []
     for r in range(N_ROWS):
         row_cells = []
         for c in range(N_COLS):
-            y1 = r * cell_h
-            y2 = (r + 1) * cell_h
-            x1 = c * cell_w
-            x2 = (c + 1) * cell_w
+            # Calculate exact cell boundaries
+            y1 = int(r * cell_h)
+            x1 = int(c * cell_w)
+            
+            # For the last row/column, extend to full image edge (no pixel loss)
+            y2 = h if r == N_ROWS - 1 else int((r + 1) * cell_h)
+            x2 = w if c == N_COLS - 1 else int((c + 1) * cell_w)
 
-            inner_y1 = y1 + int(cell_h * V_MARGIN_FRAC)
-            inner_y2 = y2 - int(cell_h * V_MARGIN_FRAC)
-            inner_x1 = x1 + int(cell_w * H_MARGIN_FRAC)
-            inner_x2 = x2 - int(cell_w * H_MARGIN_FRAC)
-
-            cell = table_bgr[inner_y1:inner_y2, inner_x1:inner_x2]
+            # Extract full cell (no trimming)
+            cell = table_bgr[y1:y2, x1:x2]
 
             debug_path = os.path.join(
                 DEBUG_CELLS_DIR,
@@ -332,5 +317,11 @@ def predict_ab_table_from_image(file_bytes: bytes) -> Dict[str, Any]:
             "tables": [],
             "table_count": 0,
         }
+
+
+
+
+
+
 
 

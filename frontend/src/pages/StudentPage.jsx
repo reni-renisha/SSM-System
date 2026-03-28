@@ -4347,7 +4347,7 @@ const StudentPage = () => {
 
                                       pdf.setFont(undefined, "bold");
                                       pdf.text(
-                                        `â€¢ ${sectionTitle}:`,
+                                        ` ${sectionTitle}:`,
                                         marginLeft + 5,
                                         yPosition,
                                       );
@@ -6197,7 +6197,7 @@ const StudentPage = () => {
                               <p className="text-sm text-[#6F6C90]">
                                 Uploaded:{" "}
                                 {new Date(doc.upload_date).toLocaleDateString()}{" "}
-                                â€¢ {(doc.file_size / 1024).toFixed(2)} KB
+                                 {(doc.file_size / 1024).toFixed(2)} KB
                               </p>
                             </div>
                           </div>
@@ -6926,12 +6926,12 @@ const StudentPage = () => {
                                 table.rows.length > 0 &&
                                 table.rows[0]["Student Name"] && (
                                   <span className="text-sm font-normal ml-2">
-                                    â€“ {table.rows[0]["Student Name"]}
+                                     {table.rows[0]["Student Name"]}
                                   </span>
                                 )}
                             </h3>
                             <div className="text-sm text-white/90 mt-1.5 font-medium">
-                              {table.assessment_phase || "1st Assessment"} â€¢
+                              {table.assessment_phase || "1st Assessment"} 
                               Report Date:{" "}
                               {table.report_date || "Not specified"}
                             </div>
@@ -10719,7 +10719,7 @@ const StudentPage = () => {
               {student?.name || "Student"}
             </h2>
             <p className="text-sm text-[#6F6C90] mb-6">
-              {fromDate || "Any time"} â€” {toDate || "Any time"}
+              {fromDate || "Any time"}  {toDate || "Any time"}
             </p>
             <div className="mb-4 text-sm text-[#333]">
               Showing {Math.min(reports.length, visibleCount)} of{" "}
@@ -10737,7 +10737,7 @@ const StudentPage = () => {
         </div>
       )}
       {/* Move the button component INSIDE the main div */}
-      <DynamicScrollButtons />Â  Â {" "}
+      <DynamicScrollButtons />{" "}
     </div>
   );
 };
