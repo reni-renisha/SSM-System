@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from typing import Optional
 import os
 from pathlib import Path
@@ -9,12 +10,16 @@ ENV_FILE = BACKEND_DIR / ".env"
 
 class Settings(BaseSettings):
     # Database settings
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "school_management"
     DATABASE_URL: Optional[str] = None
+
+    # CORS
+    # Comma-separated list, e.g. "http://localhost:3000,https://your-app.vercel.app"
+    CORS_ORIGINS: Optional[str] = None
 
     # JWT settings
     SECRET_KEY: str = "your-secret-key-here"  # Change this in production!
@@ -33,15 +38,40 @@ class Settings(BaseSettings):
         env_file_encoding = 'utf-8'
         extra = 'ignore'
 
+    @model_validator(mode="after")
+    def _validate_db_settings(self):
+        """Allow DATABASE_URL-only deployments (Render/Neon).
+
+        If DATABASE_URL is not provided, require the POSTGRES_* fields.
+        """
+        if self.DATABASE_URL and self.DATABASE_URL.strip():
+            return self
+
+        missing = []
+        if not self.POSTGRES_USER:
+            missing.append("POSTGRES_USER")
+        if not self.POSTGRES_PASSWORD:
+            missing.append("POSTGRES_PASSWORD")
+        if not self.POSTGRES_DB:
+            missing.append("POSTGRES_DB")
+
+        if missing:
+            raise ValueError(
+                "Database is not configured. Provide DATABASE_URL, or set: "
+                + ", ".join(missing)
+            )
+        return self
+
     def get_database_url(self) -> str:
-        if self.DATABASE_URL:
-            return self.DATABASE_URL
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        if self.DATABASE_URL and self.DATABASE_URL.strip():
+            url = self.DATABASE_URL.strip()
+            if (url.startswith("\"") and url.endswith("\"")) or (url.startswith("'") and url.endswith("'")):
+                url = url[1:-1]
+            return url
+
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
 settings = Settings()
-
-# Debug: Print token status on import
-if settings.HUGGINGFACE_API_TOKEN:
-    print(f"✓ HUGGINGFACE_API_TOKEN loaded successfully (starts with: {settings.HUGGINGFACE_API_TOKEN[:10]}...)")
-else:
-    print("✗ WARNING: HUGGINGFACE_API_TOKEN not loaded! AI summarization will fail.") 

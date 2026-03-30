@@ -16,10 +16,13 @@ app = FastAPI(
 )
 
 # Configure CORS
-origins = [
-    "http://localhost:3000",  # React frontend
-    "http://localhost:5173",  # Vite frontend (if using Vite)
-]
+if settings.CORS_ORIGINS and settings.CORS_ORIGINS.strip():
+    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+else:
+    origins = [
+        "http://localhost:3000",  # React frontend
+        "http://localhost:5173",  # Vite frontend (if using Vite)
+    ]
 
 app.add_middleware(
     CORSMiddleware,
