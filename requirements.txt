@@ -27,8 +27,6 @@ httpx==0.25.1
 # OCR and Image Processing
 paddleocr==2.7.0.3
 paddlepaddle==2.6.0
-img2table==1.2.5
-pytesseract==0.3.10
 Pillow==10.1.0
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
