@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { validateTeacher, formatAadhaar, cleanAadhaar } from '../utils/validation';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
 const AddTeacher = () => {
   const navigate = useNavigate();
   const [teacherData, setTeacherData] = useState({
@@ -90,7 +92,7 @@ const AddTeacher = () => {
       };
 
       // Create teacher
-      const teacherResponse = await axios.post('http://localhost:8000/api/v1/teachers/', teacherDataWithAssignments);
+      const teacherResponse = await axios.post(`${API_BASE_URL}/api/v1/teachers/`, teacherDataWithAssignments);
       const teacherId = teacherResponse.data.id;
 
       // Generate default password: Teacher + last 4 digits of Aadhaar or random
@@ -100,7 +102,7 @@ const AddTeacher = () => {
       // Create user account
       try {
         const token = localStorage.getItem('token');
-        await axios.post('http://localhost:8000/api/v1/users/', {
+        await axios.post(`${API_BASE_URL}/api/v1/users/`, {
           username: teacherData.email.split('@')[0],
           email: teacherData.email,
           password: generatedPassword,

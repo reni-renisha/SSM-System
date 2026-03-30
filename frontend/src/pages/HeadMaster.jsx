@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
 // ++ PASTE THIS ENTIRE COMPONENT BLOCK HERE ++
 const ScrollToTopButton = () => {
   const [visible, setVisible] = useState(false);
@@ -80,7 +82,7 @@ const HeadMaster = () => {
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/v1/teachers/');
+        const response = await axios.get(`${API_BASE_URL}/api/v1/teachers/`);
         // Sort teachers alphabetically by name
         const sortedTeachers = response.data.sort((a, b) => 
           a.name.localeCompare(b.name)
@@ -103,7 +105,7 @@ const HeadMaster = () => {
     const fetchTherapists = async () => {
       setTherapistsLoading(true);
       try {
-        const response = await axios.get('http://localhost:8000/api/v1/therapists/');
+        const response = await axios.get(`${API_BASE_URL}/api/v1/therapists/`);
         // Sort therapists alphabetically by name
         const sortedTherapists = response.data.sort((a, b) => 
           a.name.localeCompare(b.name)
@@ -132,7 +134,7 @@ const HeadMaster = () => {
         };
         if (studentSearch && studentSearch.trim()) params.search = studentSearch.trim();
         if (selectedClass && selectedClass !== 'all') params.class_name = selectedClass;
-        const { data } = await axios.get('http://localhost:8000/api/v1/students/', { params });
+        const { data } = await axios.get(`${API_BASE_URL}/api/v1/students/`, { params });
   const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
   console.debug('fetchStudents: raw items', items);
         // Normalize photo key: accept either photo_url (snake_case) or photoUrl (camelCase)
@@ -214,7 +216,7 @@ const HeadMaster = () => {
     if (!teacherToDelete) return;
     
     try {
-      const response = await axios.delete(`http://localhost:8000/api/v1/teachers/${teacherToDelete.id}`);
+      const response = await axios.delete(`${API_BASE_URL}/api/v1/teachers/${teacherToDelete.id}`);
       
       if (response.status === 200 || response.status === 204) {
         // Remove the teacher from the local state
@@ -261,7 +263,7 @@ const HeadMaster = () => {
     if (!therapistToDelete) return;
     
     try {
-      const response = await axios.delete(`http://localhost:8000/api/v1/therapists/${therapistToDelete.id}`);
+      const response = await axios.delete(`${API_BASE_URL}/api/v1/therapists/${therapistToDelete.id}`);
       
       if (response.status === 200 || response.status === 204) {
         // Remove the therapist from the local state
@@ -287,7 +289,7 @@ const HeadMaster = () => {
 
     try {
       // Step 1: Call the backend API to delete the student
-      await axios.delete(`http://localhost:8000/api/v1/students/${studentToDelete.id}`);
+      await axios.delete(`${API_BASE_URL}/api/v1/students/${studentToDelete.id}`);
 
       // Step 2: Remove the deleted student from the local list to update the UI
       setStudents(students.filter(student => student.id !== studentToDelete.id));

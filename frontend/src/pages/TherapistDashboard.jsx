@@ -2,44 +2,139 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE_URL =
+  process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
 // Helper function to get therapy-specific sections
 const getTherapySections = (therapyType) => {
   const sections = {
     "Speech Therapy": {
-      receptive_language: { checked: false, notes: "", label: "Receptive Language Skills (Comprehension)" },
-      expressive_language: { checked: false, notes: "", label: "Expressive Language Skills" },
-      oral_motor_opt: { checked: false, notes: "", label: "Oral Motor & Oral Placement Therapy (OPT) Goals" },
-      pragmatic_language: { checked: false, notes: "", label: "Pragmatic Language Skills (Social Communication)" },
-      narrative_skills: { checked: false, notes: "", label: "Narrative Skills" }
+      receptive_language: {
+        checked: false,
+        notes: "",
+        label: "Receptive Language Skills (Comprehension)",
+      },
+      expressive_language: {
+        checked: false,
+        notes: "",
+        label: "Expressive Language Skills",
+      },
+      oral_motor_opt: {
+        checked: false,
+        notes: "",
+        label: "Oral Motor & Oral Placement Therapy (OPT) Goals",
+      },
+      pragmatic_language: {
+        checked: false,
+        notes: "",
+        label: "Pragmatic Language Skills (Social Communication)",
+      },
+      narrative_skills: {
+        checked: false,
+        notes: "",
+        label: "Narrative Skills",
+      },
     },
     "Behavioral Therapy": {
-      behavior_regulation: { checked: false, notes: "", label: "Behavior Regulation & Self-Control" },
-      attention_compliance: { checked: false, notes: "", label: "Attention, Compliance & Task Engagement" },
-      emotional_regulation: { checked: false, notes: "", label: "Emotional Regulation Skills" },
-      social_behavior: { checked: false, notes: "", label: "Social Behavior & Interaction Skills" },
-      adaptive_behavior: { checked: false, notes: "", label: "Adaptive Behavior & Functional Skills" }
+      behavior_regulation: {
+        checked: false,
+        notes: "",
+        label: "Behavior Regulation & Self-Control",
+      },
+      attention_compliance: {
+        checked: false,
+        notes: "",
+        label: "Attention, Compliance & Task Engagement",
+      },
+      emotional_regulation: {
+        checked: false,
+        notes: "",
+        label: "Emotional Regulation Skills",
+      },
+      social_behavior: {
+        checked: false,
+        notes: "",
+        label: "Social Behavior & Interaction Skills",
+      },
+      adaptive_behavior: {
+        checked: false,
+        notes: "",
+        label: "Adaptive Behavior & Functional Skills",
+      },
     },
     "Cognitive Therapy": {
-      attention_concentration: { checked: false, notes: "", label: "Attention & Concentration Skills" },
-      memory_recall: { checked: false, notes: "", label: "Memory & Recall Skills" },
-      problem_solving: { checked: false, notes: "", label: "Problem Solving & Reasoning Skills" },
-      executive_functioning: { checked: false, notes: "", label: "Executive Functioning Skills" },
-      cognitive_flexibility: { checked: false, notes: "", label: "Cognitive Flexibility & Processing Skills" }
+      attention_concentration: {
+        checked: false,
+        notes: "",
+        label: "Attention & Concentration Skills",
+      },
+      memory_recall: {
+        checked: false,
+        notes: "",
+        label: "Memory & Recall Skills",
+      },
+      problem_solving: {
+        checked: false,
+        notes: "",
+        label: "Problem Solving & Reasoning Skills",
+      },
+      executive_functioning: {
+        checked: false,
+        notes: "",
+        label: "Executive Functioning Skills",
+      },
+      cognitive_flexibility: {
+        checked: false,
+        notes: "",
+        label: "Cognitive Flexibility & Processing Skills",
+      },
     },
     "Occupational Therapy": {
       fine_motor: { checked: false, notes: "", label: "Fine Motor Skills" },
-      sensory_processing: { checked: false, notes: "", label: "Sensory Processing & Integration" },
-      visual_motor: { checked: false, notes: "", label: "Visual-Motor Integration Skills" },
-      daily_living: { checked: false, notes: "", label: "Activities of Daily Living (ADL)" },
-      handwriting: { checked: false, notes: "", label: "Handwriting & Pre-Academic Skills" }
+      sensory_processing: {
+        checked: false,
+        notes: "",
+        label: "Sensory Processing & Integration",
+      },
+      visual_motor: {
+        checked: false,
+        notes: "",
+        label: "Visual-Motor Integration Skills",
+      },
+      daily_living: {
+        checked: false,
+        notes: "",
+        label: "Activities of Daily Living (ADL)",
+      },
+      handwriting: {
+        checked: false,
+        notes: "",
+        label: "Handwriting & Pre-Academic Skills",
+      },
     },
     "Physical Therapy": {
       gross_motor: { checked: false, notes: "", label: "Gross Motor Skills" },
-      balance_postural: { checked: false, notes: "", label: "Balance & Postural Control" },
-      strength_endurance: { checked: false, notes: "", label: "Strength & Endurance" },
-      coordination_planning: { checked: false, notes: "", label: "Coordination & Motor Planning" },
-      functional_mobility: { checked: false, notes: "", label: "Functional Mobility Skills" }
-    }
+      balance_postural: {
+        checked: false,
+        notes: "",
+        label: "Balance & Postural Control",
+      },
+      strength_endurance: {
+        checked: false,
+        notes: "",
+        label: "Strength & Endurance",
+      },
+      coordination_planning: {
+        checked: false,
+        notes: "",
+        label: "Coordination & Motor Planning",
+      },
+      functional_mobility: {
+        checked: false,
+        notes: "",
+        label: "Functional Mobility Skills",
+      },
+    },
   };
   return sections[therapyType] || sections["Speech Therapy"];
 };
@@ -50,7 +145,7 @@ const TherapistDashboard = () => {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [reportDate, setReportDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10),
   );
   const [therapyType, setTherapyType] = useState("Occupational Therapy");
 
@@ -147,7 +242,7 @@ const TherapistDashboard = () => {
   };
 
   const [goalsAchieved, setGoalsAchieved] = useState(
-    getGoalsForTherapyType("Occupational Therapy")
+    getGoalsForTherapyType("Occupational Therapy"),
   );
   const [progressLevel, setProgressLevel] = useState("Excellent");
 
@@ -196,12 +291,9 @@ const TherapistDashboard = () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
-        const { data } = await axios.get(
-          "http://localhost:8000/api/v1/users/me",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const { data } = await axios.get(`${API_BASE_URL}/api/v1/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (data?.username) setUserName(data.username);
         else if (data?.email) setUserName(data.email.split("@")[0]);
       } catch (err) {
@@ -227,15 +319,14 @@ const TherapistDashboard = () => {
         if (selectedClass && selectedClass !== "all")
           params.class_name = selectedClass;
 
-        const { data } = await axios.get(
-          "http://localhost:8000/api/v1/students/",
-          { params }
-        );
+        const { data } = await axios.get(`${API_BASE_URL}/api/v1/students/`, {
+          params,
+        });
         const items = Array.isArray(data?.items)
           ? data.items
           : Array.isArray(data)
-          ? data
-          : [];
+            ? data
+            : [];
 
         const normalized = items.map((s) => ({
           ...s,
@@ -243,7 +334,7 @@ const TherapistDashboard = () => {
         }));
 
         const sortedStudents = [...normalized].sort((a, b) =>
-          (a.name || "").localeCompare(b.name || "")
+          (a.name || "").localeCompare(b.name || ""),
         );
 
         // For therapists, we'll show students where therapy_provider or therapist matches the logged-in username
@@ -293,14 +384,14 @@ const TherapistDashboard = () => {
     try {
       setIsChangingPassword(true);
       await axios.post(
-        "http://localhost:8000/api/v1/auth/change-password",
+        `${API_BASE_URL}/api/v1/auth/change-password`,
         {
           current_password: currentPassword,
           new_password: newPassword,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       setPasswordSuccess("Password updated successfully.");
       setCurrentPassword("");
@@ -597,7 +688,7 @@ const TherapistDashboard = () => {
                           src={
                             student.photo_url ||
                             `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(
-                              student.name || "S"
+                              student.name || "S",
                             )}&size=250&background=EFEFEF&color=170F49`
                           }
                           alt="Student"
@@ -782,7 +873,7 @@ const TherapistDashboard = () => {
                   const token = localStorage.getItem("token");
                   if (!token) {
                     setSubmitError(
-                      "Authentication token not found. Please log in again."
+                      "Authentication token not found. Please log in again.",
                     );
                     setIsSubmitting(false);
                     return;
@@ -797,14 +888,14 @@ const TherapistDashboard = () => {
                   };
 
                   const response = await axios.post(
-                    "http://localhost:8000/api/v1/therapy-reports/",
+                    `${API_BASE_URL}/api/v1/therapy-reports/`,
                     payload,
                     {
                       headers: {
                         Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                       },
-                    }
+                    },
                   );
 
                   setReportDate(new Date().toISOString().slice(0, 10));

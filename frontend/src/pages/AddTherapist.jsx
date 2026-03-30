@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { formatAadhaar, cleanAadhaar } from '../utils/validation';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
 const AddTherapist = () => {
   const navigate = useNavigate();
   const [therapistData, setTherapistData] = useState({
@@ -74,7 +76,7 @@ const AddTherapist = () => {
       };
 
       // Create therapist
-      await axios.post('http://localhost:8000/api/v1/therapists/', finalData);
+      await axios.post(`${API_BASE_URL}/api/v1/therapists/`, finalData);
 
       // Generate default password: Therapist + last 4 digits of Aadhaar or random
       const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -83,7 +85,7 @@ const AddTherapist = () => {
       // Create user account
       try {
         const token = localStorage.getItem('token');
-        await axios.post('http://localhost:8000/api/v1/users/', {
+        await axios.post(`${API_BASE_URL}/api/v1/users/`, {
           username: therapistData.email.split('@')[0],
           email: therapistData.email,
           password: generatedPassword,

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
+
 const AddUser = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -63,7 +65,7 @@ const AddUser = () => {
       }
 
       const response = await axios.post(
-        "http://localhost:8000/api/v1/users/teachers",
+        `${API_BASE_URL}/api/v1/users/teachers`,
         payload,
         {
           headers: {
