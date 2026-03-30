@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # CORS
     # Comma-separated list, e.g. "http://localhost:3000,https://your-app.vercel.app"
     CORS_ORIGINS: Optional[str] = None
+    # Optional regex for origins, e.g. r"^https://.*\.vercel\.app$"
+    CORS_ORIGIN_REGEX: Optional[str] = None
 
     # JWT settings
     SECRET_KEY: str = "your-secret-key-here"  # Change this in production!
