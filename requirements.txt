@@ -10,6 +10,7 @@ alembic==1.12.1
 # Authentication
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+bcrypt<4.0.0
 python-multipart>=0.0.5
 email-validator>=1.1.3
 

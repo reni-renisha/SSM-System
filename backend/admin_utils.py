@@ -4,13 +4,27 @@ from app.crud.user import user
 from app.schemas.user import UserCreate
 from app.models.user import UserRole
 import argparse
+import os
+
+
+def _get_admin_bootstrap_values() -> tuple[str, str, str]:
+    username = os.getenv("ADMIN_USERNAME", "admin")
+    email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    password = os.getenv("ADMIN_PASSWORD", "admin123")
+    if password == "admin123" and not os.getenv("ADMIN_PASSWORD"):
+        print(
+            "WARNING: ADMIN_PASSWORD is not set; using default 'admin123'. "
+            "Set ADMIN_PASSWORD to a secure value and re-run if needed."
+        )
+    return username, email, password
 
 def setup_admin() -> None:
     """Ensure an admin user exists with the correct role."""
     db = SessionLocal()
     try:
+        admin_username, admin_email, admin_password = _get_admin_bootstrap_values()
         # Check if admin user already exists
-        admin = user.get_by_username(db, username="admin")
+        admin = user.get_by_username(db, username=admin_username)
         
         if admin:
             print("Admin user exists")
@@ -29,9 +43,9 @@ def setup_admin() -> None:
             # Create admin user
             print("Creating new admin user")
             admin_in = UserCreate(
-                username="admin",
-                email="admin@example.com",
-                password="admin123",  # Change this to a secure password
+                username=admin_username,
+                email=admin_email,
+                password=admin_password,
                 is_superuser=True,
                 is_active=True,
                 role=UserRole.ADMIN
