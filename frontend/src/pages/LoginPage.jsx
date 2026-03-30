@@ -24,10 +24,9 @@ const LoginPage = () => {
       formData.append("username", username);
       formData.append("password", password);
 
-      const response = await axios.post(
-        `${API_BASE_URL}/api/v1/auth/login`,
-        formData,
-      );
+      const loginUrl = new URL("/api/v1/auth/login", API_BASE_URL).toString();
+
+      const response = await axios.post(loginUrl, formData);
 
       if (response.data.access_token) {
         // Store the token in localStorage
