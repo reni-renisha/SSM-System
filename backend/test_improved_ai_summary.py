@@ -17,7 +17,10 @@ def test_old_vs_new_model():
         print("❌ HUGGINGFACE_API_TOKEN not found in .env file")
         return
     
-    client = InferenceClient(api_key=hf_token)
+    client = InferenceClient(
+        api_key=hf_token,
+        base_url=os.getenv("HUGGINGFACE_BASE_URL", "https://router.huggingface.co"),
+    )
     
     # Sample therapy report data
     sample_data = """
@@ -112,7 +115,10 @@ def test_all_analysis_sections():
         print("❌ HUGGINGFACE_API_TOKEN not found")
         return
     
-    client = InferenceClient(api_key=hf_token)
+    client = InferenceClient(
+        api_key=hf_token,
+        base_url=os.getenv("HUGGINGFACE_BASE_URL", "https://router.huggingface.co"),
+    )
     
     # Test Baseline Analysis
     print("\n📋 BASELINE ANALYSIS (Initial Assessment)")

@@ -199,7 +199,10 @@ def ai_summarize_reports_stream(
 
     def event_stream():
         try:
-            client = InferenceClient(api_key=settings.HUGGINGFACE_API_TOKEN)
+            client = InferenceClient(
+                api_key=settings.HUGGINGFACE_API_TOKEN,
+                base_url=getattr(settings, "HUGGINGFACE_BASE_URL", None),
+            )
             model_name = payload.model or "meta-llama/Llama-3.3-70B-Instruct"
             main_summary_prompt = _build_main_summary_prompt_with_fewshot(filtered, db_student)
 
@@ -248,7 +251,10 @@ def ai_summarize_reports_stream(
 
 def _generate_comprehensive_analysis(reports, student, payload, precomputed_main_summary: Optional[str] = None):
     """Generate a comprehensive AI-powered analysis based on actual therapy report data."""
-    client = InferenceClient(api_key=settings.HUGGINGFACE_API_TOKEN)
+    client = InferenceClient(
+        api_key=settings.HUGGINGFACE_API_TOKEN,
+        base_url=getattr(settings, "HUGGINGFACE_BASE_URL", None),
+    )
     
     # Calculate real improvement metrics from actual data
     improvement_metrics = _calculate_improvement_metrics(reports)

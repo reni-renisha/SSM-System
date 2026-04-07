@@ -10,7 +10,10 @@ def test_hf_summarization():
     try:
         hf_token = os.getenv('HUGGINGFACE_API_TOKEN')
         
-        client = InferenceClient(api_key=hf_token)
+        client = InferenceClient(
+            api_key=hf_token,
+            base_url=os.getenv("HUGGINGFACE_BASE_URL", "https://router.huggingface.co"),
+        )
         
         test_text = """
         Date: 2024-01-15

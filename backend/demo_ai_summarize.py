@@ -83,7 +83,10 @@ Goals Achieved: {report['goals_achieved']}"""
         if not hf_token:
             return {"error": "HUGGINGFACE_API_TOKEN environment variable not set"}
         
-        client = InferenceClient(api_key=hf_token)
+        client = InferenceClient(
+            api_key=hf_token,
+            base_url=os.getenv("HUGGINGFACE_BASE_URL", "https://router.huggingface.co"),
+        )
         
         print("🤖 Calling Hugging Face API...")
         result = client.summarization(

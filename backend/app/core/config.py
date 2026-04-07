@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     
     # Hugging Face settings
     HUGGINGFACE_API_TOKEN: Optional[str] = None
+    # Hugging Face Inference endpoint.
+    # HF deprecated `https://api-inference.huggingface.co`; use router by default.
+    HUGGINGFACE_BASE_URL: str = "https://router.huggingface.co"
 
     class Config:
         env_file = str(ENV_FILE)
