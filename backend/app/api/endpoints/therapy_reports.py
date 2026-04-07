@@ -7,6 +7,7 @@ import json
 import logging
 import re
 from datetime import date
+import httpx
 
 try:
     from huggingface_hub import InferenceClient
@@ -137,9 +138,6 @@ def ai_summarize_reports_test(
     WARNING: This endpoint bypasses authentication. Remove in production!
     Use this only for testing the AI summarization functionality.
     """
-    if InferenceClient is None:
-        raise HTTPException(status_code=503, detail="huggingface_hub not installed on server.")
-
     if not settings.HUGGINGFACE_API_TOKEN:
         raise HTTPException(status_code=503, detail="HUGGINGFACE_API_TOKEN environment variable not set on server.")
 
@@ -162,9 +160,6 @@ def ai_summarize_reports(
       - Applies optional filtering by date range and therapy type
       - Provides detailed analysis including start/end comparisons and improvement metrics
     """
-    if InferenceClient is None:
-        raise HTTPException(status_code=503, detail="huggingface_hub not installed on server.")
-
     if not settings.HUGGINGFACE_API_TOKEN:
         raise HTTPException(status_code=503, detail="HUGGINGFACE_API_TOKEN environment variable not set on server.")
     
@@ -189,9 +184,6 @@ def ai_summarize_reports_stream(
     current_user: schemas.user.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """Stream main summary progressively, then return full AI analysis as final event."""
-    if InferenceClient is None:
-        raise HTTPException(status_code=503, detail="huggingface_hub not installed on server.")
-
     if not settings.HUGGINGFACE_API_TOKEN:
         raise HTTPException(status_code=503, detail="HUGGINGFACE_API_TOKEN environment variable not set on server.")
 
@@ -199,10 +191,6 @@ def ai_summarize_reports_stream(
 
     def event_stream():
         try:
-            client = InferenceClient(
-                api_key=settings.HUGGINGFACE_API_TOKEN,
-                base_url=getattr(settings, "HUGGINGFACE_BASE_URL", None),
-            )
             model_name = payload.model or "meta-llama/Llama-3.3-70B-Instruct"
             main_summary_prompt = _build_main_summary_prompt_with_fewshot(filtered, db_student)
 
@@ -251,10 +239,7 @@ def ai_summarize_reports_stream(
 
 def _generate_comprehensive_analysis(reports, student, payload, precomputed_main_summary: Optional[str] = None):
     """Generate a comprehensive AI-powered analysis based on actual therapy report data."""
-    client = InferenceClient(
-        api_key=settings.HUGGINGFACE_API_TOKEN,
-        base_url=getattr(settings, "HUGGINGFACE_BASE_URL", None),
-    )
+    client = None
     
     # Calculate real improvement metrics from actual data
     improvement_metrics = _calculate_improvement_metrics(reports)
@@ -407,51 +392,54 @@ def _extract_generated_text(result):
 
 
 def _run_model_completion(client, prompt, model, max_tokens, temperature):
-    """Run HF generation with chat-completion first, then text-generation fallback."""
-    try:
-        return client.chat_completion(
-            messages=[{"role": "user", "content": prompt}],
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-    except Exception as chat_error:
-        logging.warning(f"chat_completion failed, trying text_generation fallback: {chat_error}")
-        return client.text_generation(
-            prompt,
-            model=model,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            return_full_text=False,
-        )
+    """Run chat completion via Hugging Face Router (OpenAI-compatible endpoint).
+
+    Why: `huggingface_hub` <=0.24.x still targets `api-inference.huggingface.co` for model calls,
+    which now returns 410 Gone. The router endpoint is the supported replacement.
+    """
+
+    base = getattr(settings, "HUGGINGFACE_BASE_URL", "https://router.huggingface.co") or "https://router.huggingface.co"
+    base = base.rstrip("/")
+    if base.endswith("/v1"):
+        v1_base = base
+    else:
+        v1_base = f"{base}/v1"
+
+    url = f"{v1_base}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.HUGGINGFACE_API_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "stream": False,
+    }
+
+    # Keep timeouts bounded so API failures degrade gracefully to fallbacks.
+    timeout = httpx.Timeout(60.0, connect=10.0)
+    with httpx.Client(timeout=timeout) as http_client:
+        resp = http_client.post(url, headers=headers, json=body)
+        resp.raise_for_status()
+        return resp.json()
 
 
 def _stream_model_completion(client, prompt, model, max_tokens, temperature):
-    """Yield text chunks from HF chat streaming; fallback to chunked full completion."""
-    try:
-        stream = client.chat_completion(
-            messages=[{"role": "user", "content": prompt}],
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            stream=True,
-        )
-        for chunk in stream:
-            text = _extract_stream_chunk_text(chunk)
-            if text:
-                yield text
-        return
-    except Exception as chat_stream_error:
-        logging.warning(f"chat_completion stream failed, using non-stream fallback: {chat_stream_error}")
+    """Yield text chunks for progressive UI updates.
 
-    fallback = _run_model_completion(
+    Router streaming is possible, but to keep things robust and dependency-free,
+    we do a single completion request and chunk the result.
+    """
+    result = _run_model_completion(
         client=client,
         prompt=prompt,
         model=model,
         max_tokens=max_tokens,
         temperature=temperature,
     )
-    full_text = _extract_generated_text(fallback)
+    full_text = _extract_generated_text(result)
     for piece in _chunk_text_for_streaming(full_text):
         yield piece
 
