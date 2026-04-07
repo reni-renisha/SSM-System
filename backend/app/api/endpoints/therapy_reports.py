@@ -191,6 +191,9 @@ def ai_summarize_reports_stream(
 
     def event_stream():
         try:
+            # `client` is kept for backward-compat function signatures.
+            # We now call HF Router directly in `_run_model_completion`.
+            client = None
             model_name = payload.model or "meta-llama/Llama-3.3-70B-Instruct"
             main_summary_prompt = _build_main_summary_prompt_with_fewshot(filtered, db_student)
 
