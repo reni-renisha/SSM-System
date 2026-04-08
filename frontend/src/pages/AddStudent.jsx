@@ -1052,22 +1052,28 @@ const developmentHistoryMap = {
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Birth</label>
                       <input
-                        type="date"
+                        type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         id="dob"
                         value={studentForm.dob}
                         onChange={handleFieldChange('dob')}
+                        onFocus={(e) => { e.target.type = 'date'; }}
+                        onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                        placeholder='YYYY-MM-DD'
                       />
                       {errors.dob && (<p className="text-red-500 text-xs mt-1">{errors.dob}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-[#170F49] mb-2">Date of Admission</label>
                       <input
-                        type="date"
+                        type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         id="admission_date"
                         value={studentForm.admission_date}
                         onChange={handleFieldChange('admission_date')}
+                        onFocus={(e) => { e.target.type = 'date'; }}
+                        onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                        placeholder='YYYY-MM-DD'
                       />
                       {errors.admission_date && (<p className="text-red-500 text-xs mt-1">{errors.admission_date}</p>)}
                     </div>
@@ -1575,10 +1581,13 @@ const developmentHistoryMap = {
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-[#170F49]">Date of Birth</label>
                       <input
-                        type="date"
+                        type="text"
                         className="w-full px-4 py-3 rounded-xl border bg-white shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all duration-300"
                         value={studentForm.dob}
                         onChange={handleFieldChange('dob')}
+                        onFocus={(e) => { e.target.type = 'date'; }}
+                        onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                        placeholder='YYYY-MM-DD'
                       />
                     </div>
 
@@ -2725,3 +2734,4 @@ const developmentHistoryMap = {
 };
 
 export default AddStudent;
+

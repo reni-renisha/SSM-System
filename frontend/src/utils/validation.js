@@ -115,30 +115,79 @@ export function validateTeacher(form, classAssignments) {
 
 export function validateStudent(form) {
   const errors = {};
+
+  // Name is the only mandatory field.
   if (!validateName(form.name)) errors.name = 'Name is required, text only, max 100 chars.';
-  if (!validateAge(form.age)) errors.age = 'Age is required and must be a valid number.';
-  if (!validateGender(form.gender)) errors.gender = 'Select a valid gender.';
-  if (!validatePin(form.pin_code)) errors.pin_code = 'Pin Code must be exactly 6 digits.';
-  if (!validateDistrict(form.revenue_district)) errors.revenue_district = 'Revenue district must be a non-empty string.';
-  if (!validatePhone(form.phone_number)) errors.phone_number = 'Phone must be 10 digits and start with 6-9.';
-  if (!validateEmail(form.email)) errors.email = 'Invalid email address.';
-  if (!validateAadhaar(cleanAadhaar(form.aadhar_number))) errors.aadhar_number = 'Aadhaar must be 12 digits and start with 2-9.';
-  if (!validateDatePast(form.dob)) errors.dob = 'Date of birth must be a valid past date.';
-  if (!validateDateNotFuture(form.admission_date)) errors.admission_date = 'Admission date cannot be in the future.';
-  if (!validateAdmissionNumber(form.admission_number)) errors.admission_number = 'Admission number must be alphanumeric, max 20 chars.';
-  if (!isOptionalText(form.father_name, 100)) errors.father_name = 'Father\'s name must be text, max 100 chars.';
-  if (!isOptionalText(form.mother_name, 100)) errors.mother_name = 'Mother\'s name must be text, max 100 chars.';
-  if (!form.class_name) errors.class_name = 'Select class.';
-  if (!validateRollNo(form.roll_no)) errors.roll_no = 'Roll number must be numeric.';
-  if (!validateAcademicYear(form.academic_year)) errors.academic_year = 'Academic year must be in format YYYY-YYYY and consecutive years.';
-  if (!isOptionalText(form.class_teacher, 100)) errors.class_teacher = 'Class teacher name must be text, max 100 chars.';
-  if (!validateDivision(form.division)) errors.division = 'Division must be a single letter.';
-  if (!validateDisabilityPercentage(form.disability_percentage)) errors.disability_percentage = 'Percentage must be between 0 and 100.';
-  if (!validateAccountNumber(form.account_number)) errors.account_number = 'Account number must be 9-18 digits.';
-  if (!isOptionalText(form.bank_name, 100)) errors.bank_name = 'Bank name must be text, max 100 chars.';
-  if (!isOptionalText(form.branch, 100)) errors.branch = 'Branch must be text, max 100 chars.';
-  if (!validateIFSC(form.ifsc_code)) errors.ifsc_code = 'IFSC must be 11 chars: 4 letters + 0 + 6 digits.';
-  if (!validateIdentificationMarks(form.identification_marks)) errors.identification_marks = 'Identification marks must be text, max 200 chars.';
+
+  // Validate optional fields only when a value is provided.
+  if (form.age) {
+    if (!validateAge(form.age)) errors.age = 'Age must be a valid number.';
+  }
+  if (form.gender) {
+    if (!validateGender(form.gender)) errors.gender = 'Select a valid gender.';
+  }
+  if (form.pin_code) {
+    if (!validatePin(form.pin_code)) errors.pin_code = 'Pin Code must be exactly 6 digits.';
+  }
+  if (form.revenue_district) {
+    if (!validateDistrict(form.revenue_district)) errors.revenue_district = 'Revenue district must be a non-empty string.';
+  }
+  if (form.phone_number) {
+    if (!validatePhone(form.phone_number)) errors.phone_number = 'Phone must be 10 digits and start with 6-9.';
+  }
+  if (form.email) {
+    if (!validateEmail(form.email)) errors.email = 'Invalid email address.';
+  }
+  if (form.aadhar_number) {
+    if (!validateAadhaar(cleanAadhaar(form.aadhar_number))) errors.aadhar_number = 'Aadhaar must be 12 digits and start with 2-9.';
+  }
+  if (form.dob) {
+    if (!validateDatePast(form.dob)) errors.dob = 'Date of birth must be a valid past date.';
+  }
+  if (form.admission_date) {
+    if (!validateDateNotFuture(form.admission_date)) errors.admission_date = 'Admission date cannot be in the future.';
+  }
+  if (form.admission_number) {
+    if (!validateAdmissionNumber(form.admission_number)) errors.admission_number = 'Admission number must be alphanumeric, max 20 chars.';
+  }
+  if (form.father_name) {
+    if (!isOptionalText(form.father_name, 100)) errors.father_name = 'Father\'s name must be text, max 100 chars.';
+  }
+  if (form.mother_name) {
+    if (!isOptionalText(form.mother_name, 100)) errors.mother_name = 'Mother\'s name must be text, max 100 chars.';
+  }
+  if (form.roll_no) {
+    if (!validateRollNo(form.roll_no)) errors.roll_no = 'Roll number must be numeric.';
+  }
+  if (form.academic_year) {
+    if (!validateAcademicYear(form.academic_year)) errors.academic_year = 'Academic year must be in format YYYY-YYYY and consecutive years.';
+  }
+  if (form.class_teacher) {
+    if (!isOptionalText(form.class_teacher, 100)) errors.class_teacher = 'Class teacher name must be text, max 100 chars.';
+  }
+  if (form.division) {
+    if (!validateDivision(form.division)) errors.division = 'Division must be a single letter.';
+  }
+
+  const hasDisabilityPercentage = form.disability_percentage !== undefined && form.disability_percentage !== null && String(form.disability_percentage).trim() !== '';
+  if (hasDisabilityPercentage) {
+    if (!validateDisabilityPercentage(form.disability_percentage)) errors.disability_percentage = 'Percentage must be between 0 and 100.';
+  }
+  if (form.account_number) {
+    if (!validateAccountNumber(form.account_number)) errors.account_number = 'Account number must be 9-18 digits.';
+  }
+  if (form.bank_name) {
+    if (!isOptionalText(form.bank_name, 100)) errors.bank_name = 'Bank name must be text, max 100 chars.';
+  }
+  if (form.branch) {
+    if (!isOptionalText(form.branch, 100)) errors.branch = 'Branch must be text, max 100 chars.';
+  }
+  if (form.ifsc_code) {
+    if (!validateIFSC(form.ifsc_code)) errors.ifsc_code = 'IFSC must be 11 chars: 4 letters + 0 + 6 digits.';
+  }
+  if (form.identification_marks) {
+    if (!validateIdentificationMarks(form.identification_marks)) errors.identification_marks = 'Identification marks must be text, max 200 chars.';
+  }
 
   return { valid: Object.keys(errors).length === 0, errors };
 }
@@ -156,3 +205,4 @@ export default {
   validateBloodGroup,
   validateTime,
 };
+

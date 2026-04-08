@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { formatAadhaar, cleanAadhaar } from '../utils/validation';
+import { cleanAadhaar } from '../utils/validation';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
 
@@ -60,9 +60,16 @@ const AddTherapist = () => {
       setErrors({});
       setIsSubmitting(true);
 
-      // Validate therapist data
-      if (!therapistData.name || !therapistData.address || !therapistData.date_of_birth || !therapistData.gender || !therapistData.blood_group || !therapistData.mobile_number || !therapistData.aadhar_number || !therapistData.religion || !therapistData.caste || !therapistData.rci_number || !therapistData.rci_renewal_date || !therapistData.qualifications_details || !therapistData.category || !therapistData.specialization || !therapistData.email) {
-        alert('Please fill in all required fields.');
+      // Name is the only mandatory field.
+      if (!therapistData.name || !therapistData.name.trim()) {
+        alert('Name is required.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // If Aadhaar has been entered, block submit while inline validation is failing.
+      if (aadharError) {
+        alert(aadharError);
         setIsSubmitting(false);
         return;
       }
@@ -82,22 +89,24 @@ const AddTherapist = () => {
       const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
       const generatedPassword = `Therapist${lastFourAadhaar}`;
       
-      // Create user account
-      try {
-        const token = localStorage.getItem('token');
-        await axios.post(`${API_BASE_URL}/api/v1/users/`, {
-          username: therapistData.email.split('@')[0],
-          email: therapistData.email,
-          password: generatedPassword,
-          role: 'therapist',
-          is_active: true,
-          is_superuser: false
-        }, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-      } catch (userError) {
-        console.warn('User creation warning:', userError);
-        // Continue anyway - therapist was created
+      // Create user account only when a valid email is provided.
+      if (therapistData.email && therapistData.email.includes('@')) {
+        try {
+          const token = localStorage.getItem('token');
+          await axios.post(`${API_BASE_URL}/api/v1/users/`, {
+            username: therapistData.email.split('@')[0],
+            email: therapistData.email,
+            password: generatedPassword,
+            role: 'therapist',
+            is_active: true,
+            is_superuser: false
+          }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+        } catch (userError) {
+          console.warn('User creation warning:', userError);
+          // Continue anyway - therapist was created
+        }
       }
 
       setDefaultPassword(generatedPassword);
@@ -200,7 +209,6 @@ const AddTherapist = () => {
                 onChange={handleInputChange}
                 placeholder="Enter Name"
                 className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                required
               />
               {errors.name && (<p className="text-red-500 text-xs mt-1">{errors.name}</p>)}
             </div>
@@ -216,7 +224,6 @@ const AddTherapist = () => {
                 onChange={handleInputChange}
                 placeholder="Enter Address"
                 className="input-edit"
-                required
               />
               {errors.address && (<p className="text-red-500 text-xs mt-1">{errors.address}</p>)}
             </div>
@@ -227,13 +234,15 @@ const AddTherapist = () => {
                   Date of Birth
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   name="date_of_birth"
                   id="date_of_birth"
                   value={therapistData.date_of_birth}
                   onChange={handleInputChange}
+                  onFocus={(e) => { e.target.type = 'date'; }}
+                  onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                  placeholder="YYYY-MM-DD"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
-                  required
                 />
                 {errors.date_of_birth && (<p className="text-red-500 text-xs mt-1">{errors.date_of_birth}</p>)}
               </div>
@@ -247,7 +256,6 @@ const AddTherapist = () => {
                   value={therapistData.gender}
                   onChange={handleInputChange}
                   className={selectClassName}
-                  required
                 >
                   <option value="">Select Gender</option>
                   <option value="Male">Male</option>
@@ -269,7 +277,6 @@ const AddTherapist = () => {
                   value={therapistData.blood_group}
                   onChange={handleInputChange}
                   className={selectClassName}
-                  required
                 >
                   <option value="">Select Blood Group</option>
                   <option value="A+">A+</option>
@@ -295,7 +302,6 @@ const AddTherapist = () => {
                   onChange={handleInputChange}
                   placeholder="Enter Mobile Number"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                  required
                 />
                 {errors.mobile_number && (<p className="text-red-500 text-xs mt-1">{errors.mobile_number}</p>)}
               </div>
@@ -312,7 +318,6 @@ const AddTherapist = () => {
                 onChange={handleInputChange}
                 placeholder="Enter Email"
                 className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                required
                 pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                 onInvalid={e => e.target.setCustomValidity('Please enter a valid email address (username@domain.extension) with no spaces.')}
                 onInput={e => e.target.setCustomValidity('')}
@@ -335,7 +340,6 @@ const AddTherapist = () => {
                 maxLength={14}
                 placeholder="1234 5678 9012"
                 className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#6366f1] transition-all placeholder:text-[#6F6C90]"
-                required
               />
               {aadharError && <p className="text-red-500 text-xs mt-1">{aadharError}</p>}
               {errors.aadhar_number && !aadharError && (<p className="text-red-500 text-xs mt-1">{errors.aadhar_number}</p>)}
@@ -351,7 +355,6 @@ const AddTherapist = () => {
                   value={therapistData.religion}
                   onChange={handleInputChange}
                   className={selectClassName}
-                  required
                 >
                   <option value="">Select Religion</option>
                   <option value="Hindu">Hindu</option>
@@ -373,7 +376,6 @@ const AddTherapist = () => {
                   onChange={handleInputChange}
                   placeholder="Enter Caste"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                  required
                 />
               </div>
             </div>
@@ -391,7 +393,6 @@ const AddTherapist = () => {
                   onChange={handleInputChange}
                   placeholder="Enter RCI Number"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all placeholder:text-[#6F6C90]"
-                  required
                 />
                 {errors.rci_number && (<p className="text-red-500 text-xs mt-1">{errors.rci_number}</p>)}
               </div>
@@ -400,13 +401,15 @@ const AddTherapist = () => {
                   RCI Renewal Date
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   name="rci_renewal_date"
                   id="rci_renewal_date"
                   value={therapistData.rci_renewal_date}
                   onChange={handleInputChange}
+                  onFocus={(e) => { e.target.type = 'date'; }}
+                  onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                  placeholder="YYYY-MM-DD"
                   className="w-full px-4 py-4 rounded-2xl border bg-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#E38B52] transition-all text-[#6F6C90]"
-                  required
                 />
                 {errors.rci_renewal_date && (<p className="text-red-500 text-xs mt-1">{errors.rci_renewal_date}</p>)}
               </div>
@@ -423,7 +426,6 @@ const AddTherapist = () => {
                 onChange={handleInputChange}
                 placeholder="Enter Qualifications Details"
                 className="input-edit"
-                required
               />
               {errors.qualifications_details && (<p className="text-red-500 text-xs mt-1">{errors.qualifications_details}</p>)}
             </div>
@@ -438,7 +440,6 @@ const AddTherapist = () => {
                 value={therapistData.category}
                 onChange={handleInputChange}
                 className={selectClassName}
-                required
               >
                 <option value="">Select Category</option>
                 <option value="General">General</option>
@@ -465,7 +466,6 @@ const AddTherapist = () => {
                   value={therapistData.specialization}
                   onChange={(e) => setTherapistData({ ...therapistData, specialization: e.target.value })}
                   className={selectClassName}
-                  required
                 >
                   <option value="">Select Specialization</option>
                   <option value="Speech Therapy">Speech Therapy</option>
@@ -564,3 +564,6 @@ const AddTherapist = () => {
 };
 
 export default AddTherapist;
+
+
+
