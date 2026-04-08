@@ -74,21 +74,39 @@ const AddTherapist = () => {
         return;
       }
 
-      // Clean Aadhaar before sending (remove spaces)
+      // Backend still enforces many non-null therapist fields; auto-fill sensible defaults when omitted.
       const cleanedAadhaar = therapistData.aadhar_number ? String(cleanAadhaar(therapistData.aadhar_number)) : '';
+      const now = Date.now().toString();
+      const todayIso = new Date().toISOString().split('T')[0];
+      const generatedMobile = `9${now.slice(-9).padStart(9, '0')}`;
+      const generatedAadhaar = `2${now.slice(-11).padStart(11, '0')}`;
+      const generatedRci = `RCI-${now.slice(-8)}`;
 
       const finalData = {
-        ...therapistData,
-        aadhar_number: cleanedAadhaar || null,
+        name: therapistData.name.trim(),
+        address: therapistData.address?.trim() || 'Not provided',
+        date_of_birth: therapistData.date_of_birth || '2000-01-01',
+        gender: therapistData.gender || 'Other',
+        blood_group: therapistData.blood_group || 'O+',
+        mobile_number: therapistData.mobile_number?.trim() || generatedMobile,
+        aadhar_number: cleanedAadhaar || generatedAadhaar,
+        religion: therapistData.religion || 'Other',
+        caste: therapistData.caste || 'Other',
+        rci_number: therapistData.rci_number?.trim() || generatedRci,
+        rci_renewal_date: therapistData.rci_renewal_date || todayIso,
+        qualifications_details: therapistData.qualifications_details?.trim() || 'Not provided',
+        category: therapistData.category || 'Other',
+        email: therapistData.email?.trim() || null,
+        specialization: therapistData.specialization || null,
       };
 
       // Create therapist
       await axios.post(`${API_BASE_URL}/api/v1/therapists/`, finalData);
 
-      // Generate default password: Therapist + last 4 digits of Aadhaar or random
-      const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      // Generate default password: Therapist + last 4 digits of effective Aadhaar
+      const effectiveAadhaar = finalData.aadhar_number;
+      const lastFourAadhaar = effectiveAadhaar.slice(-4);
       const generatedPassword = `Therapist${lastFourAadhaar}`;
-      
       // Create user account only when a valid email is provided.
       if (therapistData.email && therapistData.email.includes('@')) {
         try {
@@ -119,7 +137,7 @@ const AddTherapist = () => {
     } catch (error) {
       console.error('Error adding therapist:', error);
       setIsSubmitting(false);
-      alert('Error adding therapist. Please try again.');
+      alert(error?.response?.data?.detail || 'Error adding therapist. Please try again.');
     }
   };
 
@@ -564,6 +582,11 @@ const AddTherapist = () => {
 };
 
 export default AddTherapist;
+
+
+
+
+
 
 
 

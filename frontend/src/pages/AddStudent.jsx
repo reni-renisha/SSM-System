@@ -547,16 +547,38 @@ const saveStudent = async () => {
     income: r.income 
   })),
     };
-    
-    if (!payload.dob) delete payload.dob;
-    if (!payload.admission_date) delete payload.admission_date;
-    if (payload.age) payload.age = parseInt(payload.age, 10) || null;
+    // Normalize typed fields and strip empty values so optional backend fields do not fail validation.
+    if (payload.age !== undefined && payload.age !== null && String(payload.age).trim() !== '') {
+      payload.age = parseInt(payload.age, 10) || null;
+    } else {
+      delete payload.age;
+    }
+
+    if (payload.disability_percentage !== undefined && payload.disability_percentage !== null && String(payload.disability_percentage).trim() !== '') {
+      payload.disability_percentage = parseFloat(payload.disability_percentage) || null;
+    } else {
+      delete payload.disability_percentage;
+    }
+
     if (payload.total_family_income) {
-  payload.total_family_income = String(payload.total_family_income);
-} else {
-  payload.total_family_income = null;
-}
-    if (payload.disability_percentage) payload.disability_percentage = parseFloat(payload.disability_percentage) || null;
+      payload.total_family_income = String(payload.total_family_income);
+    } else {
+      delete payload.total_family_income;
+    }
+
+    // Remove empty row placeholders from dynamic tables.
+    payload.drug_history = (payload.drug_history || []).filter((r) => (r.name && String(r.name).trim()) || (r.dose && String(r.dose).trim()));
+    payload.household = (payload.household || []).filter((r) => Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== ''));
+    if (!payload.drug_history.length) delete payload.drug_history;
+    if (!payload.household.length) delete payload.household;
+
+    // Drop empty strings/nulls from payload, but keep booleans.
+    Object.keys(payload).forEach((key) => {
+      const value = payload[key];
+      if (value === '' || value === null || value === undefined) {
+        delete payload[key];
+      }
+    });
     
     const endpoint = savedStudent?.id
       ? `${baseUrl}/api/v1/students/${savedStudent.id}`
@@ -2734,4 +2756,6 @@ const developmentHistoryMap = {
 };
 
 export default AddStudent;
+
+
 

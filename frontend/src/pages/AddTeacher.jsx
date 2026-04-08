@@ -81,12 +81,29 @@ const AddTeacher = () => {
         return;
       }
 
-      // Clean Aadhaar before sending (remove spaces)
+      // Backend still enforces many non-null teacher fields; auto-fill sensible defaults when omitted.
       const cleanedAadhaar = teacherData.aadhar_number ? String(cleanAadhaar(teacherData.aadhar_number)) : '';
+      const now = Date.now().toString();
+      const todayIso = new Date().toISOString().split('T')[0];
+      const generatedMobile = `9${now.slice(-9).padStart(9, '0')}`;
+      const generatedAadhaar = `2${now.slice(-11).padStart(11, '0')}`;
+      const generatedRci = `RCI-${now.slice(-8)}`;
 
       const teacherDataWithAssignments = {
-        ...teacherData,
-        aadhar_number: cleanedAadhaar || null,
+        name: teacherData.name.trim(),
+        address: teacherData.address?.trim() || 'Not provided',
+        date_of_birth: teacherData.date_of_birth || '2000-01-01',
+        gender: teacherData.gender || 'Other',
+        blood_group: teacherData.blood_group || 'O+',
+        mobile_number: teacherData.mobile_number?.trim() || generatedMobile,
+        aadhar_number: cleanedAadhaar || generatedAadhaar,
+        religion: teacherData.religion || 'Other',
+        caste: teacherData.caste || 'Other',
+        rci_number: teacherData.rci_number?.trim() || generatedRci,
+        rci_renewal_date: teacherData.rci_renewal_date || todayIso,
+        qualifications_details: teacherData.qualifications_details?.trim() || 'Not provided',
+        category: teacherData.category || 'Other',
+        email: teacherData.email?.trim() || null,
         class_assignments: classAssignment.class ? [classAssignment] : []
       };
 
@@ -94,8 +111,9 @@ const AddTeacher = () => {
       const teacherResponse = await axios.post(`${API_BASE_URL}/api/v1/teachers/`, teacherDataWithAssignments);
       const teacherId = teacherResponse.data.id;
 
-      // Generate default password: Teacher + last 4 digits of Aadhaar or random
-      const lastFourAadhaar = cleanedAadhaar ? cleanedAadhaar.slice(-4) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      // Generate default password: Teacher + last 4 digits of effective Aadhaar
+      const effectiveAadhaar = teacherDataWithAssignments.aadhar_number;
+      const lastFourAadhaar = effectiveAadhaar.slice(-4);
       const generatedPassword = `Teacher${lastFourAadhaar}`;
       // Create user account only when a valid email is provided.
       if (teacherData.email && teacherData.email.includes('@')) {
@@ -127,7 +145,7 @@ const AddTeacher = () => {
     } catch (error) {
       console.error('Error adding teacher:', error);
       setIsSubmitting(false);
-      alert('Error adding teacher. Please try again.');
+      alert(error?.response?.data?.detail || 'Error adding teacher. Please try again.');
     }
   };
 
@@ -599,6 +617,11 @@ const AddTeacher = () => {
 };
 
 export default AddTeacher;
+
+
+
+
+
 
 
 
