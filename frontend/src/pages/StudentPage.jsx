@@ -4706,40 +4706,6 @@ const StudentPage = () => {
                                     Download
                                   </button>
                                   <button
-                                    onClick={() => handleTranslate()}
-                                    disabled={translating}
-                                    className="px-3 py-2 border-2 border-[#E38B52] text-[#E38B52] text-xs sm:text-sm rounded-xl bg-white hover:bg-orange-50 active:scale-95 active:bg-orange-100 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Translate to Malayalam"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                      <circle
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="#E38B52"
-                                        strokeWidth="2"
-                                        fill="#fff"
-                                      />
-                                      <path
-                                        d="M2 12h20"
-                                        stroke="#E38B52"
-                                        strokeWidth="2"
-                                      />
-                                      <path
-                                        d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"
-                                        stroke="#E38B52"
-                                        strokeWidth="2"
-                                        fill="none"
-                                      />
-                                    </svg>
-                                    {translating ? "Translating..." : "Malayalam"}
-                                  </button>
-                                  <button
                                     onClick={handleSendToParent}
                                     disabled={sendingToParent || sentToParent}
                                     className={`px-3 py-2 border-2 text-xs sm:text-sm rounded-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md font-semibold disabled:opacity-60 disabled:cursor-not-allowed ${
